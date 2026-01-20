@@ -3851,15 +3851,6 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Training module not found" });
       }
       
-      // RAW DRIZZLE OUTPUT - LOG IMMEDIATELY AFTER FETCH
-      console.log('=== RAW MODULE FROM DRIZZLE ===');
-      console.log('module.id:', module.id);
-      console.log('module.lessons:', module.lessons);
-      console.log('typeof module.lessons:', typeof module.lessons);
-      console.log('Array.isArray(module.lessons):', Array.isArray(module.lessons));
-      console.log('JSON.stringify(module.lessons):', JSON.stringify(module.lessons)?.substring(0, 500));
-      console.log('=== END RAW MODULE ===');
-      
       const rawAssessments = await storage.getTrainingAssessments(req.params.id);
       
       // Transform assessments to frontend format with numeric correctAnswer
@@ -3917,24 +3908,13 @@ export async function registerRoutes(
         }
       }
       
-      // DIAGNOSTIC LOGGING - TEMPORARY
-      console.log('=== TRAINING MODULE API RESPONSE ===');
-      console.log('module.id:', module.id);
-      console.log('typeof module.lessons:', typeof module.lessons);
-      console.log('Array.isArray(module.lessons):', Array.isArray(module.lessons));
-      if (typeof module.lessons === 'string') {
-        console.log('module.lessons (first 300 chars):', module.lessons.substring(0, 300));
-      } else {
-        console.log('module.lessons:', JSON.stringify(module.lessons).substring(0, 500));
-      }
-      console.log('normalizedLessons.length:', normalizedLessons.length);
-      console.log('=== END DIAGNOSTIC ===');
-      
-      // TEMPORARY: Return simplified response for diagnosis
+      // Return FULL module data with all fields needed by the client
       res.json({ 
-        id: module.id,
-        title: module.title,
-        lessons: normalizedLessons
+        ...module,
+        lessons: normalizedLessons,
+        lessonSummary,
+        studyQuestions,
+        assessments,
       });
     } catch (error) {
       console.error("Error fetching training module:", error);

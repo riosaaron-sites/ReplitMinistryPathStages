@@ -1,0 +1,163 @@
+Fix my existing Replit app “MinistryPath” without rebuilding it. I have no coding experience. You must implement fixes thoroughly and safely, and remove inconsistent/temporary code paths. Work inside the existing codebase structure (client/, server/, shared/). Do not introduce insecure backdoors or hardcoded credentials.
+
+IMPORTANT EXECUTION RULES (DO NOT IGNORE)
+- If this scope is too large for one pass, implement automatically in phases:
+  Phase 1: Training pipeline + completion enforcement
+  Phase 2: RBAC/Admin (remove email-toggle, add admin panel, impersonation)
+  Phase 3: Cleanup (dead links, inconsistencies, UX errors)
+- After EACH phase, you must:
+  1) list exactly which files changed
+  2) describe what changed in each file (1–3 sentences)
+  3) provide a step-by-step test checklist for that phase
+- Do NOT claim something is fixed unless you point to the exact code locations changed.
+- Do not “refactor the whole app.” Only change what is necessary to meet the goals below.
+
+GOALS (HIGH PRIORITY)
+
+1) TRAINING BUG (Critical)
+- Fix the issue where trainings appear instantly “completed” and are not producing real trainings/content.
+- Confirm server returns the FULL training module payload to the client (not a simplified/temporary diagnostic response).
+- Ensure the client only marks training complete after the user truly completes required steps (lessons, knowledge checks, assessments, approvals if required).
+- Add server-side enforcement so completion cannot be faked purely by client state.
+
+ABSOLUTE RULE FOR COMPLETION:
+- Search the client for any logic that auto-marks a module completed just because questions/assessments are missing or empty. Remove it.
+- Completion must be triggered by an explicit user action AND confirmed by server verification.
+
+2) REMOVE “ADMIN EMAIL TOGGLE” + IMPLEMENT SAFE ADMIN ACCESS
+- Remove ANY logic where an “admin email” or email domain triggers a special toggle or admin mode.
+- Implement proper role-based access control (RBAC): at minimum user/admin (or user/leader/pastor/admin if already present).
+- Admin privileges must be granted ONLY by:
+  a) a DB flag on the user record (e.g., users.isAdmin boolean OR users.role enum), AND
+  b) a secure bootstrap flow using environment variables (NO magic login).
+
+SAFE ADMIN BOOTSTRAP REQUIREMENTS
+- Implement POST /api/admin/bootstrap
+- Requires header Authorization: Bearer <SERVER_BOOTSTRAP_TOKEN>
+- Requires ADMIN_BOOTSTRAP_EMAIL env var
+- Bootstrap should succeed ONLY if there is currently NO admin in the database (e.g., query if any user has isAdmin=true; if yes, refuse).
+- If bootstrap succeeds, set isAdmin=true for the user whose email matches ADMIN_BOOTSTRAP_EMAIL.
+- Log bootstrap success/failure clearly (server console + optional DB audit).
+
+NO INSECURE BEHAVIOR:
+- No hardcoded ADMIN/ADMIN account.
+- No “special exemption” in login fields.
+- No bypass via username that isn’t an email.
+- No granting admin based on email domain or a front-end toggle.
+
+3) ADMIN “FULL ACCESS NAVIGATION” WITHOUT BYPASSING AUTH
+- Provide an Admin Panel in the UI only visible to admin users.
+- Admin features:
+  A) “Impersonate User” implemented safely:
+     - server issues a short-lived impersonation session or token
+     - UI clearly shows “Impersonating: {user}” banner + exit button
+     - all actions are audited: adminId + impersonatedUserId + timestamp + action
+  B) “Skip Onboarding for This User” (sets a per-user DB flag like onboardingComplete=true)
+  C) “Allow viewing all trainings for this user” (a per-user DB flag if needed, like allowViewAllTrainings=true)
+- IMPORTANT: These flags are for navigation/viewing and onboarding convenience.
+  - They do NOT auto-complete trainings.
+  - Training completion rules are never bypassed; admin can optionally have a separate explicit “Mark Complete” action if implemented, but ONLY if it is clearly labeled and server-logged.
+
+AUDIT LOG STORAGE (choose one and implement it fully)
+- Preferred: Create a DB table admin_audit_log (id, adminUserId, targetUserId nullable, action, metadata json, createdAt).
+- If DB table is too heavy, fallback: JSONL file on server with append-only logging.
+- Do not create a logger that isn’t used.
+
+4) CLEANUP / CONSISTENCY / DEADLINKS / “GARBAGE”
+- Remove dead links, placeholder routes, unused components, commented-out chunks that conflict with current behavior.
+- Search for “TEMPORARY”, “diagnostic”, “TODO”, “hack”, “bypass”, “admin toggle” and either remove or properly implement.
+- Ensure client routes match server endpoints.
+- Validate shared schema/types align with actual API payloads.
+- Define “dead link” as: any nav link that routes to a missing page (404) or any API endpoint referenced by the client that does not exist.
+- Be careful not to delete dynamically used routes/components.
+
+5) AI TEST GENERATION / TRAINING CONTENT QUALITY
+- If the app has AI-generated tests/questions:
+  - Ensure generator produces real persisted questions tied to module ids
+  - UI displays the generated questions
+  - scoring works and saves results
+  - failures are handled with clear user messages
+- Do NOT remove the feature if keys are missing.
+- If OpenAI/AI keys are not configured, degrade gracefully:
+  - show “AI generation unavailable” message
+  - keep manual creation/editing available
+  - do not break training pages.
+
+IMPLEMENTATION REQUIREMENTS
+
+A) First, Audit and Report (create a file + output summary)
+- Create AUDIT_REPORT.md that includes:
+  - Why trainings are auto-completing (exact files/lines/logic)
+  - Any endpoints returning partial training module data
+  - Any email-based admin toggle logic (exact files)
+  - Any mismatches between shared schema and API payload
+  - A list of dead links/routes found
+  - A list of “temporary/diagnostic” code paths found
+
+B) Fix Training Pipeline End-to-End
+
+Server:
+- Ensure GET /api/training/modules/:id returns FULL module including:
+  content sections, lessons, studyQuestions, knowledgeCheckQuestions, intensiveAssessmentQuestions, requiresApproval, assessments, etc.
+- Ensure JSON fields stored in DB are returned as arrays/objects consistently (parse if needed).
+- Implement strict completion endpoint:
+  - POST /api/training/modules/:id/complete
+  - server verifies prerequisites:
+    * required lesson progress
+    * required knowledge check passed
+    * required assessment submitted/approved if required
+  - only then marks complete in DB
+- Ensure server rejects completion attempts that don’t meet prerequisites (409 or 400 with clear message).
+
+Client:
+- Render content/lessons/questions from server payload.
+- Remove any auto-complete fallback behavior based on missing questions.
+- Require explicit user action to complete (button), then call server completion endpoint.
+- Show clear UI states:
+  - In progress
+  - Awaiting assessment approval (if required)
+  - Completed
+
+C) Implement RBAC + Admin Panel Safely
+- Add users.isAdmin boolean OR users.role enum in shared schema and migration (minimal schema change only).
+- Add middleware isAdmin checking the DB record.
+- Admin-only endpoints:
+  - GET /api/admin/users (list users minimal fields)
+  - POST /api/admin/grant-admin (admin grants admin)
+  - POST /api/admin/impersonate (returns short-lived impersonation token/session)
+  - POST /api/admin/end-impersonation
+  - POST /api/admin/skip-onboarding (sets onboardingComplete)
+  - POST /api/admin/set-training-visibility (if you implement allowViewAllTrainings)
+- Ensure normal pages still respect auth. No global bypass.
+
+D) Migrations / Schema Constraints (avoid unnecessary refactors)
+- Only add migrations needed for:
+  - isAdmin/role
+  - onboardingComplete (if not present)
+  - allowViewAllTrainings (optional)
+  - admin audit log (preferred)
+- Do not restructure other tables.
+
+E) Verification Checklist (must be included)
+- Create TEST_PLAN.md with steps to verify:
+  1) Non-admin cannot see admin panel or access admin endpoints (403).
+  2) Bootstrap works only when NO admin exists, and only for ADMIN_BOOTSTRAP_EMAIL with correct token.
+  3) Email/domain does NOT grant admin mode anymore.
+  4) Impersonation works, banner appears, exit works, audit logs saved.
+  5) Training module payload includes content + questions + assessments when present.
+  6) Trainings cannot be completed unless prerequisites satisfied (server-enforced).
+  7) If AI generation is unavailable, UI remains functional and manual creation works.
+  8) No dead links remain in navigation.
+
+OUTPUTS
+- Provide a short summary per phase.
+- List files changed per phase.
+- Provide test checklist per phase.
+- Ensure app runs without errors in Replit preview.
+
+DO NOT
+- Do not add a hardcoded ADMIN/ADMIN account.
+- Do not add a login field exemption or bypass.
+- Do not grant admin based on email domain or specific email matching in UI.
+- Do not mark trainings complete client-side without server verification.
+- Do not rebuild the whole app; fix the current one.

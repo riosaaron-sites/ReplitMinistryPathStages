@@ -213,34 +213,22 @@ export default function TrainingViewer() {
   const isSubmitted = currentProgress?.status === 'submitted';
   const isRejected = currentProgress?.status === 'rejected';
   
-  // Explicitly parse lessons from the module data to handle potential type issues
+  // Parse lessons from the module data, handling potential type variations
   const parsedLessons: DeepLesson[] = (() => {
-    // DIAGNOSTIC: Log module lessons data for debugging
-    if (module) {
-      console.log('[TrainingViewer] Module ID:', module.id);
-      console.log('[TrainingViewer] typeof module.lessons:', typeof module.lessons);
-      console.log('[TrainingViewer] Array.isArray(module.lessons):', Array.isArray(module.lessons));
-      console.log('[TrainingViewer] module.lessons value:', module.lessons);
-    }
-    
     if (!module?.lessons) return [];
-    // Handle case where lessons might be a string (unlikely but defensive)
+    // Handle case where lessons might be a string (defensive)
     if (typeof module.lessons === 'string') {
       try {
         const parsed = JSON.parse(module.lessons);
-        console.log('[TrainingViewer] Parsed string lessons, length:', Array.isArray(parsed) ? parsed.length : 'not array');
         return Array.isArray(parsed) ? parsed : [];
       } catch {
-        console.log('[TrainingViewer] Failed to parse lessons string');
         return [];
       }
     }
     // Handle case where it's already an array
     if (Array.isArray(module.lessons)) {
-      console.log('[TrainingViewer] Lessons is array, length:', module.lessons.length);
       return module.lessons;
     }
-    console.log('[TrainingViewer] Lessons is neither string nor array');
     return [];
   })();
   
