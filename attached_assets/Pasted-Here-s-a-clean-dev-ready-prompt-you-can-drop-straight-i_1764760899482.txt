@@ -1,0 +1,62 @@
+Here’s a clean, dev-ready prompt you can drop straight into your app/orations instructions:
+
+---
+
+**Email Automation on Assessment Completion**
+
+Upon **full completion** of the spiritual gifts assessment:
+
+1. **Trigger Automatic Emails**
+   Automatically send the assessment results to:
+
+   * The person who took the assessment (use the email they provided)
+   * `info@gardencitychurch.net`
+   * `pastor@gardencitychurch.net`
+
+   **Do not** send the results to any other email addresses.
+
+2. **Email Content Requirements**
+
+   * Subject line example:
+     **“[Participant Name] – Spiritual Gifts Assessment Results”**
+   * Email greeting:
+     “Dear Garden City Church,
+     [Participant Name] has completed the Spiritual Gifts Assessment.”
+   * Clearly display in the body of the email:
+
+     * Participant’s full name
+     * Date and time of completion
+     * Full assessment results in a clear, robust, and readable format (all scores, categories, and any descriptions).
+
+3. **PDF Attachment**
+
+   * Generate a **PDF report** containing a full rendering of the assessment:
+
+     * Participant name
+     * Date completed
+     * All answers, scores, summaries, and descriptions
+   * Attach this PDF to every email sent (to the participant, `info@gardencitychurch.net`, and `pastor@gardencitychurch.net`).
+
+4. **Privacy Rule**
+
+   * Ensure that **only** the following receive the results:
+
+     * The person who took the assessment
+     * `info@gardencitychurch.net`
+     * `pastor@gardencitychurch.net`
+   * No additional CC/BCC recipients.
+
+5. **Retroactive Sending**
+
+   * For **all users who have already completed the assessment prior to this code update**, automatically:
+
+     * Generate their full results and PDF report.
+     * Send the same style email and PDF to:
+
+       * The email on file for that participant
+       * `info@gardencitychurch.net`
+       * `pastor@gardencitychurch.net`.
+
+---
+
+If you want, I can next write sample email copy and a sample JSON payload/structure for the results.

@@ -1,0 +1,585 @@
+You are an AI app builder running on Replit.
+
+Build a SIMPLE, LOGICAL, and POWERFUL full-stack web app called:
+
+    MinistryPath – Garden City Church Engagement & Operations Hub
+
+This is a **single-church** app for Garden City Church (Assemblies of God, Beverly, MA).
+
+PRIORITIES (CRITICAL):
+- VERY LOW learning curve.
+- Minimal clicks and simple layouts.
+- Clean, mobile-friendly UI.
+- Clear, guided flows (wizards, step-by-step).
+- Logic-driven, but not overwhelming.
+- It should feel like a **problem-solving tool**, not “one more system.”
+
+Use common tech that works well in Replit:
+- Frontend: React (or similar) with a simple component/style system (Tailwind or basic CSS is fine).
+- Backend: Node/Express (or similar) with a simple DB like SQLite or Postgres.
+- Structure the project cleanly so it’s easy to extend later.
+
+========================================================
+1. HIGH-LEVEL CONCEPT
+========================================================
+
+MinistryPath has **two main portals** plus shared modules:
+
+1. Member & Volunteer Portal (Side A)
+2. Leadership & Operations Portal (Side B)
+
+Shared core modules:
+- Faith & Community Commitment Onboarding (doctrinal gate)
+- About Us / Doctrine & Policy manual viewer and acknowledgment
+- Dynamic Survey & Role Logic (including an “existing survey” as a module)
+- Training & Compliance Engine (manuals, videos, quizzes, reminders)
+- Requests & Support Hub (including “Ask for Help” & handoffs)
+- Rooms & Resources + Master Calendar
+- Metrics & Attendance Module
+- Intern Portal with printable report
+- Meetings & Collaboration (availability, dashboard, basic chat/video hooks)
+- Team Voice / Feedback (space for team opinions & thoughts)
+
+App is for ONE organization (Garden City Church) only. No multi-tenant logic required.
+
+========================================================
+2. FOUNDATIONAL DOCUMENTS TO INTEGRATE
+========================================================
+
+The app must integrate and surface:
+
+1. Garden City Church Bylaws (summary use – mostly for ACP logic and leadership structure).
+2. About Us – Doctrine & Policy Manual, Version 1.1.
+3. Assemblies of God’s 16 Fundamental Truths (already summarized inside the manual).
+
+About Us v1.1 includes:
+- WHO WE ARE
+- DISTINCTIVES
+- VISION & MISSION (“Live the Life. Tell the Story.”)
+- Discipleship Process (Worship → NEXT → LEARN → LOVE → LEAD)
+- Majors & Minors (doctrinal priorities)
+- Baptism Doctrine
+- Communion Doctrine
+- Sexuality & Intoxication Doctrine (Welcoming–Non Affirming)
+- Church Structure (SNEMN, Lead Pastor, Board, Associates, Role of Women)
+- 16 Fundamental Truths
+
+The app must:
+
+- Provide a simple “About Us / Doctrine” section where key content is displayed in friendly, readable UI.
+- Track that specific user roles have **acknowledged** these documents:
+  - Leadership Team
+  - Board of Elders
+  - Interns
+  - Ministry leaders and higher-level volunteers.
+
+Store an “About Us version” (e.g., v1.1) so that if it’s updated in the future, we can re-prompt leaders to acknowledge new versions.
+
+========================================================
+3. USER ROLES & ACCESS (SIMPLE BUT EXPLICIT)
+========================================================
+
+Implement basic authentication + roles:
+
+- System Administrator
+- Lead Pastor
+- Board of Elders (BOE)
+- Leadership Team (LT)
+- Ministry Leaders
+- Interns
+- Active Church Participants (ACPs)
+- General Attendees / Volunteers
+
+All users share the same login page. Once logged in, they see features based on role.
+
+KEY: Keep role distinction simple but enforce:
+
+- Only certain roles see the Leadership & Operations Portal.
+- Only certain roles can manage ministries, trainings, metrics, requests, etc.
+
+========================================================
+4. FAITH & COMMUNITY COMMITMENT ONBOARDING (GATE)
+========================================================
+
+This is the **first step** for anyone entering leadership/serving paths. It is based on:
+
+- About Us Doctrine & Policy manual
+- Assemblies of God 16 Fundamental Truths
+- Bylaws Articles IV, VI, IX
+
+Create a step-by-step **Onboarding Wizard**:
+
+Section examples:
+1. Scripture & Authority
+2. Nature of God (Trinity)
+3. Jesus – Deity, Cross, Resurrection, Return
+4. Salvation by Grace through Faith
+5. Baptism in the Holy Spirit – Doctrinal Openness (SPECIAL – see below)
+6. Sanctity of Life
+7. Sexuality & Marriage (Welcoming–Non Affirming, per manual)
+8. Sobriety / Intoxication (per manual)
+9. Majors & Minors – unity around majors, grace on minors
+10. Social Media & Public Representation (Expanded)
+11. Alignment with About Us manual, Bylaws, and Assemblies of God doctrine.
+
+Display each item with short summary text drawn from the manual and AG doctrine.  
+Each step ends with a required “Yes” checkbox like:  
+
+> “Yes, I agree with this doctrinal position and will not publicly undermine or oppose it.”
+
+If they choose “No”, show a gracious message and DO NOT allow progression into leadership/serving features. Direct them to talk with a pastor.
+
+--------------------------------------------------------
+4.1 SPECIAL: BAPTISM IN THE HOLY SPIRIT – ITEM #5
+--------------------------------------------------------
+
+Replace the generic line about Spirit baptism with this:
+
+Doctrinal alignment (must be “Yes” to proceed):
+
+“I do NOT oppose or actively reject Garden City Church’s doctrinal position on the baptism in the Holy Spirit and its evidences, including but not limited to:
+
+- Speaking in other tongues as the Spirit gives utterance (Acts 2:4; Acts 10:44–46; Acts 19:6).
+- Prophecy that edifies, exhorts and comforts the church (1 Corinthians 14:1,3; Acts 2:17–18).
+- Power (dunamis) from the Holy Spirit to be Christ’s witnesses and to walk in bold, transformed lives (Acts 1:8; Romans 15:18–19).”
+
+Required response:
+
+- “Yes, I do not oppose or actively reject this doctrinal position.”
+
+If they cannot affirm this, they cannot proceed into leadership/serving paths.
+
+Immediately below, add NON-GATING experience questions:
+
+“Where are you personally on this journey?”
+
+1. I have been baptized in the Holy Spirit with biblical evidence (such as speaking in tongues).  
+   - Yes / No
+
+2. I am actively seeking the baptism in the Holy Spirit.  
+   - Yes / No
+
+3. I am still praying to understand this and grow in grace regarding the baptism in the Holy Spirit.  
+   - Yes / No
+
+Show note:
+
+> “Your answers here will NOT prevent you from continuing in this portal. They help us know how to support and disciple you.”
+
+Only the **doctrinal agreement** line is gating. The experience questions are informational only.
+
+--------------------------------------------------------
+4.2 SOCIAL MEDIA & PUBLIC REPRESENTATION POLICY
+--------------------------------------------------------
+
+Create a dedicated step:
+
+Title: Social Media & Public Representation  
+Subtitle: Including “About Us” alignment.
+
+Key commitments (summarize in simple bullets with a single “Yes, I agree” gate):
+
+- I will not publicly teach, post, or promote views that clearly contradict Garden City Church’s stated doctrine and major positions as expressed in:
+  - The About Us – Doctrine & Policy manual,
+  - The 16 Fundamental Truths,
+  - The Bylaws.
+
+- If my beliefs change significantly on a **major** doctrinal issue (Trinity, salvation, sexuality, etc.), I will speak with a pastor privately rather than using social media to criticize or undermine the church.
+
+- I will not attack, mock, or publicly tear down other churches, pastors, or ministries. If I have concerns, I will respond with prayer, humility, and, where appropriate, private biblical conversation.
+
+- I will not use my platforms to celebrate or normalize lifestyles or sexual relationships that the church has clearly identified as contrary to Scripture (while still loving and welcoming individuals as people made in the image of God).
+
+- I understand I’m free to engage in politics as a private citizen, but I will not present my personal political views as the official position of Garden City Church.
+
+- I will stay reasonably familiar with the church’s About Us manual and major doctrinal statements so I do not misrepresent who we are.
+
+Require:  
+“Yes, I agree to represent Garden City Church and its doctrine/mission faithfully in my public and online life.”
+
+========================================================
+5. MEMBER & VOLUNTEER PORTAL (SIDE A)
+========================================================
+
+Goals:
+- Zero confusion.
+- Very simple navigation.
+- Treat this as a “coach” guiding them into the life of the church.
+
+Features:
+
+1. Dashboard:
+   - “Where you are” (Attender / Volunteer / ACP Candidate / ACP).
+   - “What’s next?” – simple recommended step(s):
+     - Attend NEXT Night
+     - Complete Essentials or Truth-Trek
+     - Finish a training
+     - Respond to a serving invitation
+   - Show clear benefits: “Here’s what this app helps you do.”
+
+2. Onboarding wizard:
+   - Faith & Community Commitment (as above).
+   - Quick introduction to the Discipleship Process:
+     - Worship → NEXT → LEARN → LOVE → LEAD.
+   - Connect them to:
+     - Following Jesus / Essentials
+     - Truth-Trek
+     - Discipleship Hour / CORE Groups.
+
+3. ACP-related questions (from Bylaws Article VI):
+   - Over 18?
+   - Attending GGC 6+ months?
+   - Giving regularly (tithes/offerings/missions)?
+   - Actively serving in ministry in the last 6 months?
+   - Agree with vision, mission, statement of faith?
+   - Water baptized?
+   - Baptized in the Holy Spirit or actively pursuing?
+
+Mark ACP status in a field (e.g., “ACP Eligible: Yes/No/Not Yet”) based on logic.
+
+4. Ministry Survey Module (EXISTING SURVEY)
+   - IMPORTANT: Take the already-built church-wide ministry survey (currently external) and shift it **in its entirety** into this app as a dedicated **Survey Module**.
+   - Treat the survey as data-driven:
+     - Store questions, options, scoring/logic in a configurable structure.
+   - For now, assume:
+     - We will manually input the existing survey questions into a config file or database table.
+   - Requirements:
+     - Preserve the exact flow and all questions of the existing survey.
+     - Present it in a clean, mobile-friendly wizard format.
+     - Store answers in the database linked to the user.
+   - This module should be able to:
+     - Suggest ministries/roles based on results.
+     - Provide a way to re-use the same survey structure for future updates.
+
+5. Role Suggestion:
+   - After survey completion:
+     - Show a simple “Top role suggestions” list (e.g., Kingdom Children, Landing Team, Media, Worship).
+     - Very simple explanation: why these roles match their answers.
+   - Include a “Not interested” toggle for each role to hide future suggestions.
+
+6. Trainings for the user:
+   - List assigned trainings:
+     - Global (About Us, safety, etc.).
+     - Ministry-specific.
+   - Status: Not Started / In Progress / Completed.
+   - Simple progress bar.
+
+7. Simple Requests & Ask For Help:
+   - A button: “Request Help / Media / Resources”.
+   - Opens a simple form:
+     - Type: Media, Announcement, Resource/Supply, Facilities, Admin Help, Task/Project Handoff, General Support.
+     - Description.
+     - Desired due date.
+   - On submit, route to correct leader/queue in Leadership Portal.
+
+8. Basic Meetings:
+   - Show meetings the user is invited to.
+   - Simple display: date, time, link to join or see agenda.
+   - Don’t overbuild here – keep it readable and minimal.
+
+========================================================
+6. LEADERSHIP & OPERATIONS PORTAL (SIDE B)
+========================================================
+
+Audience:
+- Lead Pastor
+- BOE
+- LT
+- Ministry leaders
+- Admin-level staff.
+
+Home dashboard:
+- Key metrics (high-level attendance trend).
+- Pending requests (media, resources, handoffs).
+- Outstanding trainings for their team.
+- Quick links to: People, Ministries, Rooms, Metrics, Meetings, Interns.
+
+Modules:
+
+--------------------------------------------------------
+6.1 People & Roles
+--------------------------------------------------------
+
+- List of all users with filters:
+  - Role (ACP, Volunteer, Leader, Intern, etc.).
+  - Ministry involvement.
+  - ACP status.
+  - Onboarding completion status.
+- See key flags:
+  - Whether they agreed to Faith & Community Commitment.
+  - Whether they acknowledged About Us v1.1.
+  - Trainings completed vs outstanding.
+
+Keep it simple - no overcomplicated profile UI. Show just enough to be useful.
+
+--------------------------------------------------------
+6.2 Ministries & Survey/Role Logic
+--------------------------------------------------------
+
+- Simple configuration screen:
+  - Add/Edit ministries (e.g., Kingdom Children, Worship Team, Media, Security, Landing Team, Café, Discipleship, CORE Groups, etc.).
+  - Attach role names within each ministry.
+- Link roles to:
+  - Survey logic tags (so the app can recommend roles).
+  - Required trainings.
+
+IMPORTANT: Provide a simple way to:
+- Add NEW ministries or roles in the future.
+- Adjust which survey answers feed into which roles without rewriting the app.
+
+--------------------------------------------------------
+6.3 Training & Compliance Engine
+--------------------------------------------------------
+
+Admin/Leaders can:
+- Create trainings:
+  - Title, description, tags.
+  - Attach:
+    - PDF/manual.
+    - Text content.
+    - Video URL or uploaded video file.
+- Assign trainings to:
+  - All users,
+  - Specific roles,
+  - Specific ministries,
+  - Specific individuals (e.g., interns).
+- Set recurrence:
+  - One-time.
+  - Periodic (e.g., annual child-safety refresher).
+- See:
+  - Who has completed.
+  - Who is overdue.
+- The system:
+  - Sends gentle reminders if training is outstanding.
+
+Include a dedicated training called “About Us – Doctrine & Policy v1.1” that must be acknowledged by:
+- LT, BOE, interns, and ministry leaders.
+
+--------------------------------------------------------
+6.4 Requests & “Ask for Help” / Handoffs
+--------------------------------------------------------
+
+Implement a **Requests Hub** where all requests from members/leaders land.
+
+Request Types:
+- Media/Graphics/Video
+- Announcements (Sunday, email newsletter, social, ChurchCenter)
+- Supplies/Resources
+- Facilities/Room Setup/Maintenance
+- Admin Help (Planning Center, scheduling, etc.)
+- Task/Project Handoff
+- General Support
+
+Each request:
+- Has status: New / In Review / Accepted / In Progress / Completed / Declined / Reassigned.
+- Can be assigned or reassigned to specific leaders or teams.
+- Maintains a simple history log.
+
+Handoff / Ask for Help:
+- A leader can:
+  - Create a “Project” or “Task” and mark it:
+    - “Handoff” (I’m passing this on)
+    - OR “Ask for Help” (I need assistance).
+- Attach notes, files, and a due date.
+
+Keep this UI VERY straightforward: sortable list, simple filters, and a basic detail pane.
+
+--------------------------------------------------------
+6.5 Rooms, Resources & Calendar
+--------------------------------------------------------
+
+MVP-level functionality:
+
+- Rooms:
+  - Create rooms with:
+    - Name,
+    - Location,
+    - Capacity.
+- Resources/Inventory:
+  - Associate basic count/notes (chairs, tables, equipment).
+  - A flag for “needs repair” or “needs more.”
+- Room Reservations:
+  - Simple “Request a room” form:
+    - Date, time, event title, expected attendance.
+  - Approval workflow:
+    - Only admin/ops roles can approve/decline.
+- Once approved:
+  - Add to a central “Church Calendar.”
+  - Provide ability to export/sync to Outlook master calendar (for now, just structure as an endpoint and a data model).
+
+We do NOT need to build a complex drag-and-drop floor plan for MVP. Just keep it simple and logically structured so it could be added later.
+
+--------------------------------------------------------
+6.6 Metrics & Attendance Module
+--------------------------------------------------------
+
+Basic idea:
+- List of “Tracked Events/Ministries”:
+  - Sunday Service,
+  - Youth,
+  - Children,
+  - Men,
+  - Women,
+  - Prayer,
+  - Special events (e.g., VBS, Conferences).
+- For each tracked event:
+  - Configure:
+    - Frequency (weekly, monthly, seasonal).
+    - What metrics to track (attendance, visitors, salvations, baptisms, etc.).
+
+Weekly flow:
+- System sends emails or notifications to designated leaders:
+  - They click a simple link to enter that week’s numbers.
+- They can mark:
+  - “Did not meet this week” or “Snooze”.
+
+Dashboard:
+- Very simple charts (line or bar) for attendance trends.
+- Filters by:
+  - Date range,
+  - Ministry/event.
+- Export:
+  - CSV and/or simple PDF summary.
+
+Keep charts simple and readable. No complex analytics.
+
+--------------------------------------------------------
+6.7 Intern Portal
+--------------------------------------------------------
+
+For each intern:
+
+- Define:
+  - Leader/mentor.
+  - Start and end dates.
+  - Areas of focus (ministry tags).
+  - Responsibilities and goals.
+
+Track:
+- Trainings completed.
+- Events served.
+- Hours (optional).
+- Notes from mentor.
+
+At end of internship:
+- Generate a **printable summary** (PDF or HTML export) that:
+  - Shows their timeline,
+  - Key responsibilities,
+  - Trainings completed,
+  - Positive comments.
+
+Simple, nice, and presentable.
+
+--------------------------------------------------------
+6.8 Meetings & Collaboration
+--------------------------------------------------------
+
+Goal: Lightweight, not bloated. Think “internal meeting notebook”.
+
+Features:
+
+1. Meeting Availability:
+   - Each leader can define their available time blocks.
+   - Other roles can request meetings within those blocks.
+   - Approved meetings:
+     - Show up in a simple meeting list for both sides.
+
+2. Meeting Dashboard per meeting:
+   - Title, date, time, participants.
+   - Agenda field (editable).
+   - Notes field.
+   - Action items with:
+     - Description,
+     - Assignee,
+     - Due date.
+   - Button: “Export Minutes” → produce a clean text/HTML summary.
+
+3. Chat & Video:
+   - Include a simple chat panel per meeting (stored in DB).
+   - For video:
+     - For MVP: allow storing/linking a Zoom/Teams/Meet URL.
+     - Design the UI so a video solution (WebRTC) could be integrated later.
+
+4. Team Voice / Feedback:
+   - A “Team Voice” section at ministry level:
+     - Users can submit ideas, concerns, or feedback.
+     - Configurable whether feedback is anonymous or named.
+   - Simple list for leaders to review and mark:
+     - “Handled”, “Planned”, or “Needs follow-up”.
+
+========================================================
+7. DESIGN & UX GUIDELINES
+========================================================
+
+- Keep navigation minimal. For example:
+  - For members: Dashboard, My Next Steps, My Trainings, My Roles, Requests, Meetings.
+  - For leaders: Dashboard, People, Ministries, Trainings, Requests, Rooms & Calendar, Metrics, Interns, Meetings.
+
+- Use clear language:
+  - Avoid technical jargon.
+  - Use plain church-friendly terms: “Next Steps”, “Serving”, “Help Requests”.
+
+- Every main screen should answer:
+  - “What can I do here?”
+  - “Why does this matter?”
+
+- Always show next obvious action (buttons like “Start this training”, “Complete this survey”, “Request help”).
+
+========================================================
+8. EXISTING SURVEY INTEGRATION (IMPORTANT)
+========================================================
+
+Treat the Garden City Church-wide Ministry Survey (already built externally) as a **first-class module** inside this app.
+
+Instructions:
+
+1. Create a flexible Survey Engine:
+   - Tables/models for:
+     - Surveys,
+     - Questions,
+     - Options,
+     - Responses,
+     - Optional scoring/logic tags.
+
+2. Add a primary survey instance called:
+   - “Garden City Church Ministry Survey”.
+
+3. This survey will contain:
+   - All the same questions and flow as the existing external survey.
+   - For now, assume the questions will be entered manually into the DB or a config JSON file.
+
+4. The app’s UI:
+   - Presents the survey in an elegant wizard flow.
+   - Saves progress and allows resume.
+   - On completion:
+     - Links to role recommendation logic.
+
+The ultimate goal:
+- To fully **shift** the external survey into this app with no functionality lost, only a better user experience and direct integration.
+
+========================================================
+9. SUMMARY
+========================================================
+
+Build **MinistryPath** as a SIMPLE, LOGICAL, REPLIT-FRIENDLY app that:
+
+- Helps people quickly onboard into Garden City Church’s discipleship and serving flow.
+- Makes doctrinal alignment clear but pastoral (with special handling for baptism in the Holy Spirit).
+- Integrates the About Us / Doctrine & Policy manual as a living, acknowledged document.
+- Embeds the existing ministry survey as a full internal module.
+- Provides leaders a clear, non-overwhelming way to see:
+  - People,
+  - Trainings,
+  - Requests,
+  - Metrics,
+  - Rooms,
+  - Interns,
+  - Meetings.
+
+Above all, prioritize:
+- Clarity,
+- Ease of use,
+- Logical flows,
+- And minimal friction.
+
+Use clean code structure so it’s easy to extend later, but ship a functional, minimal version that does all core tasks without being visually or mentally overwhelming.

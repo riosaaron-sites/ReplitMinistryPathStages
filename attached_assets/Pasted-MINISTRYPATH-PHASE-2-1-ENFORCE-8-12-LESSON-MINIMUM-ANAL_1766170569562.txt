@@ -1,0 +1,83 @@
+MINISTRYPATH — PHASE 2.1
+ENFORCE 8–12 LESSON MINIMUM + ANALYSIS SOURCE REPORT
+STOP AFTER REPORT
+
+You completed Phase 2 but did NOT meet the minimum lessons requirement. This is a correction pass that is STILL PART OF PHASE 2.
+
+ABSOLUTE RULES
+- Do NOT start Phase 3 (dashboard redesign).
+- Do NOT redesign onboarding.
+- Do NOT modify navigation outside training flow.
+- Do NOT touch rooms/calendar/meetings/planning center.
+- Only adjust training module lesson structures, reporting, and verification.
+- STOP after returning the required report.
+
+NON-NEGOTIABLE REQUIREMENT
+For each CORE training module, you MUST have >= 8 lessons (target 8–12).
+Core manuals/trainings include (title match best intent):
+- About Us
+- Discipleship Pathway / Journey
+- SERVE Orientation / Serve Booklet
+- Live the Life
+- Tell the Story
+- Following Jesus (if part of core track)
+- Language of a Leader
+- Recruitment 101
+- Ministry Leaders Manual (or equivalent)
+
+Additionally, any training assigned to audience = “all” OR “leader” must also be >= 8 lessons (target 8–12).
+
+TASKS
+1) Identify all training modules with lessonCount < 8.
+   - Produce an internal list grouped by audience (core/all/leader/ministry).
+
+2) For each module with < 8 lessons:
+   - Expand to at least 8 lessons by splitting content into logical lesson topics based on manual sections/headings.
+   - Do NOT add filler. Each lesson must teach a distinct concept.
+   - Each lesson must maintain structure:
+     - Teaching
+     - Why This Matters
+     - Reflection prompt
+
+3) Preserve existing question banks where possible, but if lesson splits require alignment:
+   - Add or redistribute knowledge-check questions so they map to lesson topics.
+   - Keep intensive assessment at the end (scenario-based) intact.
+
+4) Add a required “analysis source completeness” report:
+   - List all manuals missing DOCX/MD/TXT analysis files.
+   - Mark which trainings were generated from PDF fallback.
+   - Do NOT regenerate everything—just report and flag.
+
+5) Run basic end-to-end training flow tests (smoke tests):
+   - Start training → complete lessons → knowledge checks → pass assessment → mark complete
+   - Reopen completed training in revisit mode → review content → retake quiz (if allowed)
+   - Verify progress bar updates correctly for expanded lessons
+
+PHASE 2.1 REQUIRED OUTPUT (RETURN ONLY THIS)
+1) LESSON FLOOR FIX SUMMARY
+- count of trainings that were <8 and are now >=8
+- list each affected training with before/after lesson count
+
+2) CORE TRAININGS COMPLIANCE TABLE
+For each core training:
+- lesson count (must be >=8)
+- knowledge check present? (yes/no)
+- intensive assessment present? (yes/no)
+- revisit works? (yes/no)
+
+3) ALL/LEADER TRAININGS COMPLIANCE
+- list any “all” or “leader” trainings still <8 (should be none)
+- if any remain, explain why (only acceptable if you fix them)
+
+4) ANALYSIS SOURCE COMPLETENESS REPORT
+- manuals missing DOCX/MD/TXT
+- trainings generated from PDF fallback
+
+5) SMOKE TEST RESULTS
+- pass/fail for completion flow
+- pass/fail for revisit flow
+
+End with this exact sentence:
+“Phase 2.1 complete. Phase 2 requirements now satisfied. Awaiting authorization to proceed to Phase 3.”
+
+STOP.

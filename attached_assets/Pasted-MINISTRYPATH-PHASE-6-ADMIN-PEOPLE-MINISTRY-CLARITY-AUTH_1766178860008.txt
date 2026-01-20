@@ -1,0 +1,168 @@
+MINISTRYPATH — PHASE 6
+ADMIN + PEOPLE + MINISTRY CLARITY (AUTHORITY, ROLES, REPORTING)
+STOP AFTER PHASE 6 REPORT
+
+You have completed Phase 5 successfully. Proceed to Phase 6 ONLY.
+
+ABSOLUTE RULES
+- Do NOT redesign onboarding UI again.
+- Do NOT redesign dashboards again unless explicitly required by admin clarity.
+- Do NOT add new major feature domains (rooms/calendar/etc).
+- Phase 6 is about PEOPLE STRUCTURE, ADMIN CONTROL, and MINISTRY CLARITY.
+- STOP after Phase 6 and return the required output.
+
+GOAL
+Make MinistryPath administratively clear, scalable, and understandable:
+- Who is an Owner vs Admin vs Pastor vs Leader vs Member
+- Who reports to whom
+- What ministries exist and how they nest
+- What is required of each role
+- How leaders see and care for the people assigned to them
+
+---
+
+### A) USER ROLE & AUTHORITY CLEANUP (MANDATORY)
+
+1) Define and enforce a clean role hierarchy:
+- Owner (organization creator; can assign/remove other owners)
+- Admin (system control, no pastoral authority implied)
+- Pastor (spiritual authority, oversight, access to questions & care)
+- Leader (ministry leadership, training oversight for assigned people)
+- Member (Dream Team Member / Volunteer)
+- Intern (optional role, limited authority)
+
+2) Remove legacy/duplicate role aliases where safe.
+3) Ensure each user has:
+- ONE primary system role
+- OPTIONAL additional tags (from Config Bank)
+
+4) Ensure permissions are enforced consistently:
+- Owners/Admins access admin backend
+- Pastors access care + leadership dashboards
+- Leaders access only their ministries and people
+- Members do not see admin/leadership UI
+
+---
+
+### B) PEOPLE MANAGEMENT — WHO REPORTS TO WHOM (MANDATORY)
+
+Enhance the People/Admin area to support:
+
+1) Ministry leadership structure:
+- Each ministry has:
+  - Primary leader
+  - Optional co-leaders
+- Leaders automatically “own” pastoral/training oversight for people in that ministry
+
+2) For each user profile (admin/leader view):
+- Display:
+  - Ministries they serve in
+  - Their leader(s)
+  - Their role(s)
+  - Required trainings status
+  - Background check status
+  - “I Have Questions” submissions (pastor/admin only)
+
+3) Add “Assigned To Me” views:
+- Leaders see a list of people they are responsible for
+- Pastors see:
+  - all leader assignments
+  - all “I Have Questions” submissions
+- Admins see everything
+
+---
+
+### C) MINISTRY STRUCTURE & EDITING (MANDATORY)
+
+1) Ministries must be fully manageable in Admin:
+- Create ministry
+- Rename ministry
+- Archive ministry
+- Assign leader(s)
+- Assign parent/child relationships (e.g., Landing Team → Greeters)
+
+2) Ensure system-wide sync:
+- Ministry names update everywhere (dashboard, onboarding, training assignment)
+- Archived ministries:
+  - cannot accept new people
+  - do not break existing records
+
+3) Auxiliary ministries:
+- Maintain special category
+- Allow unique manuals/trainings
+- Different onboarding requirements if configured
+
+---
+
+### D) SURVEY → MINISTRY RECOMMENDATION IMPROVEMENT (MANDATORY)
+
+1) Ministry Survey must:
+- Use results to recommend ministries that EXIST in this church
+- Rank top 3–5 ministry matches
+- Respect:
+  - availability
+  - skills
+  - preferences
+
+2) Dashboard + Survey Results page must:
+- Show recommended ministries clearly
+- Allow “Request to Join” from recommendations
+- Notify ministry leader/admin of request
+
+---
+
+### E) ADMIN BACKEND POLISH (MANDATORY)
+
+1) Admin can:
+- Update labels (e.g., rename “Dream Team”)
+- Add/edit/remove tags
+- Add/edit/remove staff titles
+- Add/edit/remove serve roles
+
+2) Ensure changes propagate:
+- UI labels update instantly
+- No hard-coded terminology remains
+
+---
+
+### F) SAFETY & CLARITY
+
+1) Ensure “I Have Questions” submissions:
+- Are visible only to Pastors/Admins
+- Can be marked as “Reviewed / Followed Up”
+- Are linked to the user’s profile
+
+2) Add simple audit notes:
+- When a leader/admin updates a role or ministry assignment
+- Timestamped (basic)
+
+---
+
+### PHASE 6 REQUIRED OUTPUT (RETURN ONLY THIS)
+
+1) ROLE HIERARCHY SUMMARY
+- final role list
+- permission differences
+
+2) PEOPLE MANAGEMENT FEATURES
+- what leaders can see
+- what pastors can see
+- what admins can see
+
+3) MINISTRY STRUCTURE MANAGEMENT
+- how ministries are created/edited/archived
+- how leaders are assigned
+
+4) SURVEY → MINISTRY MATCHING SUMMARY
+- how recommendations are calculated
+- how users request to join
+
+5) ADMIN POLISH CONFIRMATION
+- labels configurable (yes/no)
+- tags configurable (yes/no)
+- serve roles configurable (yes/no)
+
+End with this exact sentence:
+“Phase 6 complete. Awaiting authorization to proceed to Phase 7.”
+
+STOP.

@@ -1,0 +1,142 @@
+MINISTRYPATH — PHASE 8
+LAUNCH POLISH: HELP CENTER + USER RESET TOOL + FOOTER COPYRIGHT + VIDEO-READY TRAININGS
+STOP AFTER PHASE 8 REPORT
+
+ABSOLUTE RULES
+- Do NOT redesign onboarding again.
+- Do NOT redesign dashboards beyond small polish and help entry points.
+- Do NOT remove existing manuals/trainings/systems.
+- Implement Help Center using content derived from existing manuals + current features.
+- User reset MUST protect the owner/admin account by email.
+- STOP after Phase 8 and return the required output.
+
+GOALS
+1) Add a real documentation/help experience (like a lightweight Planning Center help center)
+2) Ensure all uploaded manuals are discoverable and categorized in-app (not “hidden behind admin”)
+3) Add a safe tool to reset all users except the owner/admin
+4) Update footer copyright text to “Aaron Rios” while keeping GCC presence
+5) Prepare trainings to support video embeds (URL-based)
+
+---
+
+## A) HELP CENTER (MANDATORY)
+
+Create /help (and link it visibly from:
+- Landing page
+- Member dashboard
+- Leadership dashboard
+- Admin panel)
+
+Help center must include:
+1) Search bar
+2) Categories (at minimum):
+- Getting Started (Onboarding, Profile, Ministries)
+- Trainings (Required/Optional/Completed, Review mode)
+- Discipleship Journey (Worship → Next Night → Learn → Love → Lead)
+- Workboard & Meetings (boards, action items, meeting mode)
+- Serving Metrics & Health (what indicators mean)
+- Surveys & Biblical Formation (what it is, how to grow)
+- Admin & Config (manuals, generating trainings, labels, roles)
+
+Each category contains articles with:
+- title
+- short summary
+- readable body
+- “Related links” to relevant app pages
+
+Articles can be seeded from:
+- your existing manuals’ AI summaries
+- existing UI feature descriptions
+
+Also add:
+- A “Contact / Ask for Help” article pointing to your internal request flow if present.
+
+---
+
+## B) MANUALS DISCOVERABILITY (MANDATORY)
+
+Add a “Resources Library” page /resources that:
+- lists manuals by the 3 categories:
+  1) Ministry Manuals
+  2) Leadership Training
+  3) Resources
+- shows title, description, and who it applies to
+- allows members to view manuals they have access to
+- allows leaders/admins to view all
+
+Ensure this is consistent with training module linkage.
+
+---
+
+## C) SAFE USER RESET TOOL (MANDATORY)
+
+Create an admin-only tool:
+- “Reset Database Users (Except Owner)” with DRY RUN by default
+
+Rules:
+- Protected account email: pastor@gardencitychurch.net
+- DRY RUN shows counts of users + dependent records that would be removed/archived
+- EXECUTE requires explicit confirmation (typed phrase) and/or --execute flag
+- Removes/archives:
+  - users (except protected)
+  - training progress
+  - survey results
+  - messages
+  - boards/action items
+  - requests/join requests
+  - meetings/notes participation
+Keep schema intact.
+
+IMPORTANT:
+- Do NOT log or display any credentials.
+- Do NOT implement plaintext password handling.
+
+---
+
+## D) FOOTER COPYRIGHT UPDATE (MANDATORY)
+
+Update footer across app to:
+“© Aaron Rios — Garden City Church”
+Keep Garden City Church branding throughout.
+
+---
+
+## E) VIDEO-READY TRAININGS (MANDATORY FOUNDATION)
+
+In training module admin editor:
+- add optional fields:
+  - videoUrl (embed)
+  - videoTitle (optional)
+- In TrainingViewer:
+  - if videoUrl exists, render embedded video above the lesson content
+- No file uploads required in this phase.
+
+---
+
+PHASE 8 REQUIRED OUTPUT (RETURN ONLY THIS)
+
+1) HELP CENTER SUMMARY
+- routes added
+- categories list
+- how articles are stored (db/seed/static)
+
+2) RESOURCES LIBRARY
+- access rules
+- category grouping
+
+3) USER RESET TOOL
+- dry run output example
+- how execute is protected
+- confirmation that protected admin email is excluded
+
+4) FOOTER CHANGE CONFIRMATION
+- exact footer text
+
+5) VIDEO SUPPORT CONFIRMATION
+- where admin sets video URL
+- where user sees it
+
+End with:
+“Phase 8 complete. System is launch-polished and documented.”
+
+STOP.

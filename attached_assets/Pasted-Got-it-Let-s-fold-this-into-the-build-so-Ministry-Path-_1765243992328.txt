@@ -1,0 +1,343 @@
+Got it. Let’s fold this into the build so **Ministry Path / What’s Next / About Us / My Roles** actually feel like one sane, guided system instead of a pile of features.
+
+Below is **drop-in language for your AI app builder (Replit)** that *adds* to everything we’ve already built, not replacing it.
+
+---
+
+## 🔁 Updates to the Existing Spec for “Ministry Path” App
+
+**Important:** This is an update to the existing app spec and code.
+Do **not** break current working features. Instead, **extend** them with the following behaviors.
+
+---
+
+### 1. “WHAT’S NEXT” → Build a Full Ministry Profile
+
+**Goal:**
+“What’s Next” should **build a full ministry profile** for the user, not just show generic steps. It should:
+
+1. Pull from existing user data:
+
+   * Spiritual pathway steps:
+
+     * Has attended Sunday service
+     * Has attended Next Night
+     * Has completed Following Jesus class
+     * Has engaged in Discipleship Hour / CORE / small groups
+   * Ministry involvement:
+
+     * `ministries` (where they serve / want to serve)
+     * `availability`
+     * `assignedTrainings`
+     * `TrainingProgress` (what they’ve started/completed)
+
+2. **Ask / Confirm key profile questions** within the “What’s Next” flow:
+
+   * “Have you attended a Sunday service at Garden City Church?” (Yes/No)
+   * “Have you attended NEXT NIGHT?” (Yes/No)
+   * “Have you completed FOLLOWING JESUS?” (Yes/No / Not yet, but I’m interested)
+   * “Where do you currently serve?” → multi-select of ministries (uses the ministry onboarding we already implemented).
+   * “What is your availability?” → free text or simple schedule.
+   * “Are you open to exploring other ministry opportunities based on your gifts and interests?” (Yes/No)
+
+3. **Output of ‘What’s Next’ page:**
+
+   * At the end of the guided questions, show:
+
+     * A **summary card** called **“Your Ministry Profile”**, containing:
+
+       * Spiritual pathway status (WORSHIP → NEXT → LEARN → LOVE → LEAD)
+       * Current ministries (chips/pills: e.g., “Kingdom Children”, “Usher”, “CREW”)
+       * Availability summary
+       * Recommended trainings/manuals (from `MINISTRY_TRAINING_MAP` and existing training config)
+   * Provide a **clear primary button** such as:
+
+     * **“View My Trainings & Manuals”** → navigates to their training dashboard.
+   * Provide a **secondary action**:
+
+     * **“Update My Ministry Profile”** → re-opens the ministry + availability questionnaire.
+
+4. **UX Fix:**
+   After completing “What’s Next,” the user should never be stuck wondering “Where do I go next?”
+
+* Always show:
+
+  * A **primary button** (“Open My Training Path” or “Go to My Roles”).
+  * A **small text link** back to the home dashboard.
+
+---
+
+### 2. Ministry Survey: Optional but Strongly Recommended
+
+**Goal:**
+The existing **Ministry Survey** should **not** be required, but it should be clearly **recommended** as a way to better place people in ministries and discover new opportunities.
+
+**Behavior:**
+
+* In the “What’s Next” / Ministry Profile flow, after they choose their current ministries and availability, show:
+
+  **Section: “Ministry Survey (Optional, but Helpful)”**
+
+  * Text:
+
+    > *“We highly recommend taking the Ministry Survey. It’s not required to serve, but it helps us (and you) better understand your gifts, strengths, and where you might thrive in ministry. Your answers can confirm the ministry you’re already in and suggest other areas where you might excel.”*
+  * Buttons:
+
+    * **Primary:** “Take Ministry Survey”
+
+      * Opens the existing survey module (the one you’ve already built for church-wide ministry survey).
+    * **Secondary:** “Skip for Now”
+
+      * Records that they chose to skip, but keeps the “Take Ministry Survey” prompt visible later in **My Roles** / dashboard as a suggestion.
+
+* Logic:
+
+  * Ministry Survey completion should **enhance** recommendations but **never block** serving or moving through the portal.
+  * If survey is completed:
+
+    * Use its results as a **signal** when suggesting:
+
+      * Additional ministries to consider.
+      * New training paths.
+    * Still, respect current roles and user choice.
+
+---
+
+### 3. “ABOUT US” → Robust, Easy-to-Read, Collapsible Module
+
+**Goal:**
+The **About Us** section should integrate the **About Us Manual**, **Doctrine**, **Bylaws highlights**, and **Discipleship Model**, in a **clean, collapsible UI** that’s easy to read and not overwhelming.
+
+**Implementation Requirements:**
+
+* Create a dedicated module/page: **“About Garden City Church”**.
+
+* Present it as a set of **collapsible sections (accordion)** with headings like:
+
+  1. **Who We Are**
+
+     * “We are a church rooted and guided by the Bible, with a Pentecostal / Charismatic expression.”
+     * Vision & Mission:
+
+       * Mission: *“To know Christ and make Him known in our city and in every nation.”*
+       * Vision: *“Live the Life. Tell the Story.”*
+     * Distinctives:
+
+       * Bible-driven foundation
+       * No local membership; instead, Active Church Participants (ACPs)
+       * Pastor-led with Board oversight
+       * Balancing gifts of the Spirit with order
+       * Majors vs. minors
+
+  2. **Our Beliefs (Majors & Minors)**
+
+     * Majors:
+
+       * Scripture is trustworthy
+       * One God, three persons
+       * Jesus our Savior and King
+       * Salvation by grace through faith
+       * Spirit empowerment
+       * Prayer
+     * Minors:
+
+       * Eschatology positions
+       * Eternal security vs conditional security
+       * Calvinism vs Arminianism
+       * Five-fold ministry
+       * Attitude toward other denominations & ministries (no tearing down; prioritize prayer, unity, integrity).
+
+  3. **Assemblies of God – 16 Fundamental Truths**
+
+     * Provide a **simple list** of the 16 truths (title + 1–2 line summary each).
+     * Include a link text like:
+
+       > “For the full Assemblies of God Statement of Fundamental Truths, see the AG website.”
+
+  4. **Baptism & Communion**
+
+     * Baptism doctrine:
+
+       * Outward sign of inward reality
+       * Repentance → baptism → life of discipleship
+       * Full immersion
+       * Re-baptism context
+     * Communion doctrine:
+
+       * Symbolic remembrance of Christ’s death, resurrection, and return
+       * Self-examination
+       * Family Sundays rhythm
+
+  5. **Sexuality & Intoxication Doctrine**
+
+     * “Welcoming, non-affirming” explanation.
+     * Marriage as covenant between one man and one woman.
+     * LGBTQ+ – welcome, loved, invited to follow Jesus and be transformed; we do not affirm what Scripture does not affirm.
+     * Intoxication:
+
+       * Commitment to sobriety for pastoral staff, board, leadership
+       * Reason: example, care for those from addiction, alignment with Scripture.
+
+  6. **Discipleship Process: Worship → NEXT → LEARN → LOVE → LEAD**
+
+     * Use the Discipleship Model PDF content.
+     * Show each step with icons/emoticon people / graphics (builder should reference the PDF and reuse images/emoticons where possible).
+     * Simple explanation of:
+
+       * WORSHIP (Gathering, Sunday services, prayer)
+       * NEXT NIGHT (onboarding, tour, meet leaders)
+       * LEARN (Essentials, Truth-Trek, Discipleship Hour)
+       * LOVE (CORE Groups, community, care)
+       * LEAD (serving, leadership, ministry teams)
+
+  7. **Leadership & Governance (Short Summary)**
+
+     * Lead Pastor & Board of Elders
+     * Leadership Team
+     * Active Church Participants (ACPs) and their role
+     * Protection of church practices (high-level summary)
+
+* UX:
+
+  * Each section is **collapsible**, defaulting to:
+
+    * Sections 1 and 6 (Who We Are + Discipleship Process) expanded by default.
+  * Make it **mobile-friendly**, readable, and not text-dense in a single scroll.
+
+---
+
+### 4. “MY ROLES” → Auto-Populated Overview After Data Exists
+
+**Goal:**
+“My Roles” should act as a **personal ministry dashboard**. Once the app has data from onboarding, trainings, and survey, “My Roles” should:
+
+1. **Auto-populate** from:
+
+   * `User.ministries` (current ministries / serving areas)
+   * Ministry Survey (if taken)
+   * `assignedTrainings` and `TrainingProgress`
+   * Spiritual pathway status (WORSHIP / NEXT / LEARN / LOVE / LEAD)
+   * Planning Center / scheduling data (when integrated)
+
+2. **Layout for My Roles:**
+
+   * Top summary:
+
+     * “You currently serve in: [chips]”
+     * “Availability: [short text]”
+     * “Ministry Survey: Completed / Not completed (with button to ‘Take Survey’ if not done).”
+   * Card for each ministry (e.g., “Kingdom Children”, “Usher”, etc.):
+
+     * **Ministry name**
+     * Short description (from ministry config)
+     * Status tags:
+
+       * “Onboarding”
+       * “Fully Trained”
+       * “In Training”
+       * “Not Yet Scheduled”
+     * Progress bar:
+
+       * Percent of required trainings completed for that ministry (based on `MINISTRY_TRAINING_MAP` and `TrainingProgress`).
+     * Quick links:
+
+       * “Open Manual”
+       * “Continue Training”
+       * “Update My Availability”
+
+3. **Suggested Roles / Opportunities:**
+
+   * If Ministry Survey is completed:
+
+     * Add a section **“Other Ministry Opportunities to Consider”**.
+     * Show 1–3 suggested ministries (not already in `User.ministries`) that fit their gifts.
+     * Provide buttons: “I’m interested” or “Not right now”.
+   * If Ministry Survey is NOT completed:
+
+     * Show a card:
+
+       > “Want better ministry suggestions?
+       > Take the Ministry Survey to discover where you might also excel.”
+
+       * Button: “Take Ministry Survey”.
+
+4. **Logical Suggestions for My Roles:**
+
+   * “Next Recommended Action” area:
+
+     * For example:
+
+       * If they haven’t attended NEXT NIGHT:
+
+         * “Step 1: Attend NEXT NIGHT → [info / link / schedule]”
+       * If they serve in security/children’s ministry but haven’t completed safety trainings:
+
+         * “Complete: Child Safety & Security Training”
+       * If they’re serving but haven’t completed FOLLOWING JESUS:
+
+         * “We recommend completing FOLLOWING JESUS to strengthen your foundation.”
+
+   * This “next action” can be chosen by simple priority rules:
+
+     1. Safety / Background requirements (kids, security, counting).
+     2. Core discipleship (Following Jesus, Essentials).
+     3. Ministry-specific training.
+     4. Optional enrichment (Language of a Leader, Ministry Leader Manuals, etc).
+
+---
+
+### 5. Integration Guidance for the AI App Builder (Replit)
+
+When implementing or updating the app, **do the following**:
+
+1. **Keep all existing modules and logic intact** (Ministry Path, trainings, XP, badges, safety/social media policies, onboarding, etc.).
+2. **Extend the “What’s Next” module** to:
+
+   * Act as a guided wizard that:
+
+     * Confirms core discipleship steps,
+     * Captures ministry involvement and availability,
+     * Invites (but does not require) the Ministry Survey,
+     * Produces a Ministry Profile summary with clear next steps.
+3. **Make the “Ministry Survey” an optional but clearly recommended module**:
+
+   * Accessible from:
+
+     * What’s Next,
+     * My Roles,
+     * Possibly from the dashboard as a “Discover Your Ministry Fit” CTA.
+4. **Implement the “About Us” module**:
+
+   * Use collapsible sections as described.
+   * Use the content from:
+
+     * About Us Manual,
+     * Doctrine & Majors/Minors,
+     * 16 Fundamental Truths,
+     * Discipleship Model,
+     * Sexuality & Intoxication Doctrine,
+     * Governance summary (bylaws).
+   * If image assets (icons/emoticon people) exist in the PDFs, reuse them for a fun, visual layout.
+5. **Implement “My Roles” as a personal ministry dashboard**:
+
+   * Auto-populate from existing data models (User, ministries, trainings, survey).
+   * Provide clear, prioritized “Next actions”.
+   * Show progress visually (bars, badges, simple statuses).
+6. **Prioritize zero learning curve**:
+
+   * Pages should answer:
+
+     * “Where am I?”
+     * “What’s next?”
+     * “What do I click now?”
+   * Always provide a clear primary button on each major screen:
+
+     * e.g., “Continue My Training,” “View My Roles,” “Back to Dashboard”.
+
+---
+
+If you want, next step I can sketch the exact UI copy for:
+
+* The “My Roles” cards
+* The “Next Recommended Action” logic in plain English
+* Or the collapsible headings for the About Us section line by line.

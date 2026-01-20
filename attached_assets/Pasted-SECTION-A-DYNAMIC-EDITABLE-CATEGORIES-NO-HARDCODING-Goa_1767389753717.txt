@@ -1,0 +1,396 @@
+SECTION A — DYNAMIC, EDITABLE CATEGORIES (NO HARDCODING)
+Goal
+
+Replace fixed filters like “Men’s / Women’s / Sunday Services” with a data-driven category system that admin/leaders can edit anytime.
+
+What to build
+
+Create a Category Management feature with:
+
+Data Model: calendar_categories
+
+Fields:
+
+id (uuid)
+
+name (string) — e.g., “Men’s Ministry”
+
+slug (string, unique) — e.g., “mens-ministry”
+
+type (enum/string):
+
+MINISTRY (mens/womens/youth/etc.)
+
+SERVICE (Sunday Service, Prayer Night, etc.)
+
+TAG (misc tags)
+
+GROUP (Regular/Special/Super Sundays or other grouping)
+
+color (optional string) — only if UI already supports
+
+isActive (boolean default true)
+
+sortOrder (int default 0)
+
+outlookCategoryName (string nullable) — mapping to Outlook category label (if using Graph categories)
+
+createdAt, updatedAt
+
+Seed defaults (minimal):
+
+Men’s Ministry (MINISTRY)
+
+Women’s Ministry (MINISTRY)
+
+Sunday Services (SERVICE)
+
+Regular Sunday (GROUP)
+
+Special Sunday (GROUP)
+
+Super Sunday (GROUP)
+
+BUT the system must support adding dozens more without code changes.
+
+Admin UI: “Calendar Categories”
+
+Create a page under Admin/Leadership (use safest role gating):
+
+List categories
+
+Create new category
+
+Edit category
+
+Activate/deactivate category
+
+Reorder (optional: simple up/down)
+
+Set mapping to Outlook category name (optional field)
+
+No fancy UX. Just forms.
+
+API
+
+GET /api/categories
+
+POST /api/categories
+
+PATCH /api/categories/:id
+
+DELETE /api/categories/:id (prefer soft-delete via isActive false; require ConfirmDialog)
+
+Cache client-side (react-query if already used).
+
+SECTION B — CALENDAR FILTERS POWERED BY CATEGORIES
+Goal
+
+Calendar filters must be generated from calendar_categories, not hard-coded.
+
+Requirements
+
+Show filters grouped by category type:
+
+MINISTRY
+
+SERVICE
+
+GROUP
+
+TAG
+
+Filters persist in localStorage
+
+Default behavior:
+
+If no filters selected: show all active categories
+
+Provide “Select all / Clear all”
+
+Use categories to filter Outlook events by metadata mapping (see Section C)
+
+SECTION C — OUTLOOK EVENT METADATA MAPPING (READ + WRITE SAFE)
+
+You already have Graph integration endpoints in server/outlook.ts and event fetch route. Keep them. Do not rewrite.
+
+Required improvement
+
+When reading Outlook events, you must return categories in normalized form:
+
+categoryIds: string[] (from DB categories)
+
+groupIds: string[] (if group is modeled separately; otherwise same categories table with type GROUP)
+
+rawOutlookCategories: string[] (optional debug)
+
+Mapping Strategy (Pick safest already in use)
+
+Use ONE metadata strategy consistently:
+
+Preferred:
+
+Use Outlook event categories (Graph) and map them to internal category rows by outlookCategoryName.
+
+Fallback:
+
+If categories cannot be relied on, embed metadata in body with marker:
+
+<!-- MINISTRYPATH_META: {"categorySlugs":["mens-ministry"],"groupSlugs":["regular-sunday"]} -->
+
+On WRITE
+
+When creating/updating an Outlook event:
+
+Apply selected categories using the chosen strategy (categories or embedded metadata)
+
+Never wipe existing Outlook categories unless they were created by MinistryPath (use createdByMinistryPath marker in meta or a prefix in category names)
+
+Keep changes minimal: only change fields user edited plus MP metadata.
+
+On READ
+
+Parse metadata → map to DB category IDs → return for filters.
+
+SECTION D — LEADER NOTIFICATIONS + TEAM PROGRESS (EMAIL + IN-APP)
+Goal
+
+Leaders must know when:
+
+someone joins their team
+
+someone starts onboarding
+
+someone completes onboarding
+
+someone submits training for review (urgent)
+…and leaders must see team progress inside MinistryPath.
+
+Build: Notifications Table
+
+Create notifications with:
+
+id
+
+recipientUserId
+
+type (TEAM_JOINED, ONBOARDING_STARTED, ONBOARDING_COMPLETED, TRAINING_SUBMITTED, TRAINING_APPROVED, TRAINING_REJECTED)
+
+title
+
+message
+
+linkUrl
+
+ministryId (nullable)
+
+actorUserId (nullable)
+
+createdAt
+
+readAt nullable
+
+Endpoints:
+
+GET /api/notifications?unreadOnly=true|false
+
+POST /api/notifications/:id/read
+
+POST /api/notifications/read-all
+
+UI
+
+Add bell icon + unread badge
+
+Notifications page list (clickable)
+
+Use existing styling patterns, no redesign
+
+“My Team” Leadership Page
+
+Create Leadership → My Team
+Scoped to ministries leader oversees:
+
+Member name/email
+
+Ministries
+
+Onboarding status
+
+Training counts: awaiting review / completed / needs follow-up
+
+“Needs your review” highlighting
+
+Click member → member detail page (existing if exists; otherwise minimal new route)
+
+Email Notifications
+
+Implement sendLeaderNotificationEmail():
+
+Use existing email system if configured
+
+If not configured: use existing fallback method (mailto/copy/paste) without failing
+
+Email copy (personal, robust but short):
+
+Subject: New person joined your team: John Doe (Worship)
+Body:
+
+Hi {LeaderName},
+
+John Doe has joined your {MinistryName} team in MinistryPath.
+
+View John’s progress: {link}
+
+Next step: review onboarding and trainings when they are submitted.
+
+Trigger Points
+
+Hook to real lifecycle events:
+
+Team joined
+
+When invite accepted OR membership assigned:
+
+identify ministry leaders
+
+create notification + email (rate-limited)
+
+Onboarding started/completed
+
+Notify leaders (email only at start and completion)
+
+Training submitted
+
+Immediate email + in-app notification with deep link to approval queue/item
+
+Rate Limiting
+
+Implement low-cost rate limiting:
+
+Do not email same leader about same user/type more than once in 10 minutes
+
+Use DB query on recent notifications as the throttle (cheap)
+
+SECTION E — COACH BUBBLES + HELP UPDATES (INCLUDING PLANNING CENTER + OUTLOOK + CATEGORIES)
+
+CoachBubble exists already. Expand usage and update Help.
+
+CoachBubble Rules
+
+One bubble max per page
+
+Dismissible and remembers dismissal
+
+Use it to guide next steps, not to nag
+
+Required Bubble Locations
+
+My Path
+
+Awaiting approval explanation
+
+Missing required items guidance
+
+No role/team selected guidance
+
+Training Viewer
+
+Quiz submitted = awaiting leader approval
+
+Rejected = needs follow-up
+
+Calendar
+
+Explain categories & filters
+
+Explain Outlook is source of record
+
+Help must include these new sections
+
+Create or update Help articles so a non-technical admin can do this:
+
+1) “How Planning Center Fits”
+
+Planning Center handles people + scheduling
+
+MinistryPath handles training + readiness
+
+When Planning Center is required (and when it isn’t)
+
+Clear “MinistryPath does NOT replace Planning Center”
+
+2) “How to Connect Outlook”
+
+Where to go in admin UI
+
+What values are needed
+
+How to test connection
+
+What calendars are synced
+
+What MinistryPath will write vs will never touch
+
+3) “How Categories Work”
+
+Categories are editable
+
+Where to create/edit them
+
+How they appear in filters
+
+How they are stored in Outlook events (simple explanation)
+
+Keep Help short, step-by-step, and practical. No fluff.
+
+SECTION F — BRANDING + LOGOS + FAVICON CONSISTENCY
+Goal
+
+Ensure MinistryPath feels intentional and consistent.
+
+Verify and fix:
+
+App name is consistently “MinistryPath”
+
+Browser title / meta tags consistent
+
+Logos consistent across:
+
+header/nav
+
+login
+
+emails (if any template)
+
+Favicons are correct and consistent
+
+Remove leftover inconsistent terms (like “Dream Team Hub”) unless it’s intentionally part of branding
+
+Ensure no broken asset references
+
+No redesign. Just consistency.
+
+FINAL SANITY CHECKS (MUST PASS)
+
+No hard-coded category lists remain in calendar filters.
+
+Admin can add a category → it shows in filters without code changes.
+
+Outlook events created/updated by MinistryPath preserve metadata correctly.
+
+Leaders receive:
+
+email + in-app notification when user joins their team
+
+email + in-app for onboarding start/completion
+
+email + in-app for training submitted (urgent)
+
+Leaders can see My Team and status progress.
+
+Help articles reflect actual UI and workflows.
+
+Branding and favicon consistent.
+
+BEGIN NOW. DO NOT ASK QUESTIONS. KEEP IT SIMPLE. STOP WHEN ALL CHECKS PASS.

@@ -1,0 +1,253 @@
+🔒 MINISTRYPATH — PHASE 1 PROMPT
+
+FOUNDATION ONLY · MANUAL RESET & REGISTRATION · STOP AFTER REPORT
+
+You have completed Phase 0 (Audit).
+You are now authorized to proceed with PHASE 1 ONLY.
+
+⚠️ ABSOLUTE EXECUTION RULE
+You MUST STOP after completing Phase 1 and returning the required report.
+You must NOT proceed to Phase 2 or beyond unless explicitly authorized.
+
+🚫 DO NOT DO THESE YET
+
+Do NOT redesign onboarding
+
+Do NOT redesign dashboards
+
+Do NOT generate deep training modules yet
+
+Do NOT modify survey logic
+
+Do NOT implement room/calendar/meeting redesigns
+
+Do NOT refactor roles globally yet
+
+Phase 1 is foundation only.
+
+🎯 PHASE 1 GOALS (IN PLAIN ENGLISH)
+
+Phase 1 exists to:
+
+Remove old manuals safely
+
+Register ONLY the new uploaded manuals
+
+Categorize them correctly
+
+Reconnect manuals ↔ ministries ↔ training modules
+
+Prepare the system for deep training generation later
+
+Nothing more.
+
+📚 MANUAL CATEGORIES (ONLY THESE THREE)
+
+You must enforce a strict enum with only these categories:
+
+1️⃣ Ministry Manuals
+
+Title = ministry name
+
+Linked to a specific ministry
+
+Visible ONLY to people serving in that ministry
+
+Default: generate training module = ON
+
+2️⃣ Leadership Training
+
+Language of a Leader
+
+Recruitment 101
+
+Ministry Leaders Manual
+
+Job descriptions
+
+Default: generate training module = ON
+
+Typically required for leaders/pastors (assignment comes later)
+
+3️⃣ Resources
+
+About Us
+
+Policies
+
+Bylaws
+
+General information
+
+SERVE booklet
+
+Default: generate training module = OFF (admin may enable later)
+
+⚠️ Ignore any upload-time wording like “leadership”, “ministry”, or “resources”.
+Final categorization happens here.
+
+🧾 TWO-FORMAT MANUAL SUPPORT (FOUNDATION)
+
+Update the system so each manual supports:
+
+PDF file (view/download)
+
+Analysis source file (DOCX / MD / TXT)
+
+If a manual only has a PDF:
+
+Register it
+
+Mark analysis source as missing
+
+Report it clearly
+
+Do NOT generate training content yet.
+
+🧹 PHASE 1 IMPLEMENTATION TASKS
+1️⃣ Add / Enforce Manual Category Enum
+
+ministry_manual
+
+leadership_training
+
+resource
+
+Remove or normalize any legacy category values.
+
+2️⃣ Create Admin “Reset Manuals” Tool
+
+Admin-only operation with TWO MODES:
+
+A) DRY RUN
+
+Show how many manuals WILL be deleted
+
+Show how many analyses WILL be deleted
+
+Show how many training links WILL be affected
+
+NO deletion occurs
+
+B) EXECUTE
+
+Delete ALL existing manuals from the database
+
+Delete all manual analyses
+
+Remove orphaned training module references
+
+Uploaded files remain untouched
+
+Add confirmation protection so this cannot be triggered accidentally.
+
+3️⃣ Register Uploaded Manuals
+
+Scan uploaded files
+
+Create records in the manuals table with:
+
+title (from filename)
+
+category (one of the three above)
+
+linked ministry (if ministry manual)
+
+required flag (based on category)
+
+PDF path
+
+analysis source path (if present)
+
+Report:
+
+manuals registered
+
+manuals missing analysis source
+
+manuals that could not be categorized or linked
+
+4️⃣ Fix Training ↔ Manual Linking
+
+Ensure trainingModules.manualId always points to a valid manual
+
+Identify training modules with:
+
+manualId = null
+
+or invalid manual reference
+
+Mark them as needsManualLink
+
+Do NOT generate new training content yet
+
+5️⃣ Create “Field Bank / Config Bank” (FOUNDATION ONLY)
+
+Admin-managed lists for:
+
+Tags (admin, owner, pastor, associate, intern, etc.)
+
+Serve Roles (usher, greeter, AV, worship, kids, etc.)
+
+Titles (children’s pastor, youth pastor, etc.)
+
+Only schema + basic admin UI.
+Do NOT wire throughout the app yet.
+
+6️⃣ Delete Truly Obsolete Manual-Related Code
+
+Only if:
+
+It is unused after these changes
+
+It relates ONLY to old manual handling
+
+Be conservative.
+
+📤 REQUIRED PHASE 1 OUTPUT (STOP AFTER THIS)
+
+Return ONLY the following sections:
+
+1️⃣ WHAT CHANGED
+
+Files touched
+
+Schema/DB changes
+
+2️⃣ RESET MANUALS TOOL STATUS
+
+DRY RUN exists? (yes/no)
+
+EXECUTE exists? (yes/no)
+
+What will be deleted in DRY RUN
+
+3️⃣ MANUAL REGISTRATION RESULTS
+
+Total manuals registered
+
+Count per category
+
+Manuals missing analysis source
+
+Manuals not linked to ministries (if any)
+
+4️⃣ TRAINING LINK STATUS
+
+Training modules correctly linked
+
+Training modules still unlinked + why
+
+5️⃣ NEXT RECOMMENDED STEP
+
+Proposal for Phase 2 (Deep Training Generation)
+
+⛔ STOP CONDITION (MANDATORY)
+
+End your response with this exact sentence:
+
+“Phase 1 complete. Awaiting authorization to proceed to Phase 2.”
+
+You must STOP after this.
+
+✅ END OF PHASE 1 PROMPT

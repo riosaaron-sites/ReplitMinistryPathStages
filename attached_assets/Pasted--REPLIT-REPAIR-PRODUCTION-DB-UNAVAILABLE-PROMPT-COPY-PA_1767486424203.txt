@@ -1,0 +1,56 @@
+✅ REPLIT “REPAIR PRODUCTION DB_UNAVAILABLE” PROMPT (COPY/PASTE)
+TASK: FIX DB_UNAVAILABLE IN PRODUCTION — NO GUESSING, NO ENDLESS TESTING
+Production shows {"code":"DB_UNAVAILABLE"} during login/signup. Dev may work. This indicates the production deployment cannot connect to the database (missing/incorrect DATABASE_URL, paused DB, or migrations not applied).
+GOALS
+Make production connect to the correct database reliably.
+Automatically run/verify migrations on deploy/start so schema isn’t missing.
+Provide a simple “DB diagnostic” readout in the existing System Status Panel so we never guess again.
+Do NOT expose secrets.
+Keep changes minimal. Do not refactor unrelated code.
+STEP A — Add a safe DB diagnostic function (no secrets)
+Implement a single internal function checkDatabaseHealth() that returns:
+hasDatabaseUrl: boolean
+hostRedacted: string | null (ONLY hostname, never full URL)
+canConnect: boolean (attempt SELECT 1)
+error: string | null (sanitized, no secrets)
+Add this output to the existing Admin System Status Panel (already present).
+If the status panel is currently behind auth and login is blocked, also add a temporary endpoint:
+GET /api/status/db that returns the same diagnostic response.
+Protect it with a short-lived secret token check:
+requires header x-status-key that matches env var STATUS_KEY
+If STATUS_KEY is missing, return 403.
+Do NOT log secrets.
+STEP B — Fix production env handling (most common root cause)
+Ensure the server reads the DB connection string from environment in this priority order:
+DATABASE_URL
+REPLIT_DATABASE_URL
+POSTGRES_URL
+Use the first one that exists.
+If none exist:
+Return DB_UNAVAILABLE gracefully (existing behavior is fine)
+But ALSO surface “hasDatabaseUrl=false” in System Status so the cause is obvious.
+Important: do not change dev behavior—just make prod robust to env differences.
+STEP C — Ensure migrations/schema are applied in production
+Identify what this project uses for schema (Prisma/Drizzle/SQL migrations/etc).
+Implement a safe startup routine:
+On server start (or on deploy), run migrations automatically IF supported by the current stack.
+If automatic migration is not safe/available, at minimum run a lightweight schema check and clearly report in System Status when schema is missing.
+The goal is: production never boots into a state where login fails because tables don’t exist.
+STEP D — Make auth endpoints fail with a helpful message
+Wherever login/signup touches DB, if DB is unavailable:
+return { code: "DB_UNAVAILABLE", message: "Database temporarily unavailable. Please try again shortly." }
+AND log a single sanitized error line server-side indicating whether:
+env var missing
+connection failed
+migration/schema missing
+STEP E — Update deployment docs (tiny)
+Add PRODUCTION_DB_FIX.md with:
+“If DB_UNAVAILABLE on production: open System Status Panel → read DB diagnostic”
+“If hasDatabaseUrl=false: set DATABASE_URL in Deployment Secrets”
+“If canConnect=false: DB paused/credential wrong/network issue”
+Keep it short and plain.
+FINAL ACTIONS
+Apply the code changes.
+Add STATUS_KEY to deployment secrets (generate a simple random string).
+Publish to production so the fix takes effect.
+Do not ask me questions. Implement now.

@@ -1,0 +1,609 @@
+Perfect, this is exactly the missing piece:
+**“Where do you serve? What’s your availability? → Here’s your training path. Save & come back later.”**
+
+I’ll wire this in as:
+
+1. A **Ministry involvement + availability questionnaire**.
+2. Logic that **maps ministries → required trainings/manuals** (using all those PDFs you gave me).
+3. A way to **assign trainings**, track **status/progress**, and let users **return later**.
+4. A simple **React wizard** you can drop in as part of **FIRST STEPS** / onboarding.
+
+All code is designed to fit the app we’ve been building (Node/Express + Prisma + React).
+
+---
+
+## 1️⃣ Data Model: Ministries, Availability, Assigned Trainings, Progress
+
+### 1.1 Extend `User` model (Prisma)
+
+Add ministries, availability, and assigned trainings to the `User`:
+
+```prisma
+// prisma/schema.prisma
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  name               String?
+
+  // Existing Ministry Path / gamification fields
+  hasAttendedSunday      Boolean  @default(false)
+  hasAttendedNextNight   Boolean  @default(false)
+  learnStatus            String   @default("NOT_STARTED")
+  loveStatus             String   @default("NOT_STARTED")
+  leadStatus             String   @default("NOT_STARTED")
+  ministryPathLastUpdated DateTime @default(now())
+  xp                 Int      @default(0)
+  level              Int      @default(1)
+  badges             Json     @default("[]")
+  completedTrainings Json     @default("[]")
+
+  // 🔹 New fields for ministry involvement & availability
+  ministries         Json     @default("[]") // array of MinistryId strings
+  availability       String?               // free-text or serialized schedule
+  assignedTrainings  Json     @default("[]") // array of TrainingId strings
+
+  trainingProgresses TrainingProgress[]
+}
+
+model TrainingProgress {
+  id         String   @id @default(cuid())
+  userId     String
+  trainingId String
+  status     String   @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | COMPLETE
+  currentStep Int     @default(0)             // e.g., current question index
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+### 1.2 Types: `MinistryId`
+
+```ts
+// src/config/ministryConfig.ts
+
+export type MinistryId =
+  | "KINGDOM_CHILDREN"
+  | "CITY_YOUTH"
+  | "YOUTH_WORSHIP"
+  | "WORSHIP_TEAM"
+  | "USHER"
+  | "LANDING_TEAM"
+  | "HOSPITALITY"
+  | "SECURITY"
+  | "SERVICE_AVL"
+  | "CREW"
+  | "INTERCESSORY"
+  | "DISCIPLESHIP_HOUR"
+  | "CORE_GROUP_LEADER"
+  | "CELEBRATE_RECOVERY"
+  | "FACILITIES"
+  | "SOCIAL_MEDIA"
+  | "COUNTING"
+  | "BOARD_MEMBER"
+  | "EMPLOYEE_STAFF"
+  | "GENERAL_SERVE";
+
+export interface MinistryConfig {
+  id: MinistryId;
+  name: string;
+  description: string;
+}
+```
+
+You can fill in a `MINISTRIES` array for display labels if you like; I’ll focus on the logic that matters.
+
+---
+
+## 2️⃣ Map Ministries → Trainings (Manuals/PDFs)
+
+We already defined `TrainingId` and `TRAININGS`.
+Now add a map so the app can say:
+
+> “You serve in Kingdom Children → you should do these trainings/manuals next.”
+
+```ts
+// src/config/ministryTrainingMap.ts
+
+import { MinistryId } from "./ministryConfig";
+import { TrainingId } from "./trainingConfig";
+
+export const MINISTRY_TRAINING_MAP: Record<MinistryId, TrainingId[]> = {
+  KINGDOM_CHILDREN: ["KINGDOM_CHILDREN", "SERVE_BOOKLET", "FOLLOWING_JESUS"],
+  CITY_YOUTH: ["CITY_YOUTH_WORSHIP", "SERVE_BOOKLET", "FOLLOWING_JESUS"],
+  YOUTH_WORSHIP: ["CITY_YOUTH_WORSHIP", "SERVE_BOOKLET", "FOLLOWING_JESUS"],
+  WORSHIP_TEAM: ["CITY_YOUTH_WORSHIP", "SERVE_BOOKLET", "FOLLOWING_JESUS"],
+  USHER: ["USHER_MINISTRY", "SERVE_BOOKLET", "FOLLOWING_JESUS"],
+  LANDING_TEAM: ["SERVE_BOOKLET", "FOLLOWING_JESUS"],
+  HOSPITALITY: ["SERVE_BOOKLET", "FOLLOWING_JESUS"],
+  SECURITY: ["FACILITIES_MINISTRY", "SERVE_BOOKLET", "FOLLOWING_JESUS"],
+  SERVICE_AVL: ["CREW_TEAM", "SOCIAL_MEDIA_TEAM", "SERVE_BOOKLET"],
+  CREW: ["CREW_TEAM", "SERVE_BOOKLET"],
+  INTERCESSORY: ["INTERCESSORY_MINISTRY", "SERVE_BOOKLET"],
+  DISCIPLESHIP_HOUR: ["FOLLOWING_JESUS", "CORE_MINISTER_MANUAL"],
+  CORE_GROUP_LEADER: ["CORE_MINISTER_MANUAL", "LANGUAGE_OF_A_LEADER"],
+  CELEBRATE_RECOVERY: ["CELEBRATE_RECOVERY", "SERVE_BOOKLET"],
+  FACILITIES: ["FACILITIES_MINISTRY", "SERVE_BOOKLET"],
+  SOCIAL_MEDIA: ["SOCIAL_MEDIA_TEAM", "SERVE_BOOKLET"],
+  COUNTING: ["COUNTING_MINISTRY", "SERVE_BOOKLET"],
+  BOARD_MEMBER: ["BOARD_MEMBER_GUIDE", "SERVE_BOOKLET"],
+  EMPLOYEE_STAFF: ["EMPLOYEE_MANUAL", "MINISTRY_LEADER_MANUAL"],
+  GENERAL_SERVE: ["SERVE_BOOKLET", "FOLLOWING_JESUS"],
+};
+
+export function getTrainingsForMinistries(
+  ministries: MinistryId[]
+): TrainingId[] {
+  const set = new Set<TrainingId>();
+
+  ministries.forEach((ministry) => {
+    const trainings = MINISTRY_TRAINING_MAP[ministry];
+    if (trainings) {
+      trainings.forEach((t) => set.add(t));
+    }
+  });
+
+  return Array.from(set);
+}
+```
+
+This respects everything we already wired to those manuals and PDFs.
+
+---
+
+## 3️⃣ Onboarding / Questionnaire Service
+
+This is the **engine** behind:
+
+> “What ministry are you involved in? Where do you serve? What is your availability? → Here are your next trainings/manuals.”
+
+It also **saves their answers** so they can return later.
+
+```ts
+// src/services/ministryOnboardingService.ts
+
+import { prisma } from "../prismaClient";
+import { MinistryId } from "../config/ministryConfig";
+import { getTrainingsForMinistries } from "../config/ministryTrainingMap";
+import { TrainingId, getTrainingConfig } from "../config/trainingConfig";
+
+export interface MinistryOnboardingInput {
+  ministries: MinistryId[];      // where they serve / want to serve
+  availability: string;          // free text like “Sun mornings, Tue nights”
+}
+
+export interface MinistryOnboardingResult {
+  userId: string;
+  ministries: MinistryId[];
+  availability: string;
+  assignedTrainings: TrainingId[];
+  recommendedTrainings: {
+    id: TrainingId;
+    title: string;
+    description: string;
+    xpReward: number;
+  }[];
+}
+
+export async function updateMinistryOnboarding(
+  userId: string,
+  input: MinistryOnboardingInput
+): Promise<MinistryOnboardingResult> {
+  const { ministries, availability } = input;
+
+  // Determine recommended trainings based on ministries
+  const trainingIds = getTrainingsForMinistries(ministries);
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ministries,
+      availability,
+      assignedTrainings: trainingIds,
+    },
+  });
+
+  const recommendedTrainings = trainingIds.map((id) => {
+    const cfg = getTrainingConfig(id);
+    return {
+      id,
+      title: cfg.title,
+      description: cfg.description,
+      xpReward: cfg.xpReward,
+    };
+  });
+
+  return {
+    userId: updatedUser.id,
+    ministries: updatedUser.ministries as MinistryId[],
+    availability: updatedUser.availability ?? "",
+    assignedTrainings: trainingIds,
+    recommendedTrainings,
+  };
+}
+```
+
+---
+
+## 4️⃣ API Endpoint: “Ministry & Availability” Questionnaire
+
+```ts
+// src/routes/ministryOnboardingRoutes.ts
+
+import express, { Request, Response } from "express";
+import {
+  updateMinistryOnboarding,
+  MinistryOnboardingInput,
+} from "../services/ministryOnboardingService";
+
+const router = express.Router();
+
+/**
+ * POST /api/onboarding/ministry
+ * Body: { ministries: MinistryId[], availability: string }
+ */
+router.post("/ministry", async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const body = req.body as MinistryOnboardingInput;
+
+    if (!body.ministries || !Array.isArray(body.ministries) || body.ministries.length === 0) {
+      return res.status(400).json({ error: "ministries is required and must be a non-empty array" });
+    }
+
+    const result = await updateMinistryOnboarding(userId, {
+      ministries: body.ministries,
+      availability: body.availability ?? "",
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("Error in POST /api/onboarding/ministry", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+export default router;
+```
+
+This endpoint:
+
+* Saves **where they serve** + **availability**.
+* Assigns trainings/manuals based on ministry.
+* Returns a list of recommended trainings to show in the UI.
+
+---
+
+## 5️⃣ Training Progress: Save Status, Return Later
+
+We already added `TrainingProgress` to Prisma.
+Now add a simple service + routes to track “in-progress” state.
+
+```ts
+// src/services/trainingProgressService.ts
+
+import { prisma } from "../prismaClient";
+import { TrainingId } from "../config/trainingConfig";
+
+export type TrainingStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETE";
+
+export interface UpdateTrainingProgressInput {
+  trainingId: TrainingId;
+  status: TrainingStatus;
+  currentStep: number; // e.g. question index or page index
+}
+
+export async function updateTrainingProgressForUser(
+  userId: string,
+  input: UpdateTrainingProgressInput
+) {
+  const { trainingId, status, currentStep } = input;
+
+  const existing = await prisma.trainingProgress.findFirst({
+    where: { userId, trainingId },
+  });
+
+  if (existing) {
+    return prisma.trainingProgress.update({
+      where: { id: existing.id },
+      data: {
+        status,
+        currentStep,
+      },
+    });
+  }
+
+  return prisma.trainingProgress.create({
+    data: {
+      userId,
+      trainingId,
+      status,
+      currentStep,
+    },
+  });
+}
+
+export async function getTrainingProgressForUser(userId: string, trainingId: TrainingId) {
+  const progress = await prisma.trainingProgress.findFirst({
+    where: { userId, trainingId },
+  });
+
+  return progress;
+}
+```
+
+Routes:
+
+```ts
+// src/routes/trainingProgressRoutes.ts
+
+import express, { Request, Response } from "express";
+import {
+  updateTrainingProgressForUser,
+  getTrainingProgressForUser,
+  UpdateTrainingProgressInput,
+} from "../services/trainingProgressService";
+
+const router = express.Router();
+
+/**
+ * POST /api/trainings/progress
+ * Body: { trainingId, status, currentStep }
+ */
+router.post("/", async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const body = req.body as UpdateTrainingProgressInput;
+
+    if (!body.trainingId) {
+      return res.status(400).json({ error: "trainingId is required" });
+    }
+
+    const progress = await updateTrainingProgressForUser(userId, body);
+    return res.json(progress);
+  } catch (err) {
+    console.error("Error in POST /api/trainings/progress", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /api/trainings/progress/:trainingId
+ */
+router.get("/:trainingId", async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const trainingId = req.params.trainingId as any;
+    const progress = await getTrainingProgressForUser(userId, trainingId);
+    return res.json(progress ?? { trainingId, status: "NOT_STARTED", currentStep: 0 });
+  } catch (err) {
+    console.error("Error in GET /api/trainings/progress/:trainingId", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+export default router;
+```
+
+Now the training UI can **save progress on each question/page**, and when the user comes back, you **resume from `currentStep`**.
+
+---
+
+## 6️⃣ Frontend: “Where Do You Serve?” Wizard
+
+This can be part of **FIRST STEPS** / onboarding, and also accessible later from the Ministry Path “LOVE” step.
+
+```tsx
+// src/components/Onboarding/MinistryOnboardingWizard.tsx
+
+import React, { useState } from "react";
+import axios from "axios";
+import { MinistryId } from "../../config/ministryConfig";
+import { TrainingId } from "../../config/trainingConfig";
+
+interface RecommendedTraining {
+  id: TrainingId;
+  title: string;
+  description: string;
+  xpReward: number;
+}
+
+interface OnboardingResponse {
+  userId: string;
+  ministries: MinistryId[];
+  availability: string;
+  assignedTrainings: TrainingId[];
+  recommendedTrainings: RecommendedTraining[];
+}
+
+const MINISTRY_OPTIONS: { id: MinistryId; label: string }[] = [
+  { id: "KINGDOM_CHILDREN", label: "Kingdom Children" },
+  { id: "CITY_YOUTH", label: "City Youth" },
+  { id: "YOUTH_WORSHIP", label: "Youth Worship / Worship Team" },
+  { id: "USHER", label: "Usher" },
+  { id: "LANDING_TEAM", label: "Landing Team / First Impressions" },
+  { id: "HOSPITALITY", label: "Hospitality / Café" },
+  { id: "SECURITY", label: "Security" },
+  { id: "SERVICE_AVL", label: "Service AVL (Sound, ProPresenter, Cameras)" },
+  { id: "CREW", label: "CREW / Media & Photography" },
+  { id: "INTERCESSORY", label: "Intercessory Prayer" },
+  { id: "DISCIPLESHIP_HOUR", label: "Discipleship Hour Teacher" },
+  { id: "CORE_GROUP_LEADER", label: "CORE Group Leader" },
+  { id: "CELEBRATE_RECOVERY", label: "Celebrate Recovery" },
+  { id: "FACILITIES", label: "Facilities / Setup & Cleaning" },
+  { id: "SOCIAL_MEDIA", label: "Social Media & Communications" },
+  { id: "COUNTING", label: "Counting / Finance Support" },
+  { id: "BOARD_MEMBER", label: "Board Member (current or potential)" },
+  { id: "EMPLOYEE_STAFF", label: "Staff / Employee" },
+  { id: "GENERAL_SERVE", label: "I’m not sure yet – I just want to serve" },
+];
+
+export const MinistryOnboardingWizard: React.FC = () => {
+  const [selectedMinistries, setSelectedMinistries] = useState<MinistryId[]>([]);
+  const [availability, setAvailability] = useState("");
+  const [result, setResult] = useState<OnboardingResponse | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const toggleMinistry = (id: MinistryId) => {
+    setSelectedMinistries((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (selectedMinistries.length === 0) return;
+    setSubmitting(true);
+    try {
+      const res = await axios.post<OnboardingResponse>("/api/onboarding/ministry", {
+        ministries: selectedMinistries,
+        availability,
+      });
+      setResult(res.data);
+    } catch (err) {
+      console.error("Error submitting ministry onboarding", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="ministry-onboarding">
+      <h1>Where Do You Serve?</h1>
+      <p className="subtitle">
+        This helps us connect you to the right training, manuals, and next steps for your ministry.
+      </p>
+
+      <section className="question-section">
+        <h2>1. What ministry are you involved in, or where would you like to serve?</h2>
+        <div className="ministry-grid">
+          {MINISTRY_OPTIONS.map((opt) => {
+            const active = selectedMinistries.includes(opt.id);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => toggleMinistry(opt.id)}
+                className={`ministry-pill ${active ? "active" : ""}`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="question-section">
+        <h2>2. What is your availability?</h2>
+        <p className="helper">
+          For example: “Sundays 8am–1pm, Tuesdays after 6pm, no Thursdays.”
+        </p>
+        <textarea
+          value={availability}
+          onChange={(e) => setAvailability(e.target.value)}
+          rows={3}
+          className="availability-input"
+          placeholder="Describe your typical weekly availability..."
+        />
+      </section>
+
+      <section className="question-section">
+        <h2>3. Your Next Steps in Training</h2>
+        <p className="helper">
+          After you click “Save & See My Trainings,” we’ll connect you to the right ministry manuals and
+          trainings. You can start now and come back later — your progress will be saved.
+        </p>
+      </section>
+
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={submitting || selectedMinistries.length === 0}
+        className="primary-button"
+      >
+        {submitting ? "Saving..." : "Save & See My Trainings"}
+      </button>
+
+      {result && (
+        <section className="results-section">
+          <h2>Recommended Trainings for You</h2>
+          <p>
+            Based on where you serve and your availability, these are the best next trainings and
+            manuals for you to complete.
+          </p>
+          <ul className="training-list">
+            {result.recommendedTrainings.map((t) => (
+              <li key={t.id} className="training-item">
+                <h3>{t.title}</h3>
+                <p>{t.description}</p>
+                <p className="training-meta">{t.xpReward} XP</p>
+                <a href={`/trainings/${t.id}`} className="secondary-button">
+                  Open Training
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+};
+```
+
+Hook this component into:
+
+* Your **initial onboarding** (so new users are asked this early).
+* The **Ministry Path** page (especially in the `LOVE` step: “Serve & Belong”).
+
+---
+
+## 7️⃣ How It All Flows Together
+
+1. User logs in → either:
+
+   * Goes through **FIRST STEPS** onboarding, or
+   * Opens **Ministry Path** and clicks into **“Where Do You Serve?”** wizard.
+
+2. They answer:
+
+   * **What ministry are you involved in?**
+   * **Where would you like to serve?**
+   * **What is your availability?**
+
+3. App:
+
+   * Saves ministries + availability on `User`.
+   * Uses `MINISTRY_TRAINING_MAP` to compute required trainings and manuals.
+   * Saves them to `assignedTrainings`.
+   * Returns a list of **recommended trainings** in the UI.
+
+4. User opens a training:
+
+   * The training UI uses `/api/trainings/progress/:trainingId` to check `currentStep`.
+   * As they move through questions, the UI calls `POST /api/trainings/progress` to save `status` and `currentStep`.
+   * When done, it calls `/api/trainings/complete` (the service we built earlier) to:
+
+     * Mark training complete,
+     * Update Ministry Path (LEARN/LOVE/LEAD),
+     * Grant XP and badges.
+
+5. User can **leave and come back anytime**, and the app will:
+
+   * Remember where they serve,
+   * Remember their availability,
+   * Show their assigned trainings,
+   * Resume each training at the saved question/step.
+
+This keeps the whole thing **logical, guided, and low-friction**:
+
+* No guessing.
+* Clear “here’s your next step” for **discipleship + ministry + manuals**.
+* And everything respects the PDFs, manuals, bylaws, and About Us content we’ve already baked into the config.

@@ -1,0 +1,209 @@
+You are working in the existing MinistryPath codebase.
+
+PRIMARY GOAL:
+Implement a simple weekly “Metrics” system PER MINISTRY, AND hard-verify that Trainings are truly loading and Notifications are truly firing (in-app + email), in a way that is system-wide and not disjointed. If anything is broken, fix it canonically (shared hooks/services/endpoints), not with one-off UI hacks.
+
+HARD RULES:
+- Do NOT create parallel systems.
+- Do NOT add new libraries unless absolutely required.
+- Do NOT refactor broadly.
+- Prefer small, canonical fixes in shared layers (query client, API services, storage).
+- All work must function in production deployment (not only local dev).
+- After completion, create a short docs file describing exactly what to test.
+
+========================================================
+PART 0 — FIRST: DIAGNOSE WHY TRAININGS / NOTIFICATIONS MAY NOT LOAD
+========================================================
+Symptoms reported:
+- Metrics tab not loading (may be unrelated, but indicates API/query issues)
+- Admin profile trainings did not load; only saw “Submit for review”
+- Not being notified anywhere (in-app bell empty / no emails)
+
+TASK:
+1) Identify the canonical data fetch mechanism (React Query fetcher).
+2) Inspect whether any queries are using queryKey patterns with params objects.
+   - If the fetcher builds URLs incorrectly (e.g. "[object Object]"), fix it in ONE place.
+3) Verify the following API calls actually occur and return data (not 401/403/500):
+   - trainings list endpoint(s)
+   - training progress / quiz attempts endpoint(s)
+   - notifications endpoint (unread param correctness)
+4) Fix any auth/gating mismatches where admin is blocked from seeing their own training records or notifications.
+
+REQUIREMENT:
+- After fix, trainings must load with correct data (lessons/quiz questions/progress), and notifications must appear in the bell when triggered.
+
+========================================================
+PART 1 — VERIFY & FIX TRAININGS LOADING (CANONICAL)
+========================================================
+Goal:
+When a user opens Trainings / Training Viewer:
+- they must see the training content (lesson + quiz questions)
+- their progress/attempts must load
+- “Submit for review” must only appear when appropriate (after quiz is completed/passed/submittable)
+- Admin should not be “missing data” due to role mismatches
+
+Tasks:
+1) Trace these flows end-to-end:
+   A) Trainings list page -> fetch trainings catalog
+   B) Training Viewer -> fetch training detail/lesson
+   C) Quiz questions -> fetch questions
+   D) Quiz attempt/progress -> fetch attempt state
+2) If any endpoint returns empty incorrectly, identify whether:
+   - wrong query params
+   - wrong route
+   - wrong trainingId/manualId
+   - role gating prevents admin
+   - DB query filters out admin incorrectly
+3) Fix in backend storage/query or API handler (preferred), not by faking frontend states.
+4) Ensure correct UI states:
+   - Not started
+   - In progress
+   - Quiz available
+   - Submitted for review
+   - Approved/Affirmed
+   - Rejected/Needs follow-up
+
+Acceptance:
+- On a real training, admin can view full lesson + questions, take quiz, and see attempt results.
+- “Submit for review” does not appear prematurely due to missing data.
+
+========================================================
+PART 2 — VERIFY & FIX NOTIFICATIONS (IN-APP + EMAIL)
+========================================================
+Goal:
+When any of these happen, in-app bell shows it, and email sends if configured:
+- TEAM_JOINED
+- ONBOARDING_STARTED
+- ONBOARDING_COMPLETED
+- TRAINING_SUBMITTED (urgent)
+- TRAINING_APPROVED / TRAINING_REJECTED (member receives; leader optionally receives)
+
+Tasks:
+1) Verify `/api/notifications`:
+   - unread param alignment (unread=true or unreadOnly=true) must match client usage
+   - fields are consistent (isRead or readAt) across system
+2) Confirm NotificationBell uses correct endpoint & query params.
+3) Confirm createNotification() is called in the right places:
+   - invite acceptance/team assignment
+   - onboarding start/completion
+   - training submission/approval/rejection
+4) Admin self-submission requirement:
+   - If an admin submits a training, they should receive their own notification too.
+5) Email verification:
+   - If mail system configured, sendLeaderNotificationEmail must actually run.
+   - If not configured, ensure the UI displays fallback clearly (copy/paste link).
+
+Acceptance:
+- Trigger a training submission -> bell count increases immediately for leader (and admin self if applicable)
+- Notification item is clickable and lands on the correct review/console page
+- Email sends if configured (or fallback is used)
+
+========================================================
+PART 3 — IMPLEMENT METRICS PER MINISTRY (WEEKLY)
+========================================================
+Goal:
+Leaders can weekly confirm attendance and key notes PER MINISTRY. Admin can see missing submissions and trends. Keep it minimal and usable.
+
+A) Database
+Create table/model: weekly_ministry_metrics
+Fields:
+- id (uuid)
+- ministryId (uuid FK)
+- weekStartDate (date) // normalize to Monday (or Sunday) consistently; pick Monday unless codebase already uses Sunday
+- attendanceCount (int, required)
+- volunteersCount (int, optional)
+- firstTimersCount (int, optional)
+- altarResponsesCount (int, optional)
+- followUpsNeededCount (int, optional)
+- winsNotes (text, optional)
+- concernsNotes (text, optional)
+- nextStepsNotes (text, optional)
+- submittedByUserId (uuid FK)
+- submittedAt (timestamp)
+- updatedAt (timestamp)
+Constraints:
+- unique(ministryId, weekStartDate)
+
+B) API
+Implement:
+1) GET /api/metrics/current-week
+   - returns: { weekStartDate, ministries: [{ministryId, ministryName, hasSubmitted, metric?}] }
+   - leader scoped to overseen ministries
+   - admin/pastor can see all
+
+2) GET /api/metrics/weeks?start=YYYY-MM-DD&end=YYYY-MM-DD
+   - leader sees only their ministries
+   - admin sees all
+
+3) POST /api/metrics
+   - upsert on (ministryId, weekStartDate)
+   - enforce leader ministry scoping
+   - admin can submit/edit any
+
+4) GET /api/metrics/missing?weekStartDate=YYYY-MM-DD
+   - admin/pastor only
+   - returns ministries missing submission + responsible leader(s) if available
+
+C) UI
+1) Leadership -> Metrics page:
+   - shows current week
+   - one card per ministry with form if not submitted, else submitted + edit
+   - past 8 weeks table
+
+2) Admin -> Metrics page:
+   - week picker
+   - missing submissions list
+   - submissions table
+   - simple trends table (last 8 weeks attendance per ministry)
+
+D) No Overbuild
+- No charts required
+- No cron jobs required
+- If reminders desired, show “missing submissions” prominently rather than background scheduling
+
+========================================================
+PART 4 — PRODUCTION-READINESS VERIFICATION (NOT JUST DEV)
+========================================================
+We must verify this is not “dev-only working.”
+
+1) Add a small document: docs/PRODUCTION_READINESS.md containing:
+   - exact steps to test in production deployment
+   - what network requests should look like (no [object Object])
+   - go/no-go checklist
+
+2) Update or extend the existing integrity audit script to include:
+   - detect queryKey usage with objects and ensure serialization produces valid URLs
+   - verify notifications endpoint param usage matches client
+   - verify trainings-related endpoints are referenced consistently (no duplicates)
+
+3) Provide a final “What I fixed and why” summary:
+   - list files changed
+   - explain canonical fixes (shared fetcher/service)
+   - confirm no parallel systems added
+
+========================================================
+DEFINITION OF DONE
+========================================================
+A) Trainings
+- Trainings list loads real data
+- Training Viewer loads lesson + quiz questions
+- Progress/attempt state loads correctly
+- “Submit for review” appears only when appropriate
+
+B) Notifications
+- Bell shows unread count
+- Notifications appear for training submission and team join
+- Admin receives self-notifications for self-submissions (as requested)
+- Email sends if configured (or fallback is displayed clearly)
+
+C) Metrics
+- Leaders can submit weekly per ministry
+- Admin can see missing + trends
+- No dead ends
+
+D) Production
+- docs/PRODUCTION_READINESS.md created
+- integrity audit extended accordingly
+- verified in production build mode: all network URLs are correct, not object-coerced
+
+STOP after completion. Do not add new features beyond this scope.

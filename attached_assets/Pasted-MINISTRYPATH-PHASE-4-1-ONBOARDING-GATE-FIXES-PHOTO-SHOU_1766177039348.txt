@@ -1,0 +1,67 @@
+MINISTRYPATH — PHASE 4.1
+ONBOARDING GATE FIXES (PHOTO SHOULD NOT BLOCK) + SMOKE TEST ENABLEMENT
+STOP AFTER REPORT
+
+You completed Phase 4. Proceed to Phase 4.1 ONLY.
+
+ABSOLUTE RULES
+- Do NOT redesign onboarding UI yet (that is Phase 5).
+- Do NOT change dashboard features (already implemented).
+- Do NOT change training generation.
+- Only adjust onboarding gating rules so the system is testable and user-friendly.
+- STOP after Phase 4.1 report.
+
+GOALS
+1) Ensure onboarding correctly gates dashboard access.
+2) Ensure photo upload is NOT a hard blocker for reaching the dashboard unless explicitly required.
+3) Enable smoke testing of dashboard + training + discipleship flows.
+
+REQUIREMENTS
+A) PhotoStep behavior:
+- Photo upload must be OPTIONAL with a clear “Skip for now” button.
+- If a photo is missing, show a gentle reminder later (profile card).
+- If you must keep a “photo required” option, make it configurable and OFF by default.
+
+B) Onboarding state machine:
+- Confirm OnboardingController state progression works without forcing photo.
+- Ensure users can reach DONE state without photo.
+
+C) Feature gating:
+- Dashboard is inaccessible until onboarding is complete (still true).
+- But onboarding completion must not depend on photo.
+
+D) Add a lightweight admin/test bypass for local verification:
+- A safe, admin-only tool to mark a test account onboarding as complete
+- OR allow “developer test mode” in non-production
+This is ONLY for verification, not normal users.
+
+E) Run smoke tests after changes:
+- Confirm: user can complete onboarding without photo
+- Confirm: lands on dashboard
+- Confirm: My Trainings works
+- Confirm: Completed training reopen works
+- Confirm: MyDiscipleship opens and expands
+- Confirm: What’s Next routes to correct next action
+
+PHASE 4.1 REQUIRED OUTPUT (RETURN ONLY THIS)
+1) PHOTO STEP CHANGE
+- what changed
+- how user skips
+
+2) ONBOARDING FLOW CONFIRMATION
+- user can reach onboarding DONE without photo (yes/no)
+
+3) ADMIN/TEST BYPASS (if added)
+- what it is
+- how it is restricted
+
+4) SMOKE TEST RESULTS
+- onboarding completion (pass/fail)
+- dashboard access (pass/fail)
+- trainings hub (pass/fail)
+- completed training review (pass/fail)
+- discipleship page (pass/fail)
+
+End with:
+“Phase 4.1 complete. Onboarding gate is now sane. Awaiting authorization to proceed to Phase 5.”
+STOP.

@@ -1,0 +1,125 @@
+MINISTRYPATH — PHASE 3
+REMOVE “COMING SOON” + BUILD BEAUTIFUL LOGIN + COMPLETE ADMIN BACKEND FOR MANUALS/TRAININGS
+STOP AFTER PHASE 3 REPORT
+
+You have completed Phase 2.1 successfully. Proceed to Phase 3 ONLY.
+
+ABSOLUTE RULES
+- Do NOT redesign the entire member dashboard yet (Phase 4).
+- Do NOT redesign onboarding yet (Phase 5).
+- Do NOT change Rooms/Calendar/Meetings/Planning Center in this phase.
+- Do NOT refactor global roles system in this phase.
+- Phase 3 focus is ONLY:
+  1) Remove Coming Soon splash gate
+  2) Replace it with a beautiful public login screen (marketing + login)
+  3) Make the Admin backend a complete control center for manuals & trainings so the owner/admin can manage without Replit AI
+  4) Fix any admin access + mobile leadership link issues necessary for these goals
+- STOP after Phase 3 and provide the required report.
+
+PART 1 — REMOVE “COMING SOON”
+1) Remove the Coming Soon maintenance gate:
+   - eliminate SHOW_COMING_SOON = true behavior
+   - remove or retire the ComingSoon page/route if present
+2) Ensure unauthenticated users land on the new Login/Landing page.
+3) Ensure authenticated users route appropriately (member vs leadership experience) without broken loops.
+
+PART 2 — BEAUTIFUL LOGIN / PUBLIC LANDING PAGE
+Create a modern, clean landing+login screen that:
+- Is the new public entry route when not logged in
+- Explains MinistryPath in simple language (onboarding, training, discipleship, serving)
+- Shows 4–6 feature cards:
+  - Onboarding & Training
+  - Manuals → Deep Trainings
+  - Progress & “What’s Next”
+  - Communication / Meetings
+  - Rooms / Calendar Planning (if enabled)
+- Has a clear Log In action
+- Works perfectly on mobile
+- Uses Montserrat and this palette:
+  #f2660f highlights
+  #223134 borders/boxes
+  #424242 secondary text
+  black/white primary
+- Remove clutter; keep it easy for teens and seniors.
+
+PART 3 — ADMIN BACKEND: MAKE IT A REAL CONTROL CENTER
+Goal: Owner/Admin can manage manuals and trainings without Replit AI.
+
+Implement/upgrade Admin Backend capabilities:
+
+A) Manual Management (required)
+Admin can:
+- Add manual with TWO formats:
+  - PDF attachment (view/download)
+  - analysis source file (DOCX/MD/TXT)
+- Set manual category (ministry_manual / leadership_training / resource)
+- Set required/optional
+- Link to ministry (required when category=ministry_manual)
+- Replace files (update PDF and/or analysis source)
+- Edit title/description
+- Delete manual safely (confirmation + show what will be affected)
+- Regenerate training from manual on demand (deep pipeline)
+- View manual status:
+  - analysis source missing? (yes/no)
+  - training generated? (yes/no)
+  - lesson count
+  - assessment count
+  - published status
+
+B) Training Management (required)
+Admin can:
+- Publish/unpublish
+- Required/optional
+- Assign audience:
+  - Member / Leader / Pastor
+  - plus tag-based targeting from Field Bank tags
+- Re-run deep generation pipeline
+- View training structure summary:
+  - lesson count
+  - knowledge check count
+  - intensive assessment count
+  - reflection enabled (yes/no)
+- View completion stats:
+  - # completed
+  - # in progress
+  - pass/fail counts (basic)
+
+C) Field Bank / Config Bank (required)
+Provide admin UI to manage:
+- Tags (admin/owner/pastor/associate/intern/custom)
+- Serve roles (usher/greeter/AV/worship/kids/etc.)
+- Staff titles (children’s pastor/youth pastor/etc.)
+- Global labels (rename “Dream Team”, etc.)
+These lists must be stored and used consistently where they appear.
+
+PART 4 — ACCESS & MOBILE FIXES (only what’s necessary)
+1) Non-admin users must be blocked from admin routes.
+2) Admin access method must be clear:
+   - allow /admin/login or role-gated /admin entry
+3) Fix leadership portal link hidden on mobile:
+   - remove `hidden sm:flex` issue
+   - ensure leadership access is available from a mobile-friendly menu (e.g., user dropdown)
+
+PHASE 3 REQUIRED OUTPUT (RETURN ONLY THIS)
+1) COMING SOON REMOVAL
+- what was removed/changed
+- where users now land when not logged in
+
+2) LOGIN PAGE SUMMARY
+- route used
+- key UI sections
+- mobile behavior confirmation
+
+3) ADMIN BACKEND CAPABILITIES CHECKLIST
+Manuals: add / edit / delete / replace / categorize / required / link to ministry / regenerate training (yes/no each)
+Trainings: publish / required / audience assignment / tag targeting / regenerate / view structure summary / view completion stats (yes/no each)
+Field Bank: tags / serve roles / staff titles / global labels (yes/no each)
+
+4) SECURITY CONFIRMATION
+- non-admin blocked from admin routes (yes/no)
+- admin access method described
+
+End with this exact sentence:
+“Phase 3 complete. Awaiting authorization to proceed to Phase 4.”
+
+STOP.

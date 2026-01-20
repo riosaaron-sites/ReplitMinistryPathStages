@@ -1,0 +1,228 @@
+SYSTEM: You are an AI app-builder modifying an EXISTING app named “MinistryPath”. Do NOT rebuild from scratch. Implement the changes below with minimal code + minimal new dependencies. Prefer simple routing, simple DB fields, and reuse existing components.
+
+GOAL: Fix auth (email/pass works + optional OAuth), add login/logout, fix onboarding order, correct role/ministry selection rules, enforce manual→survey training structure, hide trainings with no content, add persistent “Next Night & Following Jesus” account flag (not blocking dashboard), add admin tracking + delete user, adjust navigation (profile top-right; remove survey from left nav).
+
+====================================================
+DATA MODEL (MINIMAL ADDITIONS)
+====================================================
+
+TABLE: users
+- id (existing)
+- username (required)
+- email (required, unique)
+- password_hash (nullable if OAuth-only)
+- auth_provider (enum: "local","google","apple","replit","mixed") default "local"
+- role (enum: "DREAM_TEAM","LEADER","PASTOR") required
+- onboarding_state (enum: "AUTH","PROFILE","MINISTRIES","FAITH_COMMITMENT","CLASS_STATUS","DONE") default "AUTH"
+- led_ministry_ids (array of ministry_id) default []
+- served_ministry_ids (array of ministry_id) default []
+- next_night_status (enum: "COMPLETE","INCOMPLETE","SCHEDULED","UNKNOWN") default "UNKNOWN"
+- following_jesus_status (enum: "COMPLETE","INCOMPLETE","SCHEDULED","UNKNOWN") default "UNKNOWN"
+- next_night_completed_at (datetime nullable)
+- following_jesus_completed_at (datetime nullable)
+- next_night_set_by (admin_user_id nullable)
+- following_jesus_set_by (admin_user_id nullable)
+- created_at, updated_at (existing)
+- is_deleted (boolean default false) OR reuse existing soft-delete/archiving if present
+
+TABLE: ministries (existing)
+- id, name, etc.
+
+TABLE: invitations (if exists; else minimal)
+- id
+- email
+- invited_role (enum optional)
+- preset_ministry_ids (array)
+- status (enum: "PENDING","ACCEPTED","EXPIRED")
+
+TABLE: manuals (existing)
+- id
+- title
+- ministry_id (nullable for global)
+- content (text/markdown/html)
+- is_published (bool)
+
+TABLE: trainings (existing or minimal)
+- id
+- manual_id
+- ministry_id
+- role_scope (enum: "ALL","DREAM_TEAM","LEADER","PASTOR")
+- survey_json (json)
+- is_visible (bool computed: manual.content exists AND survey exists AND manual.is_published)
+
+====================================================
+AUTH (HYBRID, NO DEAD-ENDS)
+====================================================
+
+UI: Replace “Get Started” with AUTH LANDING PAGE (single page, 2 tabs or sections)
+A) LOG IN: email + password -> session cookie/token
+B) CREATE ACCOUNT: username + email + password -> creates local account -> session
+C) Optional OAuth buttons: Google / Apple / Replit (keep but never required)
+
+RULES:
+- Email/password signup MUST work without Replit authorization.
+- OAuth failure/cancel returns to Auth Landing Page with error + user can choose local signup/login.
+- Account linking: if OAuth email matches existing local account, prompt to link -> set auth_provider="mixed".
+- Implement LOG OUT:
+  - top-right user menu (avatar/name) -> “Log Out”
+  - clears session server-side and client-side -> returns to Auth Landing Page
+- Do not auto-login from cached Google unless app session is valid.
+
+====================================================
+ROUTING + ONBOARDING (FIX ORDER)
+====================================================
+
+GLOBAL ROUTE GUARD:
+If user.onboarding_state != "DONE":
+- route user to the screen matching onboarding_state
+- NEVER drop directly into dashboard until onboarding_state="DONE"
+
+ONBOARDING STEPS (in order, minimal screens):
+1) PROFILE SETUP (onboarding_state="PROFILE")
+   - required: username (if missing), role selection:
+     - DREAM_TEAM (includes interns)
+     - LEADER
+     - PASTOR
+   - Save -> onboarding_state="MINISTRIES"
+
+2) MINISTRIES (onboarding_state="MINISTRIES")
+   DREAM_TEAM:
+     - if invitation.preset_ministry_ids exists: auto-apply to served_ministry_ids (locked initially)
+     - else: user selects served ministries
+   LEADER/PASTOR:
+     - user selects ministries they LEAD (led_ministry_ids required, at least 1)
+     - optionally also selects served ministries
+   After save -> onboarding_state="FAITH_COMMITMENT"
+
+3) FAITH COMMITMENT (onboarding_state="FAITH_COMMITMENT")
+   Modules (each is manual→survey; if missing manual content, hide and show admin flag only):
+   - Doctrine Agreement (manual + survey)
+   - About Us (manual + survey)
+   - Core Values (manual + survey)
+   Completion -> onboarding_state="CLASS_STATUS"
+
+4) CLASS STATUS CAPTURE (onboarding_state="CLASS_STATUS")
+   Ask for:
+   - Next Night status: COMPLETE/INCOMPLETE/SCHEDULED/UNKNOWN
+   - Following Jesus status: COMPLETE/INCOMPLETE/SCHEDULED/UNKNOWN
+   Save -> onboarding_state="DONE" -> Dashboard unlocked
+
+====================================================
+PERSISTENT “REQUIRED CLASSES” FLAG (NOT BLOCKING)
+====================================================
+
+Compute:
+classes_incomplete = (next_night_status != "COMPLETE") OR (following_jesus_status != "COMPLETE")
+
+If classes_incomplete:
+- Show a persistent, NON-DISMISSIBLE banner:
+  - on Dashboard (top)
+  - on Profile page (top)
+Text (kind + direct):
+“You’re not blocked, but Next Night and/or Following Jesus are still required. This notice will remain until completed.”
+
+Banner disappears ONLY when both statuses == COMPLETE.
+
+====================================================
+TRAININGS (MANUAL → SURVEY ONLY, HIDE EMPTY)
+====================================================
+
+RULE: Any training shown to users MUST have:
+- published manual with content
+- survey_json present (10–15 questions)
+Otherwise: training.is_visible=false (hidden from users)
+
+POPULATION LOGIC:
+- DREAM_TEAM: show global faith modules + each served ministry manual training
+- LEADER/PASTOR: show global faith modules + each led/served ministry manual training + Language of a Leader modules + Recruitment 101
+NOTE: “Language of a Leader” is NOT a multi-week program; each module is its own manual→survey item.
+
+TIME ESTIMATE (lightweight):
+- For each training, show estimated time:
+  - reading_minutes = ceil(word_count(manual.content)/200)
+  - survey_minutes = ceil(num_questions/2)
+  - total = reading_minutes + survey_minutes
+  - clamp display hint to typical 5–15 min; but show true total if outside range.
+
+====================================================
+MINISTRY VISIBILITY + JOIN REQUESTS
+====================================================
+
+After onboarding:
+- Only show ministries in served_ministry_ids and led_ministry_ids.
+- Hide all others by default.
+
+Add “Request to Join a Ministry”:
+- User selects ministry -> creates request (pending)
+- Notify ministry leader(s)/admin (reuse existing notification system; if none, simple admin queue)
+- On approval: add to served_ministry_ids -> auto-populate training(s)
+
+Invitations:
+- Leader/Pastor/Admin can invite user with preset_ministry_ids.
+- On accept: preset ministries auto-assigned.
+
+====================================================
+ADMIN PANEL (TRACK + DELETE)
+====================================================
+
+ADMIN > PEOPLE:
+- List columns:
+  - Role
+  - Led ministries
+  - Served ministries
+  - Next Night status
+  - Following Jesus status
+  - Combined “Required Classes” = Complete/Incomplete
+- Filters:
+  - Incomplete Next Night
+  - Incomplete Following Jesus
+  - Any incomplete
+  - By role
+  - By ministry
+- Actions (per user):
+  - Set Next Night COMPLETE + timestamp + set_by
+  - Set Following Jesus COMPLETE + timestamp + set_by
+  - Set Scheduled + optional date (store in notes if no field)
+  - DELETE USER (hard delete if allowed; otherwise soft delete):
+    - revoke sessions/tokens
+    - remove access immediately
+    - show warning: “Deleting removes all progress and data.”
+
+ADMIN > TRAININGS/CONTENT QA (minimal):
+- Show list of trainings missing content or missing survey
+- Quick flags: “Missing manual content” / “Missing survey”
+- These should remain hidden from users until fixed.
+
+====================================================
+NAV / UI CLEANUP
+====================================================
+
+- Profile access: top-right avatar/name menu -> Profile, Log Out
+- Remove “Ministry Survey” from left sidebar navigation (redundant)
+- Keep “Ministry Survey” as a Dashboard card/tile only
+
+====================================================
+ACCEPTANCE TESTS (MUST PASS)
+====================================================
+
+AUTH:
+1) Create local account (new email) -> succeeds
+2) Login local -> succeeds
+3) Logout -> returns to Auth Landing Page; session invalid
+4) OAuth cancel/fail -> returns to Auth; local signup still works
+
+ONBOARDING:
+5) New user cannot see Dashboard until steps completed through CLASS_STATUS
+6) After DONE -> dashboard visible
+
+CLASSES FLAG:
+7) If Next Night or Following Jesus incomplete -> persistent banner shows; cannot dismiss
+8) Admin marks both COMPLETE -> banner disappears
+
+TRAININGS:
+9) No training appears without manual content + survey
+10) Training estimates show total minutes
+
+ADMIN:
+11) Filters show incomplete users accurately
+12) Delete user removes access + sessions immediately

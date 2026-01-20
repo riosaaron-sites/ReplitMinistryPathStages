@@ -1,0 +1,317 @@
+ADD-ON PROMPT: Rooms, Calendar, People & Roles, Ministries, Metrics, Archiving, and Reporting Logic
+
+PRIORITY BUILDER NOTE:
+Implement these features immediately. If partial versions exist, refine and expand them — do NOT delete working modules.
+
+✅ 1. Rooms & Calendar Enhancements
+A. Rooms Management Must Allow:
+
+Add new rooms
+
+Edit existing rooms
+
+Delete rooms (only if not used in historical data; otherwise archive the room)
+
+Set room capacity
+
+Upload or draw mock room layouts
+
+Modify tables, chairs, layouts
+
+B. Room Requests Must Include:
+
+Requested room
+
+Date & time
+
+Ministry or event
+
+Setup diagram
+
+Capacity or special needs
+
+Approval workflow
+
+C. Calendar Integration:
+
+When a room is requested AND approved:
+
+It must automatically appear on the calendar
+
+Show conflicts if the room is already booked
+
+Provide a “Room Conflict” alert to the requestor
+
+Provide manual override for Admin
+
+D. Editing Rooms Must Not Break Existing Data
+
+If a room is edited:
+
+Update capacity/layout without erasing history
+
+Maintain legacy bookings
+
+If deleted → convert to “archived room”
+
+Archived rooms remain accessible in reporting
+
+Not available for future booking
+
+✅ 2. People & Roles Module Enhancements
+GLOBAL REQUIREMENT:
+
+You must be able to view ANY user’s:
+
+Profile
+
+Ministry roles
+
+Training journey
+
+Onboarding checklist
+
+Background check status (if applicable)
+
+Survey results
+
+Attendance or activity data required by their ministries
+
+A. Archiving Users
+
+Ability to Archive a user for up to 180 days
+
+Archived users are hidden from normal views
+
+Searchable ONLY when filters include “Archived Users”
+
+After 180 days → app prompts Admin whether to:
+
+Extend archive
+
+Permanently delete
+
+Restore
+
+B. Deleting Users
+
+Hard-delete only allowed by Admin.
+Before deleting, show a required warning:
+
+“Deleting this user will permanently remove all data, progress, surveys, and history. This action cannot be undone.”
+
+C. Symbols for User Task Status
+
+Next to names, add a visual indicator:
+
+Yellow dot = onboarding incomplete
+
+Red dot = required tasks overdue
+
+Green dot = fully trained & active
+
+Blue dot = archived
+
+These should appear in lists, ministry rosters, and dashboards.
+
+✅ 3. Ministries Module Enhancements
+When clicking a ministry, display:
+
+Comprehensive description of the ministry
+
+Ministry Leader profile
+
+List of all team members
+
+Click-through access to each member’s profile
+
+Ability to message any individual directly from this screen
+
+Required trainings for this ministry
+
+Completion status of team members
+
+Add Ministry Workflow
+
+Admins can create a ministry
+
+For 7 days, ministry can be edited or deleted
+
+After 7 days:
+
+Ministry becomes permanent
+
+It cannot be deleted
+
+Only archived
+
+Archiving a ministry hides it from active views but retains:
+
+Training records
+
+Roster
+
+Attendance metrics
+
+Messages
+
+Archiving Ministry Logic
+
+If archived:
+
+Users who were in that ministry retain training history
+
+They lose access to that ministry’s dashboard
+
+The ministry no longer appears in onboarding or role selection
+
+✅ 4. Metrics & Attendance Reporting Module
+Every Ministry Leader must be able to report attendance and metrics, including:
+
+Attendance count
+
+Number of volunteers
+
+First-time guests
+
+Salvations (if applicable)
+
+Decisions or responses
+
+Baptisms
+
+Notes from the event
+
+Offering (if relevant to ministry)
+
+Any ministry-specific custom metrics defined by the leader
+
+First-Time Setup:
+
+When creating a recurring reportable activity (e.g., “Sunday Youth Service”), leaders must define:
+
+Name of activity
+
+Ministry
+
+Location
+
+Time
+
+Frequency (weekly, monthly, biweekly, custom)
+
+Recurrence pattern
+
+Who is responsible
+
+Whether attendance is required
+
+Ministry-specific questions
+
+After Setup:
+
+Leaders do NOT have to re-enter setup information again.
+They simply enter the numbers.
+
+🚨 REPORTING LOGIC & REMINDERS
+Submit Deadline:
+
+Leaders have 48 hours after an event to submit data.
+
+If not submitted:
+
+The system automatically sends:
+
+A reminder after 48 hours
+
+Another reminder every 24 hours
+
+Until data is submitted
+
+If the event did NOT happen:
+
+Leader selects:
+
+“Event did not occur”
+
+Then selects reason:
+
+Weather
+
+Cancelled by leadership
+
+Volunteer shortage
+
+Holiday
+
+Other (type reason)
+
+If event is canceled for a season (e.g., mid-summer):
+
+Leader may “Snooze reporting” with:
+
+Start date
+
+End date
+
+During snooze period:
+
+User receives NO reminders
+
+Reporting dashboard displays:
+
+“This event was snoozed from [date] to [date].”
+
+Editing Submitted Reports
+
+Leaders must be able to:
+
+Edit a previous submission
+
+Provide a reason for editing
+
+Audit log must store:
+
+Original submission
+
+Updated submission
+
+Who made the change
+
+Time and date
+
+Deleting Reports
+
+Not allowed unless by Admin
+Deleted reports must log the action in the audit trail.
+
+🧹 5. Logical Data Integrity Requirements
+Deleting or archiving must NEVER break data.
+
+Implement:
+
+Safe archival
+
+Historical protection
+
+Versioning of reports
+
+Ability to restore archived items
+
+Read-only access to archived data
+
+Summary of Protection Rules:
+
+Users can only be permanently deleted manually after explicit warning
+
+Ministries cannot be deleted after 7 days — only archived
+
+Rooms cannot be deleted if attached to history — only archived
+
+Reporting history cannot be deleted except by Admin
+
+Snoozing preserves historical accuracy
+
+🎯 BUILDER DIRECTIVE (Add to end of prompt)
+
+Builder must ensure that all modules—Rooms, Calendar, People & Roles, Ministries, Metrics, Reporting, Archiving—are deeply integrated with the existing MinistryPath system so that users never hit a dead end, all data remains intact, and leaders can monitor training, attendance, and activity with clarity and ease.

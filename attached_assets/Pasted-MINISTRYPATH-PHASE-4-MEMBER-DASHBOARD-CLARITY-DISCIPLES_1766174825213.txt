@@ -1,0 +1,141 @@
+MINISTRYPATH — PHASE 4
+MEMBER DASHBOARD CLARITY + DISCIPLESHIP SYNC + TRAINING REVIEW + REDUNDANCY CLEANUP
+STOP AFTER PHASE 4 REPORT
+
+You have completed Phase 3 verification successfully. Proceed to Phase 4 ONLY.
+
+ABSOLUTE RULES
+- Do NOT redesign onboarding flow yet (Phase 5).
+- Do NOT refactor global roles system yet (later phase).
+- Do NOT expand Rooms/Calendar/Meetings/Planning Center in this phase.
+- Phase 4 focus is MEMBER experience clarity + removing redundancies.
+- You may adjust leadership dashboard only if required for shared components.
+- STOP after Phase 4 and return the required output sections.
+
+PHASE 4 OUTCOMES (NON-NEGOTIABLE)
+
+A) MEMBER DASHBOARD = HOME BASE
+Update the member dashboard (/) so it clearly shows:
+1) “What’s Next” (top priority panel)
+   - Determine next required step using a priority order:
+     1) Onboarding incomplete (if any state exists)
+     2) Agreement/Faith commitment incomplete
+     3) Required core trainings incomplete (About Us, Discipleship Pathway, SERVE, Live the Life, Tell the Story)
+     4) Next Night status missing
+     5) Following Jesus status missing
+     6) Background check incomplete (if required for assigned ministries)
+     7) Ministry-specific required trainings incomplete
+   - Show as a single clear card with one primary CTA button:
+     “Continue” → takes user to the exact next place.
+
+2) “My Trainings” button (prominent)
+   - A primary button that opens TrainingHub
+   - Must show counts:
+     - Required remaining
+     - Completed
+
+3) Discipleship Path summary (at a glance)
+   - Show steps and current status
+   - Make it clickable to open the canonical Discipleship page (see section B)
+
+4) “My Roles / My Ministries” (clean and readable)
+   - Show ministry memberships as compact chips/badges
+   - Do NOT overload the header/title bar with ministry names
+   - If many, show “+N more”
+
+5) Survey results (if present)
+   - Show “View My Ministry Survey Results”
+   - Show top 3 recommended ministries with “Request to Join” buttons
+
+6) Background Check status
+   - If feature exists in DB, surface the status here
+   - If no status exists, show “Not on file” / “Pending” appropriately
+
+7) Daily encouragement + Bible verse + optional 365 plan entry
+   - Add a small panel that rotates daily based on date (deterministic)
+   - Keep simple: verse reference + short encouragement paragraph
+   - Optional “Start 365 Bible Plan” link (stub acceptable in Phase 4 if full plan is later)
+
+B) DISCIPLESHIP PAGE — SINGLE CANONICAL EXPERIENCE
+Consolidate discipleship into ONE canonical page and remove duplicates:
+- Choose canonical route: /my-discipleship (or /journey) but pick ONE and redirect others.
+- Merge DiscipleshipPath.tsx and MyDiscipleship.tsx into one coherent experience.
+
+Requirements for the canonical discipleship page:
+1) Expandable steps with explanations and user contribution details
+   - Sunday attendance does NOT expand (just status)
+   - Next Night expands:
+     - date attended (from user data)
+     - notes optional
+   - Learn expands:
+     - Following Jesus completion (date/status)
+     - links to required core trainings
+     - shows what remains
+   - Love expands:
+     - serving involvement summary
+     - links to community care / follow-up concepts if present
+   - Lead expands:
+     - leadership training requirements (for leaders/pastors)
+2) Each step must show:
+   - “What this is”
+   - “Your status”
+   - “What to do next” (with a button that launches the exact action)
+
+3) Training sync
+   - Learn step must reflect training completion:
+     - if core trainings complete, show Learn as progressing/complete
+     - if Following Jesus required and incomplete, show it as blocking
+
+C) TRAININGS — REVIEWABILITY + CLARITY
+1) TrainingHub must clearly separate:
+   - Required
+   - Optional
+   - Completed (reviewable)
+2) Completed trainings must be reopenable from the Completed list
+3) Show clear progress indicators without stale-state bugs
+4) Ensure no dead links into TrainingViewer
+
+D) REMOVE REDUNDANCY / DEAD ENDS
+Remove or consolidate truly redundant pages identified in audit:
+- OnboardingHub.tsx (if unused)
+- MyProgress.tsx (if overlaps)
+- ProfileWizard.tsx (if overlaps)
+- duplicate discipleship route aliases beyond the chosen canonical redirect
+- remove unnecessary nav links that lead to “glitter” or duplicate concepts
+Be conservative: prefer redirect + deprecate before deleting, but delete truly unused code.
+
+E) HEADER/TITLE BAR CLEANUP
+- Stop showing all connected ministries in the title bar or top UI areas.
+- Keep the header simple:
+  - logo/name
+  - nav
+  - user menu
+- Ministry badges belong inside dashboard/profile cards, not the global header.
+
+PHASE 4 REQUIRED OUTPUT (RETURN ONLY THIS)
+1) DASHBOARD CHANGES SUMMARY
+- list panels added/updated
+- “What’s Next” logic summary
+- where “My Trainings” button routes
+
+2) DISCIPLESHIP CANONICALIZATION
+- which route is canonical
+- which routes redirect
+- which components were merged/deleted
+
+3) TRAINING HUB REVIEWABILITY
+- confirm Completed section exists
+- confirm reopen completed training works
+
+4) REDUNDANCY CLEANUP LIST
+- files deleted
+- routes removed/redirected
+- links removed from nav
+
+5) HEADER CLEANUP CONFIRMATION
+- what was removed from header/title bar
+
+End with this exact sentence:
+“Phase 4 complete. Awaiting authorization to proceed to Phase 5.”
+
+STOP.

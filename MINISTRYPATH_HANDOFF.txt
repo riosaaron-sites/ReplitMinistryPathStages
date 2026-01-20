@@ -1,0 +1,169 @@
+==============================
+MINISTRYPATH HANDOFF DOCUMENT
+Generated: January 7, 2026
+==============================
+
+==============================
+SECTION 1 — BUILD & DEPLOYMENT
+==============================
+- Currently tested app: PUBLISHED
+- Latest publish timestamp: January 7, 2026 (commit 227f3b830cddc57966d398db9789000817b5b401)
+- Previous commit: 7645e4465f7f33d29bbc1e69d2fbae42e31415b9
+- Are Preview and Published currently identical? YES (just published)
+- Recent build/TypeScript errors that were fixed:
+  * getRoleAssignments → getUserRoleAssignments (3 locations)
+  * getMinistryLeadershipByUser → getUserLeadershipAssignments
+  * Added null check for invite.ministryId
+  * Fixed profilePhotoUrl → profileImageUrl
+  * Added slug generation for calendar category creation
+  * Fixed Outlook settings check to use testOutlookConnection()
+- Remaining LSP diagnostics: 11 (non-blocking type warnings)
+
+==============================
+SECTION 2 — USER ROLES & TEST ACCOUNTS
+==============================
+Primary Test Account:
+- Email: pastor@gardencitychurch.net
+- Role: pastor
+- Ministry assignments: Multiple (primary leader of several)
+- Onboarding status: Complete
+- Training progress: RESET TO FRESH (all progress cleared for testing)
+
+==============================
+SECTION 3 — TRAINING MODULE INVENTORY
+==============================
+
+1. Baptism Handout
+   - module id: e1e3f8e2-0d4a-4a3b-8c5e-9f0a1b2c3d4e
+   - isPublished: true
+   - isActive: true
+   - isDeepTraining: true (column value)
+   - lessons: JSONB array with 8 lessons
+   - Appears in: Both Admin Training Management and Member Training Hub
+
+2. Recruitment 101
+   - module id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+   - isPublished: true
+   - isActive: true
+   - isDeepTraining: true (column value)
+   - lessons: JSONB array with 8 lessons
+   - Appears in: Both Admin Training Management and Member Training Hub
+
+3. Discipleship Pathway
+   - module id: 4d6ebd70-576d-4eb4-bb5c-c2432540cbb1
+   - isPublished: true
+   - isActive: true
+   - isDeepTraining: true (column value)
+   - lessons: JSONB array with 8 lessons
+   - Appears in: Both Admin Training Management and Member Training Hub
+
+4. Holy Spirit Teaching
+   - isPublished: true
+   - isActive: false (inactive)
+
+5. SERVE Orientation
+   - isPublished: true
+   - isActive: false (inactive)
+
+==============================
+SECTION 4 — TRAINING VIEWER BEHAVIOR (CRITICAL)
+==============================
+
+Route: /trainings/:id (e.g., /trainings/4d6ebd70-576d-4eb4-bb5c-c2432540cbb1)
+
+Detection Logic (TrainingViewer.tsx line 238):
+- OLD (broken): const isDeepTraining = module?.isDeepTraining === true;
+- NEW (fixed): const isDeepTraining = parsedLessons.length > 0;
+
+Expected behavior:
+- Lesson 1 content with title, teaching paragraphs, "Why This Matters", scripture, reflection prompt
+- "Next Lesson" button
+- Progress indicator "Lesson 1 of 8"
+
+Fallback behavior (if broken):
+- Shows "Lesson Overview" heading
+- Generic placeholder content
+- "Submit for Review" button visible immediately
+
+==============================
+SECTION 5 — TRAINING PROGRESS LOGIC
+==============================
+
+Progress tracking uses training_progress table:
+- currentLessonIndex: 0-based index of current lesson
+- submittedAt: timestamp when user submits for leader approval
+- approvedAt: timestamp when leader approves completion
+
+Server-side guard (routes.ts lines 4131-4167):
+- Prevents premature submission
+- Validates all lessons completed before allowing "Submit for Review"
+
+==============================
+SECTION 6 — API EVIDENCE
+==============================
+
+GET /api/training/modules/:id returns:
+- Full module data including lessons array
+- lessons field is JSONB stored in database
+
+Database verification (from previous diagnostic):
+- Discipleship Pathway: 8 lessons confirmed
+- Baptism Handout: 8 lessons confirmed
+- Recruitment 101: 8 lessons confirmed
+
+==============================
+SECTION 7 — KNOWN FIXES ALREADY APPLIED
+==============================
+
+1. TrainingViewer.tsx:
+   - safeLessonIndex calculation added
+   - Deep training detection changed from strict boolean to lessons array inference
+   - Line 238: const isDeepTraining = parsedLessons.length > 0;
+
+2. server/routes.ts:
+   - getUserRoleAssignments (not getRoleAssignments)
+   - getUserLeadershipAssignments (not getMinistryLeadershipByUser)
+   - profileImageUrl (not profilePhotoUrl)
+   - Null checks for invite.ministryId
+   - Outlook settings check using testOutlookConnection()
+   - Calendar category slug generation
+
+3. Database:
+   - All training modules verified to have 8 lessons each
+   - Pastor account progress reset to fresh state
+
+==============================
+SECTION 8 — CURRENT BLOCKERS
+==============================
+
+Primary Issue:
+- Browser caching may still show old JavaScript even after publish
+- User MUST test in incognito/private browser window to bypass cache
+
+Verification needed:
+- Confirm deep training lessons display correctly in incognito after publish
+- If fallback still appears, the fix may not be deployed correctly
+
+Affected roles:
+- All roles that access Training Hub (/trainings/:id)
+
+==============================
+SECTION 9 — DO NOT DO AGAIN
+==============================
+
+Do NOT:
+- Create new training viewer systems
+- Add parallel/alternative viewers
+- Apply UI-only CSS hacks
+- Reintroduce XP/gamification terminology
+- Change the schema or add new tables for training
+- Use strict boolean checks for isDeepTraining (use lessons array presence)
+
+Do:
+- Test in incognito browser after publishing
+- Use lessons array inference for deep training detection
+- Preserve the 8-lesson structure already in database
+
+==============================
+END OF FILE
+==============================

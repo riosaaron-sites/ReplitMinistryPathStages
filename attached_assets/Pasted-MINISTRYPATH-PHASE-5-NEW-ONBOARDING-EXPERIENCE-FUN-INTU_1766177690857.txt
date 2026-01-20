@@ -1,0 +1,118 @@
+MINISTRYPATH — PHASE 5
+NEW ONBOARDING EXPERIENCE (FUN, INTUITIVE, GUIDED) + SIMPLIFY FLOW
+STOP AFTER PHASE 5 REPORT
+
+You have completed Phase 4.1 successfully. Proceed to Phase 5 ONLY.
+
+ABSOLUTE RULES
+- Do NOT change manual/training generation logic in this phase.
+- Do NOT redesign dashboards in this phase beyond “welcome completion” routing.
+- Do NOT expand Rooms/Calendar/Meetings/Planning Center in this phase.
+- This phase is ONLY: onboarding experience redesign + clarity + instruction boxes.
+- Preserve existing onboarding fields and data capture.
+- STOP after Phase 5 and return the required output.
+
+GOAL (IN PLAIN ENGLISH)
+Replace the current onboarding experience with a modern guided onboarding flow that:
+- feels like “you’ve been invited into the inner circle”
+- is easy for teens and seniors
+- uses clear progress steps, friendly explanations, and minimal friction
+- ends with a celebration moment, then routes to the dashboard
+
+REQUIREMENTS
+
+A) NEW ONBOARDING “WELCOME” ENTRY (MANDATORY)
+Create a new first screen before ProfileStep:
+Route: /onboarding/welcome (or similar)
+Includes:
+- Welcome message
+- What MinistryPath is (3–5 bullets)
+- What you’ll do next (Profile → Ministry → Commitment → Classes)
+- A “Start Onboarding” button
+- Progress indicator (Step 0 of N)
+
+B) PROGRESS UI (MANDATORY)
+Across all onboarding steps:
+- Show progress bar and step names
+- Keep steps consistent and minimal
+- Clear “Back” and “Continue”
+
+C) KEEP SAME DATA, IMPROVE PRESENTATION
+You must keep the data capture that already exists, but improve layout and clarity:
+
+1) ProfileStep
+- Clear sections: Contact, Photo (optional), Social (optional)
+- Inline help text and examples (short)
+- “Skip optional” supported
+
+2) MinistriesStep
+- Show invited ministry(ies) prominently if present
+- Allow request-to-join additional ministries only if feature exists, otherwise show “available later”
+- Explain who they report to (if ministry leader exists)
+- Explain basic expectations in 2–3 bullets
+
+3) Faith Commitment step
+- Keep doctrinal wizard, but improve readability:
+  - one concept per screen
+  - short description
+  - scripture reference displayed cleanly
+  - clear confirm action
+- Add an “I have questions” optional text field:
+  - stored to user profile and visible to leaders/admins
+
+4) ClassStatusStep
+- Make it simple:
+  - Next Night: attended date or planned
+  - Following Jesus: attended date or planned
+- Add clear explanation why these matter
+
+5) PhotoStep
+- Keep optional; keep skip button
+- If photo already exists, auto-skip remains fine
+
+D) INSTRUCTION BOXES (MANDATORY)
+Every onboarding page must include a small “Need help?” expandable panel:
+- Simple instructions
+- Contact or “Ask for Help” link if available
+- Keep it unobtrusive
+
+E) COMPLETION MOMENT (MANDATORY)
+After final onboarding step:
+- Show a completion screen:
+  - “You’re in.”
+  - A short encouragement
+  - “Go to Dashboard” button
+- Then route to dashboard
+
+F) SIMPLIFY GATING LOGIC
+Currently gating is split across router and step components.
+- Consolidate gating to ONE source of truth (OnboardingController).
+- Remove redundant redirects where safe.
+- Ensure no infinite loops.
+
+G) DESIGN SYSTEM
+Use Montserrat and existing palette:
+- #f2660f highlights
+- #223134 borders/boxes
+- #424242 secondary text
+Keep clean, friendly, accessible (large tap targets).
+
+PHASE 5 REQUIRED OUTPUT (RETURN ONLY THIS)
+1) NEW ONBOARDING FLOW MAP
+- list steps and routes in order
+
+2) UI/UX CHANGES SUMMARY
+- what was redesigned
+- what stayed the same (data-wise)
+
+3) GATING SIMPLIFICATION
+- what was consolidated
+- what was removed
+
+4) ACCESSIBILITY/MOBILE NOTES
+- confirm tap targets and mobile layout
+
+End with this exact sentence:
+“Phase 5 complete. Awaiting authorization to proceed to Phase 6.”
+
+STOP.

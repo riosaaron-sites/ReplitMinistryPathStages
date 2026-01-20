@@ -1,0 +1,132 @@
+```txt
+SYSTEM: You are an AI app-builder modifying an EXISTING app named “MinistryPath”. Do NOT rebuild from scratch. Implement the changes below using minimal new code, minimal new dependencies, and by reusing existing data/models/components wherever possible.
+
+FEATURE: Consolidate Discipleship progress systems (Discipleship Path / Discipleship Journey / My Journey / My Progress) into ONE synced “single source of truth” while keeping a lightweight dashboard summary.
+
+====================================================
+1) PROBLEM
+====================================================
+
+Current modules are redundant and out of sync:
+- “Discipleship Path”
+- “Discipleship Journey”
+- “My Journey”
+- “My Progress”
+Dashboard progress does not match progress inside these views, causing confusion.
+
+====================================================
+2) GOAL
+====================================================
+
+Create ONE authoritative discipleship tracking system:
+- One unified progress model
+- One detailed progress page
+- Dashboard shows only a summary snapshot pulled from the same progress model
+Remove/hide redundant views that do not add unique value.
+
+====================================================
+3) MINIMAL DATA MODEL (REUSE FIRST; ADD ONLY IF NEEDED)
+====================================================
+
+PRIORITY: Reuse existing training completion data.
+Only add a single lightweight table if the app currently has no stable “completion” source.
+
+A) If training completion already exists (recommended):
+- Treat TrainingCompletion records as the single source of truth.
+
+B) If no stable completion store exists, add minimal:
+
+TABLE: user_progress (ONLY if needed)
+- user_id (PK/FK)
+- completed_training_ids (array)
+- updated_at
+
+DO NOT duplicate progress in multiple places.
+
+====================================================
+4) SINGLE SOURCE OF TRUTH: “PROGRESS ENGINE”
+====================================================
+
+Implement a single function/service used EVERYWHERE:
+
+FUNCTION: getUserProgress(user_id)
+Returns:
+- totals: total_modules, completed_modules, percent_complete
+- sections: list of modules with status (COMPLETE/INCOMPLETE/LOCKED)
+- next_actions: up to 3 most important next incomplete modules
+- last_updated timestamp
+
+RULES:
+- A module is COMPLETE only if its required survey is submitted (and manual review requirement, if tracked).
+- Any page showing progress must call getUserProgress() and must NOT compute progress independently.
+
+====================================================
+5) UI CONSOLIDATION (MINIMAL PAGES)
+====================================================
+
+A) Keep ONE detailed page:
+- Name: “My Discipleship” (or “My Journey” — pick ONE label and use it everywhere)
+- Route: /my-discipleship
+- Contents:
+  - Progress bar + counts
+  - Module list grouped by category (Faith Commitment, Required Trainings, Ministry Manuals, Leadership Modules if applicable)
+  - Each module shows: status + estimated time + CTA button
+  - “Next up” section (from getUserProgress.next_actions)
+
+B) Dashboard:
+- Replace existing “Discipleship Path / Journey” widgets with ONE summary card:
+  - “My Discipleship”
+  - percent complete + “Continue” button
+  - pulls data from getUserProgress()
+
+C) Remove/HIDE redundant entries:
+- Remove “Ministry Survey” from left nav already (handled elsewhere)
+- For discipleship items:
+  - Left nav should contain ONLY ONE entry: “My Discipleship”
+  - Remove/hide “Discipleship Path”, “Discipleship Journey”, “My Journey”, “My Progress”
+  - If any of those routes must remain for backward compatibility:
+    - Keep routes but redirect them to /my-discipleship
+
+====================================================
+6) SYNC REQUIREMENTS (NO DESYNC ALLOWED)
+====================================================
+
+- All progress displays (dashboard + detailed page + any legacy pages) must reflect the same values.
+- Any completion event (survey submitted, module completed) triggers:
+  - update TrainingCompletion (preferred) or user_progress (fallback)
+  - invalidate progress cache (if any)
+  - refresh UI state
+
+====================================================
+7) TIME ESTIMATES (LIGHTWEIGHT, CONSISTENT)
+====================================================
+
+For each module:
+- reading_minutes = ceil(word_count(manual_content)/200)  // 200 wpm default
+- survey_minutes = ceil(question_count/2)                 // ~2 questions/min
+- total_minutes = reading_minutes + survey_minutes
+Display:
+- “Est. X min”
+
+Use the same estimator in all views.
+
+====================================================
+8) ACCEPTANCE TESTS (MUST PASS)
+====================================================
+
+1) Dashboard “My Discipleship” percent matches /my-discipleship percent exactly.
+2) Completing a module updates percent immediately (or on refresh) everywhere.
+3) Legacy routes redirect to /my-discipleship.
+4) No page calculates progress using a separate formula.
+5) No duplicate progress storage beyond the single source of truth.
+
+====================================================
+9) DELIVERABLES
+====================================================
+
+- One unified progress function: getUserProgress(user_id)
+- One detailed page: /my-discipleship
+- One dashboard summary card referencing the same progress
+- Redirects/removals for redundant progress pages
+- Shared time estimate helper used everywhere
+```

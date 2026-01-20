@@ -1,0 +1,147 @@
+You are Replit AI working inside an existing full-stack app called “MinistryPath”.
+The user is non-technical and must NOT run shell commands, DB migrations manually, or touch infra directly.
+You must implement changes only by editing the codebase and using the app’s existing patterns.
+
+ABSOLUTE SOURCE OF TRUTH:
+Everything in the “AUTHOR INTENT & REVIEW” document below is the product contract. If anything conflicts, the document wins.
+
+PRIMARY GOALS (must all be addressed):
+1) Fix training so it NEVER auto-completes when leader approval is required.
+2) Implement true leader approval/rejection with clear UI states.
+3) Unify Profile / My Roles / My Journey into a single guided dashboard.
+4) Implement Outlook 365 as the calendar of record (read + write).
+5) Add robust calendar filtering and grouping (Regular, Special, Super Sundays, Men’s, Women’s, Holidays, etc.).
+6) Implement room reservations using Outlook resource calendars.
+7) Turn Meetings into a real team tool (agenda, action steps, recap emails).
+8) Remove dead links, dead ends, and unused clutter.
+9) Make Help a full in-app user manual.
+10) Add admin guardrails so the owner cannot accidentally break the app.
+11) Do NOT replace Planning Center (Planning Center remains for people/volunteers only).
+
+CONSTRAINTS:
+- The user is an amateur: do not require CLI/shell usage, manual DB changes, or infrastructure changes outside the codebase.
+- Provide reliable execution: implement in small, safe commits/steps within this single run.
+- If a feature requires an external provider setup (e.g., Microsoft Entra app registration), implement the code + UI + docs, AND add in-app “Setup Wizard” screens that clearly guide what to paste where, with validation. Do not block the app; degrade gracefully.
+- Avoid “big bang” rewrites. Refactor strategically with minimal risk.
+
+OUTPUT RULES:
+- You MUST modify code, not just describe changes.
+- Add/adjust automated checks where feasible (type checks, lint, unit tests for critical logic).
+- After changes, provide a short “What changed” + “How to test in-app” checklist.
+- Remove dead routes/links and ensure navigation has no dead ends.
+
+IMPLEMENTATION PLAN (follow this structure):
+A) Repository audit & map
+   - Identify existing Training flow, approval logic, user dashboard/profile/roles/journey pages.
+   - Identify existing Calendar integration (if any), Meeting tools, Help pages, Admin tools.
+   - Create a short internal inventory (files, routes, db models used) and proceed.
+
+B) Training Hardening (NO AUTO-COMPLETE when approval required)
+   - Define explicit training states:
+     Draft/Not Started
+     In Progress
+     Submitted (awaiting leader approval)
+     Approved (completed)
+     Rejected (requires resubmission)
+   - Ensure “leader approval required” modules can ONLY reach Approved via leader action.
+   - Implement server-side enforcement: completion state transitions must be validated on the backend (never trust client).
+   - Add UI states with clear labels, icons, and “what happens next” messages.
+   - Add leader inbox/queue: list of pending submissions with approve/reject + optional feedback.
+   - Add notifications (in-app) when submitted/approved/rejected.
+   - Add tests for state transitions (especially the regression: auto-complete).
+
+C) Unified “My Dashboard” (Profile + My Roles + My Journey)
+   - Replace fragmented pages with a single guided dashboard view:
+     - “Your identity” (basic profile summary)
+     - “Your Roles” (lead vs serve vs pending)
+     - “Your Journey” (trainings, discipleship steps, next actions)
+     - “Next best action” panel: the single most important next step
+   - Keep legacy routes but redirect to the unified dashboard (no dead links).
+   - Ensure mobile-friendly layout.
+
+D) Outlook 365 Calendar of Record (READ + WRITE)
+   - Implement Microsoft Graph integration:
+     - Auth flow (OAuth) for organizational calendar access
+     - Read events from a designated primary calendar
+     - Write events created in-app to Outlook
+     - Store event IDs to avoid duplicates
+   - Add robust filtering and grouping:
+     - Regular
+     - Special Sundays
+     - Super Sundays
+     - Men’s
+     - Women’s
+     - Holidays
+     - (and any other categories specified in the document)
+   - Implement category metadata mapping:
+     - Either Outlook Categories or a mapping table in-app that tags events and keeps Outlook as record.
+   - Add in-app Setup Wizard:
+     - Step-by-step instructions for Entra registration
+     - Required scopes
+     - Redirect URI
+     - Where to paste Client ID/Secret/Tenant
+     - “Test Connection” button
+   - Graceful degradation if not configured: calendar page shows “Connect Outlook” wizard, not errors.
+
+E) Room Reservations using Outlook Resource Calendars
+   - Implement room/resource selection when creating an event/meeting.
+   - Query availability (free/busy) if possible; otherwise create tentative holds safely.
+   - Write reservation to the resource calendar via Graph.
+   - Add admin management UI to define which resources (room calendars) are available.
+
+F) Meetings become a real team tool
+   - Meeting entity supports:
+     - Title, time, attendees, agenda items, decisions, action steps (owner + due date), notes
+     - After meeting: recap view + one-click recap email
+   - Recap email:
+     - Sent via Outlook (preferred) or app mail provider if already exists
+     - Includes agenda, notes, action steps, owners, due dates
+   - Tight integration:
+     - Meeting creation writes to Outlook
+     - Updates sync back (store Graph event ID)
+     - Link meeting to ministry/team where applicable
+
+G) Help = full in-app user manual
+   - Replace “help center lite” with:
+     - Searchable articles
+     - Role-based sections (Member, Leader, Admin)
+     - How-to guides for Trainings, Approvals, Calendar, Rooms, Meetings
+     - Troubleshooting + FAQ
+   - Keep it in-app; no dead links.
+
+H) Remove dead links / clutter and add Admin Guardrails
+   - Remove/disable unused routes/components (but do not delete core features).
+   - Add an Admin “Safety” panel:
+     - Dangerous actions behind confirmation + typed phrase
+     - Protected owner account cannot be deleted/locked out
+     - Clear warnings and dry-run previews for destructive tools
+   - Ensure navigation is coherent: no dead ends.
+
+I) Acceptance Tests / QA checklist
+   - Add a minimal automated test suite for the most critical flows:
+     - Training approval gating (must not auto-complete)
+     - Leader approve/reject transitions
+     - Calendar connect + create event + category tagging
+     - Room reservation creation
+     - Meeting recap generation
+   - Provide a manual QA checklist at the end.
+
+NOW: IMPLEMENT ALL OF THE ABOVE, BUT YOU MUST FOLLOW THE AUTHOR INTENT & REVIEW DOCUMENT BELOW EXACTLY.
+If the document calls for additional rules, data models, permissions, or UI states, incorporate them.
+
+========================
+AUTHOR INTENT & REVIEW (PASTE BELOW)
+========================
+<<PASTE THE FULL DOCUMENT CONTENT HERE EXACTLY AS WRITTEN>>
+========================
+
+Begin implementation now.
+- First, locate the current training completion logic and fix gating.
+- Then build leader approvals UI + backend enforcement.
+- Then unify dashboard.
+- Then Outlook calendar integration + filters/grouping + setup wizard.
+- Then room reservations.
+- Then meetings tool.
+- Then help/manual.
+- Then guardrails + cleanup.
+- End with tests and QA checklist.

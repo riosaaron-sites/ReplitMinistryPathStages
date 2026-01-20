@@ -1,0 +1,123 @@
+MINISTRYPATH — PHASE 7.2 (REFINED)
+BIBLICAL LITERACY DEPTH + DISCIPLESHIP INTEGRATION
+STOP AFTER PHASE 7.2 REPORT
+
+This phase EXTENDS Phase 7.1. Do NOT undo or redesign existing features.
+
+ABSOLUTE RULES
+- Do NOT redesign onboarding or dashboards.
+- Do NOT introduce new major UI sections.
+- Do NOT change role permissions.
+- Biblical Literacy must integrate into EXISTING health, encouragement, and oversight systems.
+- STOP after Phase 7.2 and return the required output.
+
+GOAL
+Make Biblical Literacy:
+- meaningful
+- pastoral
+- actionable
+- visible to leaders
+- encouraging to members
+
+---
+
+## A) BIBLICAL LITERACY QUESTION ENHANCEMENT (MANDATORY)
+
+1) Expand Biblical Literacy to ~18–24 questions.
+2) Organize into 4 buckets:
+   - Bible Basics
+   - Story & Timeline
+   - Jesus & Salvation
+   - How to Read the Bible (context, genre, application)
+3) Difficulty mix:
+   - 40% easy
+   - 40% medium
+   - 20% challenge (fair, not obscure)
+
+---
+
+## B) SCORING & LEVELS (MANDATORY)
+
+Define literacy levels:
+- Low
+- Developing
+- Strong
+
+Store:
+- overall literacy level
+- per-bucket scores
+
+These scores must:
+- contribute to the existing health indicator logic
+- never be displayed as “fail/pass”
+
+---
+
+## C) MEMBER EXPERIENCE (MANDATORY)
+
+1) Survey Results Page:
+- Show:
+  - Biblical Literacy level
+  - brief explanation (pastoral tone)
+  - 2–4 recommended next steps based on level
+
+2) Dashboard Integration:
+- Include Biblical Literacy as part of:
+  - Growth Snapshot
+  - or Health Indicator explanation tooltip
+- No new dashboard sections required
+
+Example next steps by level:
+- Low → Bible Basics, Discipleship Hour, Following Jesus
+- Developing → 365 Bible Plan, small study habits
+- Strong → Leadership track reading, mentoring, facilitating
+
+---
+
+## D) LEADER / PASTOR VISIBILITY (MANDATORY)
+
+1) In People views:
+- Leaders see Biblical Literacy level for people in their ministries
+- Pastors/Admins see it for all users
+
+2) Display:
+- overall level
+- bucket breakdown
+- suggested discipleship focus
+
+3) Literacy results should:
+- inform encouragement notes
+- inform “Needs Care / Growing” health states
+- be reviewable historically
+
+---
+
+## E) TONE & SAFETY
+
+- No academic language
+- No shame-based phrasing
+- Literacy is framed as “formation,” not intelligence
+
+---
+
+PHASE 7.2 REQUIRED OUTPUT (RETURN ONLY THIS)
+
+1) QUESTION STRUCTURE
+- total questions
+- bucket breakdown
+
+2) SCORING & HEALTH INTEGRATION
+- how literacy affects health indicators
+
+3) MEMBER EXPERIENCE
+- where literacy appears
+- example encouragement language
+
+4) LEADER/PASTOR EXPERIENCE
+- where results are visible
+- how they inform care
+
+End with this exact sentence:
+“Phase 7.2 complete. Biblical Literacy is now integrated into discipleship care.”
+
+STOP.

@@ -1,0 +1,549 @@
+🌱 MASTER PROMPT V3.2 — MinistryPath Full App Build / Rebuild
+
+PRIORITY BUILDER NOTE:
+
+Implement ANY feature described below that does not yet exist in the current app.
+
+If a feature does exist but is incomplete or unclear, refine, complete, or reorganize it.
+
+Do NOT delete working features unless instructed; adapt them into the new structure.
+
+Eliminate ALL dead ends in user flow. Every step must lead clearly to the next step.
+
+🚀 1. APP PURPOSE — “MinistryPath”
+
+Build a fully functional, intuitive, zero-learning-curve onboarding and ministry management platform for Garden City Church.
+
+Every feature must serve one goal:
+
+Help volunteers & leaders move from onboarding → training → ministry engagement → continued development with clarity and ease.
+
+Use all uploaded PDFs (manuals, discipleship model, About Us document, ministry manuals, etc.) to populate:
+
+Training modules
+
+Quizzes
+
+Manuals library
+
+Ministry expectations
+
+Doctrine/About Us section
+
+Leadership development content
+
+🚀 2. GLOBAL USER EXPERIENCE REQUIREMENTS
+Every user—whether volunteer, staff, or pastor—must experience the same onboarding entry point:
+
+Create Profile
+
+Confirm contact info
+
+Upload photo (optional)
+
+Select their ministry/ministry roles
+
+Confirm availability
+
+Begin required training based on selections
+
+Gain access to:
+
+Messaging
+
+Calendar
+
+Planning Center tools
+
+Manuals Library
+
+Meetings Dashboard
+
+Team Connection
+
+NO dead ends. Every completed step must push the user forward.
+
+🚀 3. “MY PROFILE” MUST EXIST
+
+The app must contain a fully editable user profile, allowing users to adjust:
+
+Photo
+
+Contact info
+
+Ministry roles
+
+Availability
+
+Bio (optional)
+
+Emergency contact (optional)
+
+Multiministry toggles (if they serve in multiple areas)
+
+Notification preferences
+
+View all messages
+
+Training history
+
+🚀 4. MINISTRY STRUCTURE (FULL HIERARCHY BUILDER MUST IMPLEMENT)
+PASTORAL TEAM
+
+Lead Pastor
+
+Pastoral Staff
+
+Associates
+
+Board
+
+MINISTRY LEADERS
+
+A universal group for all leaders of any ministry.
+
+LANDING TEAM
+
+Greeters
+
+First Impressions
+
+Community Care
+
+USHERS
+SECURITY
+NEXT GEN
+
+Kingdom Children
+
+City Youth
+
+Must include:
+
+Safety policies
+
+Background checks
+
+Required manuals and training
+
+CAFE TEAM
+WORSHIP TEAM
+MEDIA TEAM
+
+Break these into separate streams:
+
+ProPresenter
+
+Sound
+
+Lighting
+
+Media Production
+
+Each must have:
+
+It’s own training
+
+It’s own manual
+
+It’s own quiz
+
+It’s own communication channel
+
+CREW TEAM
+
+(General support team, stagehands, setup/teardown)
+
+🚀 5. MULTI-MINISTRY PARTICIPATION
+
+Users may belong to multiple ministries.
+
+App must support:
+
+Toggling between ministry profiles
+
+Separate dashboards per ministry
+
+Separate training tracks
+
+A combined message center with filters
+
+Notifications showing which ministry a message belongs to
+
+Leader approval for new ministry assignments
+
+🚀 6. LEADER INVITE SYSTEM
+
+Leaders must be able to:
+
+Create or edit their profile
+
+Build their team roster
+
+Invite volunteers by email
+
+Assign ministry roles
+
+Automatically enroll each volunteer into the proper training track
+
+Approve or deny unsolicited user signups
+
+Message team members
+
+Track team training progress
+
+🚀 7. TRAINING ENGINE (Robust & Automatic)
+Training Path Auto-Assignment
+
+After onboarding, the app must automatically assign:
+
+Required ministry manual (PDF embedded)
+
+Ministry-specific quiz (10–15 questions)
+
+Universal trainings (for certain roles):
+
+Language of a Leader
+
+Recruitment 101
+
+Following Jesus Class
+
+If the user selected multiple ministries, each ministry path must be independently tracked and completed.
+
+After every completed step:
+
+Provide a clear “You Completed This” explanation, including:
+
+What they learned
+
+Why it matters for ministry
+
+What they unlocked next
+
+🚀 8. TRAINING HISTORY
+
+Every user must have a permanent, reviewable training record, including:
+
+All completed steps
+
+Quiz scores
+
+Manual reviews
+
+Dates completed
+
+Certificates (if applicable)
+
+Ability to reopen content
+
+Ability to re-review or re-take quizzes
+
+🚀 9. BACKEND REVIEW PORTAL (Leaders + Admins)
+Leaders must be able to:
+
+View team rosters
+
+Track training progress
+
+See all quiz answers
+
+Reset modules
+
+Resend modules
+
+Flag answers that require revision
+
+See ministry survey results
+
+Approve onboarding
+
+Admins must be able to:
+
+View all ministries
+
+Toggle between ministries
+
+Export data
+
+Override leader actions
+
+Edit assignments
+
+See global analytics
+
+🚀 10. MESSAGING & TEAM COMMUNICATION SYSTEM
+
+Every ministry must have:
+
+Its own channel
+
+Subchannels for subgroup ministries
+
+Leader announcements
+
+Ability to direct-message within appropriate security boundaries
+
+Users in multiple ministries must have:
+
+Combined inbox
+
+Filter by ministry
+
+Notifications from all ministries
+
+Leaders and pastors must have the ability to message:
+
+Individuals
+
+Their teams
+
+Specific ministry groups
+
+Entire GCC Dream Team
+
+🚀 11. CALENDAR MODULE (FULLY IMPLEMENTED)
+
+Calendar must include:
+
+Churchwide calendar
+
+Ministry events
+
+Category of service (from Leadership Meeting Nov 10 PDF):
+
+Category 1: Standard Service
+
+Category 2: Special Service
+
+Category 3: Super Service
+
+Special days (Advent, holidays, baptisms, dedications)
+
+Ability to filter by:
+
+Ministry
+
+Category
+
+Date
+
+Leader
+
+Calendar items should always lead somewhere:
+
+Preparation tasks
+
+Training
+
+Resources
+
+Planning Center integration
+
+🚀 12. ROOM REQUEST SYSTEM
+
+Users must be able to:
+
+Request rooms
+
+Request equipment/resources
+
+Include setup diagrams
+
+Receive approval/denial
+
+Trigger notifications
+
+Leaders and admins must be able to:
+
+View all requests
+
+Approve/deny
+
+See resource conflicts
+
+🚀 13. BACKGROUND CHECK INTEGRATION
+
+If a user selects Kingdom Children, City Youth, Security, or anything requiring clearance, the app must prompt:
+
+Background check required
+
+Link to complete check
+
+Leader notification
+
+🚀 14. PLANNING CENTER MODULE
+
+Provide:
+
+Quick access buttons to scheduling
+
+Sync calendar events
+
+See assigned dates of serving
+
+Check in/out (if supported)
+
+🚀 15. “ABOUT US” MUST USE FULL DOCTRINE + VALUES
+
+Pull ALL content from About Us Manual and integrate it in collapsible, intuitive format:
+
+Core Values (with Scripture)
+
+Biblically Grounded
+
+2 Timothy 3:16
+
+2 Peter 1:21
+
+Mission / Evangelistic Oriented
+
+Matthew 28
+
+Holy Spirit Empowered
+
+Acts 2
+
+Relationally Nurturing
+
+1 John 4:7–8
+
+Community Driven
+
+Matthew 16:18
+
+Acts 2:47
+
+Pursuing Excellence
+
+Philippians 4:8
+
+2 Corinthians 8:7
+
+Proverbs 22:9
+
+1 Peter 2:9
+
+Generous
+
+Acts 20:35
+
+2 Corinthians 9:6–7
+
+Proverbs 11:24–25
+
+Include clear explanation:
+
+“We want everything we do at Garden City Church to reflect these values—but the app itself does not enforce or filter functionality based on them. These values guide our mission, not our software restrictions.”
+
+🚀 16. NEXT STEPS ENGINE
+
+The app must NEVER leave the user stranded.
+
+All flows must lead into:
+
+Remaining trainings
+
+Suggested trainings
+
+Ministry survey
+
+Calendar
+
+Messaging
+
+Planning Center
+
+Manuals Library
+
+My Profile
+
+🚀 17. MINISTRY SURVEY MODULE
+
+Survey is optional but strongly recommended
+
+Survey results should be used to suggest ministry areas
+
+Leaders should see survey results
+
+Users can retake survey later
+
+Integrate survey logic into profile building
+
+🚀 18. MANUALS LIBRARY
+
+All ministry manuals (from PDFs) must be:
+
+Extracted
+
+Cleanly formatted
+
+Searchable
+
+Downloadable
+
+Viewed in-app
+
+🚀 19. GRAPHICS & IMAGES
+
+Use images from PDFs:
+
+Discipleship Model graphics
+
+Emoticon people
+
+Diagrams
+
+Icons
+
+Implement them in:
+
+Onboarding
+
+Training
+
+Ministry profile pages
+
+About Us
+
+Graphics should appear fun, welcoming, and easy to understand.
+
+🚀 20. GLOBAL QA REQUIREMENTS
+
+Before finalizing the build:
+
+Ensure no dead ends
+
+Ensure next steps always appear
+
+Ensure all manuals load
+
+Ensure training triggers automatically
+
+Ensure messaging works properly
+
+Ensure multi-ministry toggling works
+
+Ensure profile editing works
+
+Ensure backend tracking works
+
+🚀 21. FINAL BUILDER DIRECTIVES
+
+AI Builder Instructions:
+
+Implement EVERYTHING above.
+
+Do NOT discard existing modules unless they prevent implementation.
+
+Expand, refine, and correct what exists.
+
+Fill all empty or placeholder sections using content from PDFs.
+
+Integrate all visual assets found in PDFs.
+
+Ensure UI flow is clear for ages 8–80.
+
+Remove ALL dead ends and unresolved pathways.
+
+Use consistent branding: Garden City Church / MinistryPath.

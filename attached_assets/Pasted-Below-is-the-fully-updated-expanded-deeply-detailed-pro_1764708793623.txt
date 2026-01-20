@@ -1,0 +1,417 @@
+Below is the **fully updated, expanded, deeply detailed prompt** that now includes:
+
+✅ Biblical literacy assessment
+✅ Thorough, Pentecostal-sound spiritual gifts diagnostics
+✅ All biblical spiritual gift lists (1 Corinthians 12, Romans 12, Ephesians 4, additional NT passages)
+✅ Biblical references included in **results explanations**
+✅ Disc-type personality system
+✅ A full, immersive **sound tech proficiency exam**
+✅ Clear guidance for vetting AND encouraging learners
+✅ Integration of Garden City brand colors
+✅ Instruction to analyze the uploaded logo
+
+This is now a **master prompt**—the most complete blueprint you can hand to any AI App Builder to generate the app.
+
+---
+
+# **REVISED & EXPANDED APP-BUILDER PROMPT
+
+Garden City Church – Spiritual Gifts, Personality, Biblical Literacy, & Ministry Placement App**
+
+You are building a full-featured ministry placement assessment tool for **Garden City Church**—a Pentecostal, Spirit-led, Scripture-honoring church.
+
+The assessment will help users discover:
+
+1. **Spiritual Gifts**
+2. **Biblical Literacy Level**
+3. **Personality Type (DISC-based)**
+4. **Skill Competency** in practical ministry roles
+5. **Team Fit & Ministry Placement Recommendations**
+6. **Biblical gift explanations referencing Scripture**
+
+This tool must be **immersive**, **Pentecostal-friendly**, **biblically accurate**, and visually aligned to Garden City Church.
+
+---
+
+# **BEFORE DESIGNING ANYTHING**
+
+Review the **Garden City Church logo** that I will upload.
+Use it to determine UI spacing, style, tone, and overall aesthetic.
+
+---
+
+# **BRANDING REQUIREMENTS**
+
+Use Garden City Church brand colors:
+
+* **Header / Titles:** `#f8a84a`
+* **Primary Font:** `#000000`
+* **Links, Buttons, Highlights:** `#f2660f`
+* Reversed text when necessary: **white**
+
+The UI should look:
+
+* Modern
+* Warm
+* Minimalistic
+* High-contrast
+* Welcoming and Pentecostal-friendly (but not cheesy or outdated)
+
+---
+
+# **APP ARCHITECTURE & FEATURES**
+
+### **1. User Accounts**
+
+* Email + password or social login
+* Auto-save progress
+* Ability to return later
+
+### **2. Survey Structure**
+
+Create a **65–90 question** immersive survey broken into:
+
+1. **Spiritual Gifts Assessment**
+2. **Biblical Literacy Diagnostics**
+3. **DISC Personality Mapping**
+4. **Ministry Skill & Competency Testing**
+5. **Sound/Media Technical Exam**
+6. **Team Fit & Ministry Preference Analysis**
+7. **Availability & Capacity**
+
+---
+
+# **SECTION 1: SPIRITUAL GIFTS DIAGNOSTIC (25–35 questions)**
+
+Assess gifts from:
+
+### **1 Corinthians 12:8–10**
+
+* Word of Wisdom
+* Word of Knowledge
+* Faith
+* Healing
+* Miracles
+* Prophecy
+* Discernment
+* Tongues
+* Interpretation of Tongues
+
+### **Romans 12:3–8**
+
+* Service
+* Teaching
+* Exhortation
+* Giving
+* Leadership
+* Mercy
+
+### **Ephesians 4:11**
+
+* Apostleship
+* Prophecy
+* Evangelism
+* Pastoring/Shepherding
+* Teaching
+
+### **Other NT Gifts**
+
+* Administration
+* Reconciliation
+* Compassion
+* Hospitality
+* Intercession
+* Helps
+* Self-sacrificing Service
+
+### **Question Types**
+
+Likert-scale + scenario-based + “recognition of biblical operation.”
+
+### **Examples (App must generate 30+):**
+
+* When praying, I often sense specific insight or direction for others. *(Word of Knowledge)*
+* People regularly seek me out when they need wisdom. *(Word of Wisdom)*
+* I believe God can do the impossible in difficult situations. *(Faith)*
+* I feel compassion rise inside me for the hurting. *(Mercy)*
+* I instinctively step up to organize people or tasks. *(Leadership/Administration)*
+* I feel a strong desire to explain Scripture clearly. *(Teaching)*
+* I have prayed for people and witnessed noticeable healing. *(Healing)*
+* I often sense spiritual activity or motives behind situations. *(Discernment)*
+* I feel prompted to speak or declare things God is showing me. *(Prophecy)*
+* I have a supernatural burden to intercede for others. *(Intercession)*
+* I enjoy serving behind the scenes without recognition. *(Helps)*
+* I enjoy sharing the Gospel in everyday situations. *(Evangelism)*
+
+---
+
+# **SECTION 2: BIBLICAL LITERACY EXAM (10–15 questions)**
+
+### **Purpose:**
+
+* Determine confidence with Scripture
+* Evaluate readiness for teaching roles
+* Recommend next steps
+
+### **Question Areas:**
+
+* Basic Biblical narrative
+* Key doctrines (Pentecostal-friendly)
+* Distinguishing Old vs. New Covenant
+* Familiarity with spiritual gifts passages
+* Practical application
+
+### **Sample Questions (expand to 15):**
+
+* Where in Scripture are spiritual gifts primarily listed?
+* What is the Great Commission?
+* What does Acts 2 describe?
+* How would you explain salvation through grace to a new believer?
+* What is the fruit of the Spirit and where is it found?
+* Identify which of the following ARE or ARE NOT spiritual gifts.
+
+App must assign literacy levels:
+
+* Beginning
+* Growing
+* Confident
+* Skilled
+* Teacher-Level
+
+---
+
+# **SECTION 3: DISC PERSONALITY DIAGNOSTIC (12–20 questions)**
+
+Identify:
+
+* **D – Dominance**
+* **I – Influence**
+* **S – Steadiness**
+* **C – Conscientiousness**
+
+### **Example Question Categories:**
+
+* How you respond to conflict
+* How you make decisions
+* How you communicate
+* Preferred environment
+* Speed vs. accuracy preference
+* People vs. task orientation
+
+The result generates:
+
+* Primary Type
+* Secondary Type
+* Strengths
+* Weaknesses
+* Best team environments
+* Worst team environments
+
+---
+
+# **SECTION 4: MINISTRY SKILL & COMPETENCY EXAMS (12–20 questions)**
+
+### **Test actual skills, not just interest.**
+
+Include conditional logic.
+
+---
+
+## **A. First Impressions / Hospitality**
+
+* Comfort approaching new people
+* Ability to stay positive
+* Awareness of atmosphere
+* Reliability/punctuality
+
+---
+
+## **B. Teaching / Discipleship**
+
+* Ability to build simple lesson outline
+* Clarity of communication
+* Ability to explain Scripture
+
+---
+
+## **C. Children / Nursery / Youth**
+
+* Patience
+* Emotional regulation
+* Safety awareness
+* Experience with children
+* High-energy suitability
+
+---
+
+## **D. Creative Arts (Drama, Dance, Design, Photography)**
+
+* Portfolio verification
+* Skill confidence
+* Experience with teams
+
+---
+
+# **SECTION 5: SOUND TECH & MEDIA TECHNICAL EXAM (10–18 questions)**
+
+This MUST thoroughly test:
+
+### **Basic Sound Theory**
+
+* Gain vs volume
+* EQ basics
+* Feedback identification
+* Mic types (dynamic vs condenser)
+
+### **Digital Audio Console Basics**
+
+* What is gain staging?
+* What does a high-pass filter do?
+* How to set up a vocal mix?
+
+### **Live Service Workflow**
+
+* Pre-service checks
+* Troubleshooting no-sound situations
+* Understanding stage plots
+* Communication with worship leader
+
+### **ProPresenter (if relevant)**
+
+* Layer order
+* Video playback
+* Importing slides
+
+### **Photography/Video (Media Team)**
+
+* Framing
+* Exposure
+* Color temperature
+
+### **Scoring**
+
+The app must categorize the user:
+
+* Beginner (needs full training)
+* Growing Learner (serve with supervision)
+* Competent (ready to serve)
+* Skilled (can train others)
+
+### **Essential Requirement**
+
+**Every technical results page MUST encourage growth:**
+
+> “Worship and production roles require patience, humility, and a teachable spirit. If you scored low, we will gladly mentor and train you! Your desire is valuable—skill can be developed.”
+
+---
+
+# **SECTION 6: MINISTRY FIT & TEAM CHEMISTRY ANALYSIS (8–12 questions)**
+
+Evaluate:
+
+* Preferred pace (slow/steady vs fast/high-energy)
+* Preferred team types
+* Comfort with instruction vs autonomy
+* People vs task orientation
+
+---
+
+# **RESULTS SCREEN REQUIREMENTS**
+
+---
+
+# **1. SPIRITUAL GIFTS SUMMARY**
+
+List **top 5–7 gifts** with:
+
+* Definition
+* Scripture reference
+* Biblical example
+* How the person may operate in that gift
+* Ministry roles where that gift thrives
+* Team culture that best fits
+
+Example Output:
+
+### **Gift of Teaching**
+
+**Scripture:** Romans 12:7, Ephesians 4:11
+**Biblical Example:** Apollos (Acts 18:24–28)
+**Description:** You communicate God’s Word with clarity and insight.
+**You thrive in:** Discipleship Hour, Youth, Teaching Team.
+**You work best with:** organized leaders, motivated learners, clear systems.
+
+---
+
+# **2. BIBLICAL LITERACY LEVEL**
+
+Provide:
+
+* Literacy level
+* What that level means
+* Recommended next steps (classes, studies, resources)
+
+---
+
+# **3. DISC PERSONALITY TYPE RESULTS**
+
+Include:
+
+* Primary DISC type
+* Secondary backup type
+* Strengths
+* Weaknesses
+* Best ministry matches
+* Best team environments
+* Worst environments
+
+---
+
+# **4. MINISTRY RECOMMENDATIONS**
+
+Provide **at least 3–5 main recommendations**, each with:
+
+* Description of ministry
+* Why the person is a good fit
+* Strengths they bring
+* Team culture fit
+* Next steps (audition, training, onboarding)
+
+---
+
+# **5. SECONDARY OPTIONS**
+
+Show 2–4 additional “stretch possibilities.”
+
+---
+
+# **6. GROWTH PLAN**
+
+For users who score low in areas:
+
+* Provide encouragement
+* Provide learning pathways
+* Offer next steps, classes, mentorship
+
+---
+
+# **7. PDF + EMAIL DELIVERY**
+
+Upon completion:
+
+* Generate a formatted PDF
+* Send via email
+* Save to database with all results
+
+---
+
+# **This is the full, updated master prompt.
+
+Would you like me to also generate:**
+
+🔥 The full 90-question survey?
+🔥 A complete scoring algorithm for every gift, personality type, literacy level, and ministry?
+🔥 PDF output template?
+🔥 UI mockups using your brand colors?
+
+Just tell me “generate the full survey” or “build the scoring system,” and I’ll produce it.

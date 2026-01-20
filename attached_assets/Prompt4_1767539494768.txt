@@ -1,0 +1,49 @@
+You are working in the existing MinistryPath codebase. Goal: audit and eliminate dead ends, junk UX, and inconsistencies WITHOUT adding new major features. Keep changes minimal, user-friendly, and testable. Do not refactor broadly.
+
+WORK RULES (IMPORTANT):
+- Make only the smallest code changes needed.
+- Do not redesign UI. Fix clarity, broken navigation, empty states, and branding consistency.
+- No new tables unless absolutely required to fix a bug.
+- Prefer deleting/hidden items over “coming soon” placeholders in main navigation.
+- After changes, provide a short “What to test” checklist.
+
+TASKS (IN ORDER):
+
+1) Branding Consistency Sweep (User-facing):
+- Replace ALL visible “Dream Team HUB” / “Leadership HUB” references with “MinistryPath”.
+- Verify Home footer alt text/labels and Help Center article titles/body reflect MinistryPath.
+- Ensure logo, favicon, and page titles are consistent (no mixed naming).
+
+2) Help Center Link Hygiene:
+- Update Help articles to link to current canonical paths.
+- Specifically: change any references/links to /my-discipleship to /my-path (keep redirects in router).
+- Run /api/dev/route-audit (or equivalent) logic and ensure it passes with zero broken relatedLinks.
+- Remove or fix any help links that point to pages that leaders-only users cannot access.
+
+3) Navigation Dead-End Elimination:
+- Identify any sidebar/nav items that lead to PlaceholderPage or "coming soon" pages.
+- Remove/hide those items from primary navigation for members and leaders.
+- If a route must exist but feature is not ready, keep route but ensure no primary CTA routes users there.
+
+4) Empty-State & CTA Verification for Core Pages:
+For each of these pages: Dashboard, My Path, Trainings, Training Viewer, Teams, Requests, Calendar, Meetings, Help Center
+- Ensure the page has a clear empty state when there is no data.
+- Ensure primary buttons/CTAs always do something meaningful (navigate, open modal, or show actionable message).
+- If a query fails (401/403/500), show a human-friendly message and a next step (e.g., “Ask an admin to assign you to a team”).
+- Avoid technical error dumps.
+
+5) Onboarding Lock Sanity:
+- Confirm users who are onboarding are redirected to /onboarding as intended.
+- Ensure there’s a clear “Resume onboarding” CTA wherever appropriate.
+- Ensure leaders/admins can still access leadership portal if needed for setup even if onboarding is incomplete (if that is already intended; otherwise keep current behavior but add messaging).
+
+6) Final Output:
+- List exactly what files you changed.
+- Summarize changes in plain English.
+- Provide a 10-step test checklist for the 4 critical flows:
+  a) New user onboarding
+  b) Team join request + leader approval + notifications
+  c) Training submission + leader approval (no auto-pass)
+  d) Calendar filters + Outlook read/write basics
+
+Stop after completing these tasks. Do not start new features beyond this scope.

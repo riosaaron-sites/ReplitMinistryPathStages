@@ -1,0 +1,281 @@
+🌱 ADD-ON PROMPT: ONBOARDING PATHS, MANUAL LIBRARY, & CHILD SAFETY LOGIC
+
+PRIORITY BUILDER NOTE:
+Implement the following features immediately.
+If partial versions already exist, refine and expand them rather than deleting anything.
+
+✅ 1. Dynamic Onboarding Flow Based on Ministry Selection
+REQUIREMENT:
+
+Users must be able to select one or multiple ministries during onboarding and at any time after onboarding through “My Profile.”
+Ministry selection automatically unlocks the correct Dream Team Path and assigns required trainings.
+
+Builder Instructions:
+A. During onboarding, after profile creation:
+
+Prompt user:
+
+“Which ministries are you a part of? (Select all that apply)”
+
+Allow multi-select from the full list:
+
+Worship Team
+
+Media (ProPresenter / Sound / Lighting / Media Production)
+
+Landing Team (Greeters / First Impressions / Community Care)
+
+Ushers
+
+Security
+
+Next Gen (Kingdom Children / City Youth)
+
+Café
+
+Crew
+
+Discipleship Hour
+
+CORE Ministers
+
+Intercessory
+
+Pastoral Team / Leadership
+
+B. Immediately after ministry selection, trigger the correct onboarding checklist:
+All Dream Team Members must complete these steps (in order):
+
+Complete Profile
+
+Faith Commitment Module
+
+Ministry Survey (optional but recommended)
+
+About Us Manual
+
+Show manual
+
+Require a 10–15 question quiz
+
+Ministry-Specific Training Path
+For EACH ministry selected, automatically assign:
+
+The correct Ministry Manual (PDF integration)
+
+A 10–15 question knowledge test
+
+A “Completion Summary” screen
+
+Leadership Path (Leaders + Pastors) must include additional required modules:
+
+After Step 4 above:
+
+Language of a Leader (PDF) + Quiz (10–15 questions)
+
+Recruitment 101 (PDF) + Quiz (10–15 questions)
+
+Then proceed to ministry-specific training
+
+Unlock Leader Dashboard & Team Management features
+
+C. After ALL required onboarding steps are completed:
+
+Automatically unlock the rest of MinistryPath, including:
+
+Calendar
+
+Planning Center integration
+
+Team messaging
+
+Room requests
+
+Manuals Library
+
+Leader dashboard (if applicable)
+
+Profile toggling between ministries
+
+Next steps engine
+
+D. IMPORTANT FLOW REQUIREMENT:
+
+Remove ALL dead ends.
+Every training completion must lead clearly into the next required training.
+
+✅ 2. Manual Library Integration
+REQUIREMENT:
+
+The app must integrate ALL ministry manuals from the PDFs you've uploaded.
+Do not request re-upload unless file corruption occurs.
+
+Builder Instructions:
+
+Create a Manuals Library section accessible from:
+
+Home
+
+Profile
+
+Training History
+
+Extract all text and graphics from uploaded PDFs:
+
+Worship Team Manual
+
+Media Manuals
+
+CREW Manuals
+
+Usher Manuals
+
+Security Manuals
+
+CORE Minister Manual
+
+Intercessory Manual
+
+Café (if within PDFs)
+
+Children & Youth Manuals
+
+Following Jesus
+
+Leadership manuals
+
+Language of a Leader
+
+Recruitment 101
+
+About Us Manual
+
+Discipleship Model PDF
+
+Format each PDF into:
+
+A visually clean in-app reader
+
+Searchable text
+
+Downloadable file
+
+Included images and icons wherever possible
+
+Assign each manual to its associated ministry
+
+Training modules must reference these manuals directly from the library.
+
+NOTE:
+
+All provided manuals must be included unless damaged.
+Do NOT skip or consolidate manuals.
+If the AI builder encounters a corrupted PDF, it should notify you.
+
+✅ 3. Child Safety Logic for Next Gen Ministries Only
+REQUIREMENT:
+
+Child Safety Training and Background Checks should only apply to:
+
+Kingdom Children
+
+City Youth
+
+Builder Instructions:
+If user selects Kingdom Children or City Youth:
+
+Immediately add to their onboarding path:
+
+Child Safety Manual + Test
+
+Mandatory Background Check Prompt
+
+Show link or upload button
+
+Show status indicator
+
+Notify ministry leader when submitted
+
+Acknowledge “Next Gen Behavioral Expectations”
+
+Do not unlock ministry completion until background check is marked approved by a leader or admin.
+
+If user does NOT select these ministries:
+
+Hide all child safety modules
+
+Do not require background check
+
+Do not mention this requirement in their onboarding flow
+
+Leaders & Admins in NextGen:
+
+Must see background check status for each volunteer
+
+Must receive notification when a user completes the safety module
+
+Can approve/deny readiness for scheduling
+
+🚀 4. Builder Integration Notes
+
+Please ensure the following:
+
+A. Multi-ministry logic must fully work
+
+One user = one profile
+
+Multiple ministry tracks
+
+Multiple sets of required trainings
+
+B. Training steps must be STRICT
+
+Users cannot skip required modules.
+
+C. Quiz creation
+
+AI Builder must generate:
+
+10–15 questions per manual
+
+Mix of true/false, multiple choice, scenario-based questions
+
+Passing thresholds (suggested: 80%)
+
+D. Unlocking MinistryPath after onboarding
+
+After finishing the assigned track:
+
+“You’re Ready! You are now fully prepared to serve in your ministry role(s).”
+
+Unlock:
+
+Calendar
+
+Messaging
+
+Team space
+
+Planning Center panel
+
+Manuals Library
+
+Room requests
+
+All profile features
+
+E. Leader/Team Dashboards must reflect the new training structure
+
+Leader dashboards must update automatically with:
+
+Training completion
+
+Quiz scores
+
+Background check status (NextGen only)
+
+Ministry survey results
+
+Ability to resend modules
+
+Ability to reopen modules

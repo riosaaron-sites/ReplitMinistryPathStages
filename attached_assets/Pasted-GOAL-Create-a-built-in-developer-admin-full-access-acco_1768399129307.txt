@@ -1,0 +1,40 @@
+GOAL: Create a built-in developer/admin “full access” account and bypass mode.
+
+1) Seed / Create Admin Account
+- Ensure there is always an account that can log in with:
+  username/email: ADMIN
+  password: ADMIN
+- If user storage uses email format, set email to ADMIN (or ADMIN@local.dev) but allow login by typing ADMIN.
+- This account must be created automatically on startup (idempotent: don’t create duplicates).
+- Store password securely (hash) like all other users.
+
+2) Admin Role & Permissions
+- Add role: "ADMIN" (or isAdmin boolean).
+- ADMIN must have full permissions across the app: view/edit all users, trainings, lessons, submissions, approvals, roles, assignments, admin panels, and any restricted pages.
+- Make authorization checks consistent: any permission gate should pass if isAdmin = true.
+
+3) Admin Bypass Mode (Developer Preview)
+- Add a toggle available ONLY to ADMIN: “Admin Bypass Mode”
+- When enabled:
+  - REQUIRED steps (profile completion, alignment agreement, surveys/tests, prerequisites, lesson completion gates, approval workflow gates) should be treated as satisfied for navigation and access.
+  - HOWEVER, the UI should still DISPLAY those steps as if they exist (so a developer can see the normal flow/pages).
+  - Add clear “Bypassed (ADMIN)” badges on bypassed requirements so it’s obvious what is being skipped.
+  - Any “Continue / Next” button should work even if required fields are empty, but do not delete or break normal validation for non-admin users.
+
+4) Dual Experience: Normal vs Admin-Bypass
+- ADMIN should have an option to choose:
+  A) “Experience as Regular User” (bypass OFF): behaves exactly like a normal account, showing and enforcing requirements.
+  B) “Developer Preview” (bypass ON): can access everything and skip all requirements while still viewing all screens.
+
+5) Implementation Details
+- Add the bypass state to session/user context so it persists across pages (and optionally saved to DB per user).
+- Centralize gating logic in one helper (e.g., canAccessRoute / isRequirementMet) so bypass is reliable and not scattered.
+- Do not weaken security: bypass must ONLY apply to ADMIN.
+- Add a small admin-only banner or navbar indicator showing:
+  - Logged in as ADMIN
+  - Bypass: ON/OFF (click to toggle)
+
+DELIVERABLES
+- Code changes to implement the above.
+- Identify files modified and briefly explain what changed.
+- Include any DB migration/seed logic needed.

@@ -1,0 +1,317 @@
+🚨 MASTER REPLIT PROMPT — MINISTRYPATH FULL ALIGNMENT & COMPLETION
+
+ROLE
+You are a senior product engineer and systems architect.
+
+This project is MinistryPath, a church leadership and discipleship platform.
+
+Your job is to align the existing codebase to the stated intent, not to invent features.
+
+⚠️ Do NOT ask questions.
+⚠️ Do NOT redesign UI unless explicitly instructed.
+⚠️ Do NOT refactor unrelated code.
+⚠️ Do NOT add libraries or abstractions.
+⚠️ Do NOT rebuild systems that already exist.
+
+Work incrementally, deterministically, and stop when all objectives are met.
+
+🔒 NON-NEGOTIABLE PRINCIPLES (READ CAREFULLY)
+
+Passing a quiz must NEVER complete a training
+
+Completion requires explicit leader approval
+
+UI must never imply readiness or clearance prematurely
+
+Outlook 365 is the calendar of record (read + write)
+
+Planning Center is NOT replaced
+
+Assume a non-technical admin — safety over flexibility
+
+Favor subtraction over addition
+
+PHASE 1 — HARDEN TRAINING LIFECYCLE (DO FIRST)
+Enforce this exact state machine everywhere:
+NOT_STARTED
+IN_PROGRESS
+SUBMITTED_FOR_REVIEW
+APPROVED
+REJECTED
+COMPLETED   ← ONLY AFTER APPROVAL
+
+REQUIRED CHANGES
+
+Locate ALL quiz submission handlers
+
+Remove or block any logic that:
+
+Marks training as complete on quiz pass
+
+Auto-advances user to completion
+
+Quiz submission must:
+
+Record score
+
+Set status → SUBMITTED_FOR_REVIEW
+
+Completion can ONLY occur via leader action
+
+UI COPY & BEHAVIOR
+
+Replace “Quiz Passed” completion language with:
+
+“Quiz submitted for review”
+
+Remove:
+
+Trophies
+
+“Continue” implying clearance
+
+Display status clearly:
+
+Awaiting Leader Approval
+
+PHASE 2 — UNIFIED MEMBER EXPERIENCE (“MY PATH”)
+Create ONE primary dashboard: My Path
+
+This replaces:
+
+MyDiscipleship
+
+Journey
+
+Progress
+
+Classes (as separate destinations)
+
+My Path must:
+
+Aggregate:
+
+Trainings + approval status
+
+Required classes
+
+Roles + readiness
+
+Answer plainly:
+
+What am I cleared for?
+
+What is waiting on approval?
+
+What is my next step?
+
+RULES
+
+Reuse existing components and data
+
+Do NOT redesign UI
+
+Redirect legacy routes to My Path
+
+PHASE 3 — LEADER APPROVAL AS PASTORAL ACTION
+Leader approvals must:
+
+Be scoped ONLY to ministries the leader oversees
+
+Never be global unless explicitly authorized
+
+Show context:
+
+Person
+
+Role
+
+Training
+
+Use pastoral language:
+
+“Approve” → “Affirm Readiness”
+
+“Reject” → “Needs Follow-Up”
+
+Require intentional confirmation (no accidental clicks)
+
+PHASE 4 — OUTLOOK 365 CALENDAR (SYSTEM OF RECORD)
+Core Rule
+
+Outlook is canonical. MinistryPath reflects it.
+
+Implement READ + WRITE using Microsoft Graph
+API Endpoints (minimal, safe)
+
+GET /api/outlook/events?start&end&filters
+
+POST /api/outlook/events
+
+PATCH /api/outlook/events/:id
+
+DELETE /api/outlook/events/:id
+
+Permissions
+
+Members: read-only
+
+Leaders/Admin: write (default to stricter permissions)
+
+Calendar Metadata (for filtering)
+
+Persist category data inside Outlook events, using ONE strategy:
+
+Prefer Graph event categories
+
+Fallback: structured metadata stored as:
+
+<!-- MINISTRYPATH_META: { 
+  category: "Mens Ministry",
+  group: "Regular Sunday",
+  ministryId: "...",
+  createdByMinistryPath: true
+} -->
+
+Supported Filters
+
+Men’s Ministry
+
+Women’s Ministry
+
+Sunday Services
+
+Regular / Special / Super Sundays
+
+Other ministry categories as defined
+
+Filters must:
+
+Apply to Outlook-sourced events
+
+Persist in localStorage
+
+PHASE 5 — ROOM RESERVATIONS (THIN SLICE)
+
+Use Outlook resource calendars
+
+Admin config defines which resources are available
+
+Booking flow:
+
+Select room
+
+Select time
+
+Check conflicts
+
+Create Outlook event
+
+No complex approvals yet
+
+Clear success/failure messaging
+
+PHASE 6 — GUIDED “NEXT STEP” COACH BUBBLES
+Create reusable component: CoachBubble
+
+Features:
+
+Short title
+
+1–2 sentences
+
+Optional CTA button
+
+Dismissible
+
+Dismissal stored per user via localStorage
+
+Usage (minimum)
+
+My Path
+
+Awaiting approval explanation
+
+Missing classes guidance
+
+No role selected → where to go
+
+Training Viewer
+
+Quiz submitted → what happens next
+
+Rejected → next action
+
+Calendar
+
+How filtering works
+
+Outlook is the source of truth
+
+Rules
+
+One bubble max per page
+
+Show once unless reset
+
+Never nag
+
+PHASE 7 — REMOVE OR HIDE DISTRACTIONS
+
+Hide from navigation (do not delete unless necessary):
+
+XP Dashboard
+
+Redundant surveys
+
+Extra dashboards
+
+Metrics as primary destination
+
+PHASE 8 — ADMIN SAFETY GUARDRAILS
+
+Implement:
+
+Confirmation dialogs for destructive actions
+
+Disable direct dangerous edits
+
+Safe defaults everywhere
+
+No irreversible actions without confirmation
+
+Think Squarespace-lite, not developer console.
+
+EXECUTION RULES
+
+Execute phases in order
+
+No pauses
+
+No clarifying questions
+
+Minimal code changes
+
+Stop only when all phases are complete
+
+DEFINITION OF DONE
+
+Quiz pass ≠ completion
+
+Leader approval required for completion
+
+One clear member dashboard
+
+Outlook calendar read/write works
+
+Filters function correctly
+
+Room booking works
+
+Users are gently guided
+
+App feels calmer, safer, and harder to misuse
+
+BEGIN NOW.
+RUN CONTINUOUSLY UNTIL COMPLETE.
+DO NOT STOP EARLY.

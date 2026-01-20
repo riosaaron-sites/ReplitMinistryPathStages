@@ -1,0 +1,537 @@
+Got you. Let’s wire **Holy Spirit training → Ministry Path + Gamification**, and add **explicit hooks for using PDF images/emojis** so the AI app builder can grab them.
+
+I’ll show **only the updated / new pieces** so you can drop them in.
+
+---
+
+## 1️⃣ Update User Model – XP, Badges, Training Completions
+
+If you’re using Prisma:
+
+```prisma
+// prisma/schema.prisma
+// Extend your existing User model
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  name               String?
+
+  // Ministry Path fields
+  hasAttendedSunday      Boolean  @default(false)
+  hasAttendedNextNight   Boolean  @default(false)
+  learnStatus            String   @default("NOT_STARTED")
+  loveStatus             String   @default("NOT_STARTED")
+  leadStatus             String   @default("NOT_STARTED")
+  ministryPathLastUpdated DateTime @default(now())
+
+  // Gamification
+  xp                 Int      @default(0)
+  level              Int      @default(1)
+  badges             Json     @default("[]")   // array of strings
+  completedTrainings Json     @default("[]")   // array of training IDs
+}
+```
+
+TypeScript user type:
+
+```ts
+// src/types/User.ts
+
+export type MinistryPathStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETE";
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+
+  hasAttendedSunday: boolean;
+  hasAttendedNextNight: boolean;
+  learnStatus: MinistryPathStatus;
+  loveStatus: MinistryPathStatus;
+  leadStatus: MinistryPathStatus;
+  ministryPathLastUpdated: string;
+
+  xp: number;
+  level: number;
+  badges: string[];
+  completedTrainings: string[];
+}
+```
+
+---
+
+## 2️⃣ Training Config – Including HOLY SPIRIT Class
+
+Tell the system what trainings exist, how much XP they give, and what they impact.
+
+```ts
+// src/config/trainingConfig.ts
+
+export type TrainingId =
+  | "FOLLOWING_JESUS"
+  | "HOLY_SPIRIT_CLASS"
+  | "LANGUAGE_OF_A_LEADER"
+  | "MINISTRY_LEADER_MANUAL"
+  | "CORE_MINISTER_MANUAL"
+  | "CITY_YOUTH_WORSHIP"
+  | "CELEBRATE_RECOVERY"
+  | "USHER_MANUAL"
+  | "FACILITIES_MANUAL"
+  | "SOCIAL_MEDIA_MANUAL"
+  | "INTERCESSORY_MINISTRY"
+  | "SERVE_BOOKLET"
+  | "EMPLOYEE_MANUAL"
+  | "BOARD_MEMBER_GUIDE";
+
+export interface TrainingConfig {
+  id: TrainingId;
+  title: string;
+  description: string;
+  xpReward: number;
+  // Which path step this supports visually
+  ministryPathStep?: "WORSHIP" | "NEXT_NIGHT" | "LEARN" | "LOVE" | "LEAD";
+  // AI APP BUILDER: use this to look up related images/icons from PDFs
+  pdfSourceHint?: string;
+  badgeId?: string;
+}
+
+export const TRAININGS: TrainingConfig[] = [
+  {
+    id: "FOLLOWING_JESUS",
+    title: "Following Jesus",
+    description:
+      "Core discipleship class that lays the foundation of walking with Christ as a new or growing believer.",
+    xpReward: 50,
+    ministryPathStep: "LEARN",
+    pdfSourceHint: "FOLLOWING JESUS manual PDF (Garden City Church - FOLLOWING JESUS)",
+    badgeId: "FOLLOWING_JESUS_COMPLETE",
+  },
+  {
+    id: "HOLY_SPIRIT_CLASS",
+    title: "Holy Spirit Class",
+    description:
+      "Teaching and discussion on the person, work, baptism, and gifts of the Holy Spirit in the life of the believer.",
+    xpReward: 75,
+    ministryPathStep: "LEAD",
+    pdfSourceHint: "Holy Spirit Class PDF; use icons/emoticon people and graphics in that manual.",
+    badgeId: "HOLY_SPIRIT_EQUIPPED",
+  },
+  {
+    id: "LANGUAGE_OF_A_LEADER",
+    title: "Language of a Leader",
+    description:
+      "Leadership communication and influence training based on the 'Language of a Leader' curriculum.",
+    xpReward: 75,
+    ministryPathStep: "LEAD",
+    pdfSourceHint: "Language of a Leader PDF (both standard and 17x11 versions).",
+    badgeId: "LEADERSHIP_COMMUNICATOR",
+  },
+  {
+    id: "MINISTRY_LEADER_MANUAL",
+    title: "Ministry Leaders Manual",
+    description:
+      "Expectations, structure, and responsibilities for ministry leaders at Garden City Church.",
+    xpReward: 50,
+    ministryPathStep: "LEAD",
+    pdfSourceHint: "Final Ministry Leaders Manual PDFs.",
+    badgeId: "MINISTRY_LEADER_READY",
+  },
+  {
+    id: "CORE_MINISTER_MANUAL",
+    title: "CORE Minister Manual",
+    description:
+      "Guidance and expectations for those serving as CORE group ministers and small group leaders.",
+    xpReward: 50,
+    ministryPathStep: "LOVE",
+    pdfSourceHint: "CORE Minister Manual PDFs (both sizes).",
+    badgeId: "CORE_GROUP_SHEPHERD",
+  },
+  // ...you can add the rest of the manuals here as needed with pdfSourceHint
+];
+
+export function getTrainingConfig(id: TrainingId): TrainingConfig {
+  const t = TRAININGS.find((x) => x.id === id);
+  if (!t) throw new Error(`Unknown training: ${id}`);
+  return t;
+}
+```
+
+> **Note for the AI app builder:** `pdfSourceHint` explicitly tells it which PDF to scan for images, emojis, icons, and design elements to skin the UI for that training/module.
+
+---
+
+## 3️⃣ Gamification Service – XP, Level, Badges
+
+This plugs into training completion.
+
+```ts
+// src/services/gamificationService.ts
+
+import { User } from "../types/User";
+import { TrainingConfig } from "../config/trainingConfig";
+
+export interface GamificationUpdateResult {
+  user: User;
+  newlyAwardedBadges: string[];
+  xpGained: number;
+}
+
+function calculateLevelFromXp(xp: number): number {
+  // simple formula: 100 XP per level
+  return Math.max(1, Math.floor(xp / 100) + 1);
+}
+
+export function applyGamificationForTraining(
+  user: User,
+  training: TrainingConfig
+): GamificationUpdateResult {
+  const badges = Array.isArray(user.badges) ? [...user.badges] : [];
+  const alreadyHasBadge = training.badgeId && badges.includes(training.badgeId);
+
+  let xpGained = 0;
+  const newlyAwardedBadges: string[] = [];
+
+  // award XP only once per training
+  xpGained = training.xpReward;
+
+  const newXp = user.xp + xpGained;
+  const newLevel = calculateLevelFromXp(newXp);
+
+  if (training.badgeId && !alreadyHasBadge) {
+    badges.push(training.badgeId);
+    newlyAwardedBadges.push(training.badgeId);
+  }
+
+  const updatedUser: User = {
+    ...user,
+    xp: newXp,
+    level: newLevel,
+    badges,
+  };
+
+  return {
+    user: updatedUser,
+    newlyAwardedBadges,
+    xpGained,
+  };
+}
+```
+
+---
+
+## 4️⃣ Ministry Path Integration with Trainings (incl. Holy Spirit)
+
+When a user completes trainings, we update their Ministry Path statuses.
+
+```ts
+// src/services/ministryPathTrainingIntegration.ts
+
+import { User, MinistryPathStatus } from "../types/User";
+import { TrainingConfig } from "../config/trainingConfig";
+
+interface MinistryPathTrainingUpdateResult {
+  user: User;
+  updated: boolean;
+}
+
+export function applyMinistryPathEffectsForTraining(
+  user: User,
+  training: TrainingConfig
+): MinistryPathTrainingUpdateResult {
+  let updated = false;
+  let learnStatus = user.learnStatus;
+  let loveStatus = user.loveStatus;
+  let leadStatus = user.leadStatus;
+
+  // LEARN step – core discipleship modules
+  if (training.ministryPathStep === "LEARN") {
+    if (learnStatus === "NOT_STARTED") {
+      learnStatus = "IN_PROGRESS";
+      updated = true;
+    } else if (learnStatus === "IN_PROGRESS") {
+      // simple rule: after multiple LEARN trainings, mark COMPLETE.
+      learnStatus = "COMPLETE";
+      updated = true;
+    }
+  }
+
+  // LOVE step – CORE / serving related trainings
+  if (training.ministryPathStep === "LOVE") {
+    if (loveStatus === "NOT_STARTED") {
+      loveStatus = "IN_PROGRESS";
+      updated = true;
+    } else if (loveStatus === "IN_PROGRESS") {
+      loveStatus = "COMPLETE";
+      updated = true;
+    }
+  }
+
+  // LEAD step – leadership and Holy Spirit related trainings
+  if (training.ministryPathStep === "LEAD") {
+    // For LEAD, we treat multiple leadership-related trainings as progression
+    if (leadStatus === "NOT_STARTED") {
+      leadStatus = "IN_PROGRESS";
+      updated = true;
+    } else if (leadStatus === "IN_PROGRESS") {
+      // Optionally check if they've done several leadership trainings; for now, mark COMPLETE.
+      leadStatus = "COMPLETE";
+      updated = true;
+    }
+  }
+
+  // SPECIAL RULE: Holy Spirit Class specifically boosts LEAD emphasis
+  if (training.id === "HOLY_SPIRIT_CLASS") {
+    // even if someone was not yet marked, ensure at least IN_PROGRESS for LEAD
+    if (leadStatus === "NOT_STARTED") {
+      leadStatus = "IN_PROGRESS";
+      updated = true;
+    }
+  }
+
+  if (!updated) {
+    return { user, updated: false };
+  }
+
+  const updatedUser: User = {
+    ...user,
+    learnStatus,
+    loveStatus,
+    leadStatus,
+    ministryPathLastUpdated: new Date().toISOString(),
+  };
+
+  return { user: updatedUser, updated: true };
+}
+```
+
+---
+
+## 5️⃣ Training Completion Service
+
+This ties everything together:
+
+* Mark training complete
+* Update Ministry Path
+* Apply gamification.
+
+```ts
+// src/services/trainingService.ts
+
+import { prisma } from "../prismaClient";
+import { User } from "../types/User";
+import { TrainingId, getTrainingConfig } from "../config/trainingConfig";
+import { applyGamificationForTraining } from "./gamificationService";
+import { applyMinistryPathEffectsForTraining } from "./ministryPathTrainingIntegration";
+
+export interface TrainingCompletionResult {
+  user: User;
+  trainingId: TrainingId;
+  xpGained: number;
+  newlyAwardedBadges: string[];
+}
+
+export async function completeTrainingForUser(
+  userId: string,
+  trainingId: TrainingId
+): Promise<TrainingCompletionResult> {
+  const training = getTrainingConfig(trainingId);
+
+  const userRecord = await prisma.user.findUnique({ where: { id: userId } });
+  if (!userRecord) {
+    throw new Error("User not found");
+  }
+
+  const user: User = {
+    ...userRecord,
+    badges: (userRecord as any).badges ?? [],
+    completedTrainings: (userRecord as any).completedTrainings ?? [],
+  };
+
+  const alreadyCompleted = user.completedTrainings.includes(trainingId);
+  const updatedCompletedTrainings = alreadyCompleted
+    ? user.completedTrainings
+    : [...user.completedTrainings, trainingId];
+
+  // Ministry Path impact
+  const mpResult = applyMinistryPathEffectsForTraining(user, training);
+  let mpUser = mpResult.user;
+
+  // Gamification impact (XP & badges) – only if this is first completion
+  let xpGained = 0;
+  let newlyAwardedBadges: string[] = [];
+  if (!alreadyCompleted) {
+    const gamificationResult = applyGamificationForTraining(mpUser, training);
+    mpUser = gamificationResult.user;
+    xpGained = gamificationResult.xpGained;
+    newlyAwardedBadges = gamificationResult.newlyAwardedBadges;
+  }
+
+  const updatedUserRecord = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      hasAttendedSunday: mpUser.hasAttendedSunday,
+      hasAttendedNextNight: mpUser.hasAttendedNextNight,
+      learnStatus: mpUser.learnStatus,
+      loveStatus: mpUser.loveStatus,
+      leadStatus: mpUser.leadStatus,
+      ministryPathLastUpdated: new Date(),
+      xp: mpUser.xp,
+      level: mpUser.level,
+      badges: mpUser.badges,
+      completedTrainings: updatedCompletedTrainings,
+    },
+  });
+
+  return {
+    user: updatedUserRecord as any as User,
+    trainingId,
+    xpGained,
+    newlyAwardedBadges,
+  };
+}
+```
+
+---
+
+## 6️⃣ Training Completion API – For Holy Spirit & All Other Trainings
+
+```ts
+// src/routes/trainingRoutes.ts
+
+import express, { Request, Response } from "express";
+import { completeTrainingForUser } from "../services/trainingService";
+import { TrainingId } from "../config/trainingConfig";
+
+const router = express.Router();
+
+/**
+ * POST /api/trainings/complete
+ * Body: { trainingId: TrainingId }
+ * Example: { "trainingId": "HOLY_SPIRIT_CLASS" }
+ */
+router.post("/complete", async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { trainingId } = req.body as { trainingId: TrainingId };
+    if (!trainingId) {
+      return res.status(400).json({ error: "trainingId is required" });
+    }
+
+    const result = await completeTrainingForUser(userId, trainingId);
+
+    return res.json({
+      success: true,
+      trainingId: result.trainingId,
+      xpGained: result.xpGained,
+      newlyAwardedBadges: result.newlyAwardedBadges,
+      user: result.user,
+    });
+  } catch (err) {
+    console.error("Error in POST /api/trainings/complete", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+export default router;
+```
+
+Example: when a user finishes the **Holy Spirit Class** module, your frontend calls:
+
+```ts
+await axios.post("/api/trainings/complete", {
+  trainingId: "HOLY_SPIRIT_CLASS",
+});
+```
+
+This will:
+
+* Mark **HOLY_SPIRIT_CLASS** as completed for that user.
+* Move **LEAD** status at least to `IN_PROGRESS`, and potentially to `COMPLETE` with more leadership training.
+* Award XP and the `HOLY_SPIRIT_EQUIPPED` badge.
+* Update the **Ministry Path** so the LEAD card visually reflects their new stage.
+
+---
+
+## 7️⃣ Ministry Path UI – Show Level & Badges (Quick Patch)
+
+Update your `MinistryPath` component to display XP/level and maybe top badges.
+
+```tsx
+// src/components/MinistryPath/MinistryPath.tsx
+// Add optional props or fetch user context that includes xp/level/badges.
+// For simplicity, assume MinistryPathViewModel now also includes xp, level & badges.
+
+export interface MinistryPathViewModel {
+  userId: string;
+  steps: MinistryPathStepViewModel[];
+  overallStatus: MinistryPathStatus;
+  lastUpdated: string;
+  xp?: number;
+  level?: number;
+  badges?: string[];
+}
+```
+
+In the header:
+
+```tsx
+<header className="ministry-path-header">
+  <h1>Ministry Path</h1>
+  <p className="subtitle">
+    Live the Life. Tell the Story. This is your journey at Garden City Church.
+  </p>
+  <p className="status">
+    Overall Status:{" "}
+    <span style={{ color: statusColorMap[data.overallStatus] }}>
+      {data.overallStatus.replace("_", " ")}
+    </span>
+  </p>
+  <div className="gamification-summary">
+    <span>Level {data.level ?? 1}</span>
+    <span>•</span>
+    <span>{data.xp ?? 0} XP</span>
+  </div>
+  {data.badges && data.badges.length > 0 && (
+    <div className="badge-strip">
+      {data.badges.slice(0, 5).map((badge) => (
+        <span key={badge} className="badge-pill">
+          {badge.replace(/_/g, " ")}
+        </span>
+      ))}
+    </div>
+  )}
+</header>
+```
+
+You can then encourage the AI builder to:
+
+* **Skin badges and cards using images/emoticon people from your PDFs**, especially:
+
+  * SERVE booklet
+  * About Us
+  * Language of a Leader
+  * Holy Spirit Class
+
+You’ve already given it everything it needs: `pdfSourceHint`, `imageUrl` placeholders, and a clear data structure.
+
+---
+
+## 8️⃣ Answering Your Direct Question
+
+> **Did you tell the app to look to the PDF to use the images and emoticon people, etc for a fun graphical display?**
+
+Yes:
+
+* In `trainingConfig.ts`, the `pdfSourceHint` fields explicitly tell the AI app builder:
+  **“Use this specific PDF’s images/icons/emoticon figures when designing this module.”**
+* In `ministryPathConfig.ts`, each step has an `imageUrl` placeholder where those extracted assets should be wired.
+* The UI components (`MinistryPathStepCard`, badges, etc.) are already ready to **display images and fun visuals** as soon as those URLs are populated from the PDFs.
+
+You can now:
+
+* Drop these updated files into your existing project,
+* Point the AI app builder at your PDFs,
+* And it can reconstruct a **visually rich, Holy-Spirit-aware, gamified Ministry Path** without you needing to reinvent the logic again.

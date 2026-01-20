@@ -1,0 +1,145 @@
+MINISTRYPATH — PHASE 7.1
+PHASE 7 COMPLETION: RESPONSIBILITY CLARITY, WORKBOARD MATURITY, MEANINGFUL METRICS
+STOP AFTER PHASE 7.1 REPORT
+
+This phase EXTENDS Phase 7. Do NOT undo existing work.
+
+ABSOLUTE RULES
+- Do NOT redesign onboarding or dashboards wholesale.
+- Do NOT remove existing Phase 7 features.
+- This phase ADDS clarity, interpretation, and usability.
+- STOP after Phase 7.1 and return the required report.
+
+GOALS
+Finish Phase 7 so that:
+- Leaders clearly know who they are responsible for and what “healthy” looks like
+- Members clearly know what is expected of them
+- Collaboration tools feel usable in real ministry meetings
+- Serving metrics are meaningful, not just numeric
+- The platform begins to pastor, not just track
+
+---
+
+## A) LEADER RESPONSIBILITY & HEALTH INDICATORS (MANDATORY)
+
+Enhance leader views to include:
+
+1) Ministry Expectations Panel
+- For each ministry:
+  - Display 3–5 expectation bullets
+  - Source from:
+    - ministry manual summary OR
+    - default expectations if not defined
+- Visible to:
+  - members (read-only)
+  - leaders (editable via admin)
+
+2) People Health Indicators (Leader View)
+For each person under a leader:
+- Show a simple status:
+  - 🟢 Healthy
+  - 🟡 Needs Attention
+  - 🔴 Inactive / Follow-up Needed
+Calculated from:
+- training completion
+- serving activity
+- unanswered “I Have Questions”
+- onboarding completeness
+
+No shaming language. Keep pastoral tone.
+
+---
+
+## B) WORKBOARD — MEETING MODE & MINISTRY MODE (MANDATORY)
+
+Extend Workboard with two modes:
+
+1) Meeting Mode
+- Agenda section (time-ordered)
+- Discussion notes (freeform)
+- Decisions section (what was decided)
+- Action Items auto-generated from decisions
+
+2) Ministry Mode
+- Ongoing initiatives
+- Tasks can be assigned to:
+  - individuals OR
+  - entire ministries
+- Due dates + status
+
+Visual clarity:
+- Very simple layout
+- No kanban overload
+- Senior-friendly
+
+---
+
+## C) SERVING METRICS — INTERPRETATION LAYER (MANDATORY)
+
+Enhance serving metrics to include:
+
+1) Member View
+- “Your Serving Summary”
+  - last 90 days
+  - encouragement-based messaging
+  - trend arrow (up/down/steady)
+
+2) Leader View
+- “Team Serving Health”
+  - spot under-engagement
+  - spot over-serving (burnout risk)
+- Filter by ministry
+
+Metrics should say:
+- what happened
+- what it means
+- what to do next
+
+---
+
+## D) FEEDBACK & ENCOURAGEMENT LOOP (MANDATORY)
+
+Add a lightweight feedback feature:
+- Leaders can leave:
+  - encouragement notes
+  - “reviewed” acknowledgments
+- Triggered by:
+  - training completion
+  - survey review
+  - question follow-up
+
+Members see:
+- “Leader Feedback” section
+- Timestamped
+- Encouraging tone only
+
+---
+
+## E) UI & TONE CHECK
+- Ensure language remains pastoral, not corporate
+- No guilt-driven phrasing
+- Keep everything readable and calm
+
+---
+
+PHASE 7.1 REQUIRED OUTPUT (RETURN ONLY THIS)
+
+1) LEADER RESPONSIBILITY ADDITIONS
+- expectations display (yes/no)
+- health indicators logic summary
+
+2) WORKBOARD ENHANCEMENTS
+- meeting mode features
+- ministry mode features
+
+3) SERVING METRICS INTERPRETATION
+- member-facing messaging examples
+- leader-facing insights
+
+4) FEEDBACK LOOP
+- where leaders leave notes
+- where members see them
+
+End with this exact sentence:
+“Phase 7.1 complete. Phase 7 objectives now fully satisfied. Awaiting authorization to proceed to Phase 8.”
+STOP.

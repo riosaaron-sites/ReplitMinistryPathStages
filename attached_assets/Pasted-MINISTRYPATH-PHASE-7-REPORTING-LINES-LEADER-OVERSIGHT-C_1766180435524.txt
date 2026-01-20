@@ -1,0 +1,151 @@
+MINISTRYPATH — PHASE 7
+REPORTING LINES + LEADER OVERSIGHT + COLLAB ACTION ITEMS + (OPTIONAL) SERVING METRICS
+STOP AFTER PHASE 7 REPORT
+
+You have completed Phase 6 successfully. Proceed to Phase 7 ONLY.
+
+ABSOLUTE RULES
+- Do NOT rebuild the app.
+- Do NOT redesign onboarding again.
+- Do NOT redesign the member dashboard again beyond adding reporting-line clarity.
+- Keep UI simple and accessible.
+- STOP after Phase 7 and provide the required output.
+
+PRIMARY GOALS
+A) Make “who I report to” obvious for members
+B) Give leaders/pastors clean oversight views (“assigned to me”)
+C) Add the Action Items / Collaboration tool you requested (meeting workboard)
+D) Add serving metrics visibility (Planning Center-lite) using existing stubs/tables when possible; otherwise implement local tracking as Phase 7 foundation
+
+---
+
+## A) MEMBER: “WHO I REPORT TO” + EXPECTATIONS (MANDATORY)
+
+1) On member dashboard and My Roles page:
+- For each ministry badge/chip, show:
+  - Ministry name
+  - “Reports to: <Leader Name>” (primary leader)
+  - Optional: co-leader(s)
+- Include a short “What’s expected of me” snippet for each ministry:
+  - pulled from the linked ministry manual/training description
+  - if not available, show a simple default + link to the training
+
+2) Keep it clean:
+- Do NOT create giant title strings
+- Use compact cards or expandable sections
+
+---
+
+## B) LEADER/PASTOR: OVERSIGHT VIEWS (MANDATORY)
+
+Create a “My People” (leader) and “Care & Oversight” (pastor) experience.
+
+LEADER VIEW (for leader role):
+- A list of people in leader’s ministries
+- Columns/fields:
+  - Name
+  - Ministries served
+  - Required trainings remaining
+  - Background check status
+  - Last activity (training, login, message) if available
+- Actions:
+  - message user (internal message)
+  - view profile
+  - mark follow-up note (private to leader/pastor)
+
+PASTOR VIEW (for pastor/owner):
+- Global oversight:
+  - All leaders and their assigned people counts
+  - Unresolved “I Have Questions”
+  - Pending ministry join requests
+  - Users stuck in onboarding (if any)
+- Actions:
+  - assign/reassign ministry leaders
+  - assign a person to a leader (via ministry leadership structure)
+
+---
+
+## C) COLLAB ACTION ITEMS TOOL (MANDATORY)
+
+You requested:
+“Find, track and complete action items. Collaborate. Example: Community Care team collaborating with Children’s ministry… deadlines… resources…”
+
+Implement a simple, powerful collaboration tool:
+- “Workboard” feature:
+  - Create a board per ministry or cross-ministry project
+  - Each board contains:
+    - agenda / notes
+    - action items with:
+      - owner
+      - due date
+      - status (open/in progress/done)
+      - comments thread
+- Must be usable during a live meeting
+- Keep it very easy (no complex kanban required; simple list is fine)
+
+Integration points:
+- Boards can be linked to a Meeting record (if meetings exist)
+- Leaders/pastors can create boards; members can participate if added
+
+---
+
+## D) SERVING METRICS VISIBILITY (PLANNING CENTER-LITE) — FOUNDATION
+
+User requirement:
+Users should see how often they serve and accept/decline/ignore.
+
+Implement one of two options:
+
+Option 1 (preferred): If Planning Center stub tables exist
+- Create a “Serving Metrics” panel on member dashboard showing:
+  - times scheduled (last 90 days)
+  - accepted
+  - declined
+  - no response
+  - most common positions served
+- Provide placeholders if external sync not connected yet, but keep structure.
+
+Option 2 (fallback): Local tracking
+- Allow leaders to log service participation manually:
+  - date
+  - ministry
+  - position
+  - status (accepted/declined/no response/served)
+- Then compute the same metrics.
+
+Keep it simple and reliable.
+
+---
+
+## E) UI & DESIGN CONSISTENCY
+- Use Montserrat, palette (#f2660f, #223134, #424242)
+- Keep screens uncluttered
+- Add small instruction boxes where needed
+
+---
+
+PHASE 7 REQUIRED OUTPUT (RETURN ONLY THIS)
+
+1) MEMBER REPORTING-LINE DISPLAY
+- where it appears
+- how leader is determined
+
+2) LEADER/PASTOR OVERSIGHT VIEWS
+- routes/pages added
+- what leaders see
+- what pastors see
+
+3) WORKBOARD TOOL
+- what it supports (agenda + action items)
+- permissions
+- meeting linkage (yes/no)
+
+4) SERVING METRICS IMPLEMENTATION
+- which option implemented (Planning Center stub vs local tracking)
+- where metrics show
+- what fields are tracked
+
+End with this exact sentence:
+“Phase 7 complete. Awaiting authorization to proceed to Phase 8.”
+
+STOP.

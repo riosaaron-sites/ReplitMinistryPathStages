@@ -1,0 +1,707 @@
+Alright, let’s ship this thing.
+Below is your **copy-paste mega-prompt** for Replit’s AI app builder (or any AI dev).
+
+I’ll write it *to the builder*, as if you’re saying: “Do this. Exactly like this.”
+
+---
+
+## 🚀 PROMPT FOR AI APP BUILDER — GARDEN CITY SERVE & LEAD HUB
+
+You are rebuilding and expanding an existing church app into a **unified, zero-learning-curve platform** called:
+
+> **Garden City Serve & Lead Hub**
+
+This is **not** a simple CRUD app. It is a **discipleship + onboarding + leadership system** built for *Garden City Church of the Assemblies of God* in Beverly, MA.
+
+You must **respect and preserve all existing data, surveys, and logic** already in the app. Anything previously built (especially the existing church-wide survey module and any calendar/room-reservation features) must be:
+
+* **Retained**
+* **Refactored into clearer modules**
+* **Extended, not broken**
+
+This project is a **total overhaul of structure and UX**, not a wipe-and-rebuild of data.
+
+---
+
+# 1. CORE GOALS OF THE APP
+
+1. Help people **discover where they fit** and start serving quickly, with no learning curve.
+2. Make **onboarding, training, and compliance** clear, trackable, and ministry-specific.
+3. Align everyone with **Garden City’s doctrine, culture, and About Us manual**.
+4. Give leaders **tools to track attendance, events, training, and ministry health**.
+5. Centralize **calendar, room & resource management, and event categorization**.
+6. Provide a **gamified discipleship and leadership pathway** that is motivating, not childish.
+7. Become the **single source of truth** for:
+
+   * Who is serving where
+   * Who is trained for what
+   * Who is approved for which ministries
+   * Who is an ACP (Active Church Participant) and eligible to vote
+
+---
+
+# 2. HIGH-LEVEL ARCHITECTURE
+
+Build a **web app** (desktop + mobile responsive):
+
+* **Front-end:** React (or similar), clean UI, minimal clutter, big clear steps.
+* **Back-end:** Node.js (or similar), with REST or GraphQL API.
+* **Database:** Postgres or similar relational DB.
+* **Auth:** Email + password, with role-based access control.
+* Prepare for future integration with **Planning Center Online API** and **Outlook/Office 365 Calendar API**, but do not hard-code external integration yet. Instead, **design the data model and service layer with integration hooks**.
+
+---
+
+# 3. USER ROLES & PERMISSIONS
+
+At minimum, define user roles:
+
+1. **Guest (Unauthenticated)**
+
+   * Can see basic info, maybe a “Learn about serving” landing page.
+2. **Attendee / General User**
+
+   * Can create profile, fill surveys, explore ministries, start training modules.
+3. **Volunteer / Ministry Participant**
+
+   * Has one or more assigned ministries and completed required training for those roles.
+4. **Ministry Leader**
+
+   * Can see & manage volunteers for their ministry, approve training, submit reports, request support/media/resources.
+5. **Admin / Staff**
+
+   * Full control over people, ministries, surveys, training modules, calendars, rooms, and resources.
+6. **Board / Executive**
+
+   * Access to metrics, ACP status, attendance, leadership pathway reports, but not necessarily all operational minutiae.
+
+Use a **role + permission** model so we can add/remove roles and fine-tune later.
+
+---
+
+# 4. MAJOR MODULES
+
+Design the app around the following modules. **Some already exist** (like the survey); you must integrate and reorganize them instead of duplicating.
+
+## 4.1 Onboarding & First Steps (GLOBAL FLOW)
+
+Every new user should go through a simple, guided path:
+
+1. **Welcome & About Garden City**
+
+   * Pull content from the **About Us Manual** and Bylaws:
+
+     * Who we are
+     * Distinctives (Bible-driven, Pentecostal/Charismatic, Pastor-led with Board oversight, etc.)
+     * Mission: *To know Christ and make Him known…*
+     * Vision: *Live the life. Tell the story.*
+   * Present this in simple “cards” with a “Next” button. No walls of text.
+
+2. **Discipleship Pathway Overview**
+
+   * Reflect the internal process:
+
+     * **Worship** → **Next (Next Night)** → **Learn (Essentials, Truth-Trek, Discipleship Hour)** → **Love (CORE Groups)** → **Lead (Serving & Leadership)**
+   * One simple page explaining: “Here’s how we grow at Garden City Church.”
+
+3. **Core Beliefs & Doctrine**
+
+   * Present:
+
+     * Major/Minor doctrine distinction.
+     * Connection to Assemblies of God’s 16 Fundamental Truths.
+   * Users must indicate:
+
+     * “I understand and do not oppose Garden City’s doctrinal positions”
+       (Use simple checkboxes, not a test of theological mastery.)
+
+4. **Holy Spirit Alignment Question (Tiered Logic)**
+
+Add a key agreement item:
+
+> **“I do not oppose or actively reject Garden City’s doctrinal position on the Baptism of the Holy Spirit and the evidences of the Baptism of the Holy Spirit, including but not limited to:**
+>
+> * **Speaking in tongues** (Acts 2:4; Acts 10:44–46; Acts 19:6)
+> * **Prophecy** (1 Corinthians 14:1; Acts 2:17–18)
+> * **Power (dunamis)** to witness and live a transformed life (Acts 1:8; Ephesians 3:16; 2 Timothy 1:7)
+>   and I am willing to grow in my understanding of these truths.”
+
+Then ask:
+
+* **Have you been baptized in the Holy Spirit with evidence?** (Yes/No)
+* **I am actively seeking the baptism of the Holy Spirit.** (Yes/No)
+* **I am still praying to understand this and grow in grace.** (Yes/No)
+
+**Important logic rule:**
+
+* How they answer **does not disqualify them** from using the app or from serving.
+* Instead, it **determines which ministries they are initially eligible for** (see section 5.3) and what training modules are assigned.
+
+When a user selects the “still learning” option, show a message like:
+
+> **“We are grateful that you are open to continue learning and growing in your faith and knowledge of the Holy Spirit. We invite you to investigate the following ministries with the understanding that all ministries and ministry leaders are seeking to live, move, and grow in the leading and presence of the Holy Spirit. By serving in these ministries, we anticipate that you will learn, move, and grow with us.”**
+
+And then show the list of allowed ministries for this tier (see 5.3).
+
+5. **ACP (Active Church Participant) Check**
+
+Using criteria from the bylaws and About Us:
+
+* Over 18
+* Attending consistently for 6+ months
+* Regular giver (tithes/offering/missions)
+* Actively serving in a ministry (or ready to)
+* In agreement with vision, mission, and statement of faith
+* Water baptized by immersion in the name of the Father, Son, and Holy Spirit
+* Baptized in the Holy Spirit or actively seeking
+
+Ask these as simple Yes/No questions.
+
+Logic:
+
+* If they meet all criteria → mark as **ACP-Eligible** and (optionally) flag for leadership confirmation.
+* If not → mark as **Attendee / In Process**, and **assign next-steps modules** rather than reject them.
+
+---
+
+## 4.2 Ministry Survey Module (EXISTING SURVEY → NEW MODULE)
+
+**Important:** There is **already** a ministry survey built in the app. You must:
+
+* Keep all existing survey **data and logic**.
+* Refactor it into a clean **“Ministry Survey Module”**.
+* Integrate it with:
+
+  * Onboarding
+  * Ministry assignment logic
+  * Training module assignment
+
+The survey should:
+
+* Ask what ministries they’re interested in:
+
+  * Usher, Security, Worship Team, Media/ProPresenter, Cameras, Sound Tech, CREW, Photography/Video, CORE Group Leader, Discipleship Hour Teacher, City Youth, Kingdom Children, Celebrate Recovery, Facilities, Counting, Board/Leadership track, etc.
+* Use **role-based logic** to:
+
+  * Assign **required training modules**.
+  * Recommend **additional ministries** based on gifts/personality.
+  * Hide ministries they are not yet eligible for (due to age, Holy Spirit leadership tier, background check requirements, etc.)
+
+---
+
+## 4.3 Training Hub & Ministry Modules
+
+For every ministry represented in the PDF manuals, create a **Training Module**. The content of each module should be drawn from the corresponding PDF/manuals the church will upload to the app codebase (you do not need to hard-code the text here; build structures and placeholders that preserve integrity and sections).
+
+### Common training module structure:
+
+* **Module Title** (e.g., “Usher Ministry Training”)
+* **Ministry Description**
+* **Role Expectations**
+* **Spiritual Expectations**
+* **Practical Responsibilities**
+* **Dress Code (if applicable)**
+* **Safety & Protocols**
+* **Communication Standards**
+* **Required Acknowledgements**
+* **Assessment** (10–15 questions)
+* **Completion & Badge Award**
+
+Ministries (at minimum):
+
+* Ushers / Hospitality
+* Landing Team / First Impressions
+* Security (separate from Ushers)
+* Facilities
+* CREW (Production, Cameras, Lighting, Media)
+* Sound Tech / Audio
+* Worship Team (Adults + Youth)
+* City Youth (Leaders & Volunteers)
+* Kingdom Children (All children’s ministry)
+* Celebrate Recovery (leaders & team)
+* Counting / Finance
+* Intercessory / Prayer Team
+* CORE Ministers / Small Group Leaders
+* Discipleship Hour Teachers
+* Social Media & Communications
+* Board Members
+* Staff / Employee Roles
+* Interns (Intern Portal)
+* General Volunteer Roles (non-specialized, low-risk)
+
+### Training Questions
+
+For each module, define an **assessment schema**, not content:
+
+* 10–15 questions:
+
+  * Multiple choice
+  * Yes/No with explanation
+  * Scenario questions
+* Each question tied to:
+
+  * A section of the manual
+  * A critical policy or safety item
+* Store:
+
+  * `question_text`
+  * `options`
+  * `correct_answer`
+  * `explanation`
+  * `weight` (for scoring)
+
+When a user finishes:
+
+* Calculate a score.
+* If passing threshold is reached (e.g., 80%), mark training as **Completed**.
+* Notify the relevant **Ministry Leader** for final approval.
+
+---
+
+## 4.4 Holy Spirit & Doctrine Classes
+
+Create a **“Holy Spirit Class”** module:
+
+* Content sourced from the **Holy Spirit Class PDF** and doctrinal sections in the About Us manual.
+* Include:
+
+  * Teaching segments
+  * Scripture references
+  * Reflective questions
+* At end:
+
+  * User can indicate:
+
+    * “I believe I have received the Baptism in the Holy Spirit.”
+    * “I am still seeking and learning.”
+  * This can update their **eligibility for certain leadership roles** automatically.
+
+---
+
+## 4.5 Gamification System (FULL PATHWAY)
+
+Implement **gamification (Option 3)** to support discipleship, not ego.
+
+### Core elements:
+
+* **XP (Experience Points)** for:
+
+  * Completing modules
+  * Completing assessments
+  * Attending events (manual or automated entry)
+  * Serving consistently in a ministry
+* **Badges** for:
+
+  * “Completed Following Jesus”
+  * “Completed Holy Spirit Class”
+  * “Onboarded to [Specific Ministry]”
+  * “Faithful Volunteer – 6 Months”
+  * “Leader in Training”
+  * “ACP Confirmed”
+* **Levels or Tiers**:
+
+  * Explorer → Participant → Volunteer → Core Servant → Ministry Leader → Leadership Track
+* **Milestone screens**:
+
+  * When a user reaches a new “tier,” display a celebratory but simple screen:
+
+    * What they’ve accomplished
+    * What’s unlocked
+    * Suggested next steps (new training, ministries, etc.)
+
+This must be **optional in UI** (no cartoonish elements), designed to feel like **discreet progress & honor**, not a game.
+
+---
+
+## 4.6 Church-Wide Calendar & Service Categories
+
+You must build a **robust calendar system** that reflects the leadership framework from the “Leadership Meeting Nov 10” content and existing calendar requests.
+
+### Event Priority Categories
+
+Use these four priority levels:
+
+1. **Mission Critical — “If we do not do this, we fail”**
+
+   * Sunday Experience (Worship, Word, Media, Kids, Landing Team, Community Care)
+   * Discipleship (Discipleship Hour, Next Night, Following Jesus)
+   * Next Gen (Kingdom Children, City Youth)
+   * Leadership Training & Development
+
+2. **Important & Strategic — “Major contributors to the mission”**
+
+   * 21 Days of Fasting
+   * Training & Enrichment events
+   * Missions events
+   * Outreach events
+
+3. **Meaningful, but Not Essential — “We like it, but it wouldn’t prevent mission success”**
+
+   * Men & Women’s events
+   * Parenting events
+   * Marriage events
+   * Other enrichment gatherings
+
+4. **Externally Initiated & Low Priority — “Distractions to the mission”**
+
+   * Operation Christmas Child
+   * Easter Egg Hunt
+   * “Just for fun” events that do not directly serve core mission
+
+### Service Categories (for Sundays and major gatherings)
+
+Create a field for **Service Category** with:
+
+* **Category 1: Standard Service**
+
+  * Normal Sunday services, Communion, basic schedule.
+  * Low budget, minimal extra planning.
+
+* **Category 2: Special Service**
+
+  * Special guests (missionaries, guest speakers)
+  * Vision Sunday
+  * Mission Sundays
+  * Mother’s Day / Father’s Day
+  * Child Dedications
+  * Baptism services
+  * Moderate budget and planning.
+
+* **Category 3: Super Service**
+
+  * Easter, Christmas
+  * Potluck Sundays (Friends & Family)
+  * Mission Fairs
+  * High budget, high volunteer demand.
+
+### Calendar Capabilities
+
+* Users with proper permissions can:
+
+  * Create events.
+  * Select:
+
+    * Priority Level (Mission Critical / Strategic / etc.)
+    * Service Category (1/2/3)
+    * Ministry owner(s)
+    * Required rooms
+    * Required resources
+
+* Admin/Staff:
+
+  * Approve or deny events based on these categories.
+  * See an **overview view** by:
+
+    * Week
+    * Month
+    * Priority level
+    * Service category
+
+* Hook up:
+
+  * A data model that can later sync to **Outlook / O365** and **Planning Center**, but for now stores all events in-app.
+
+---
+
+## 4.7 Rooms, Resources, and Inventory
+
+Build a **Room & Resource Module** that:
+
+* Lets admins create:
+
+  * Rooms (name, capacity, layout presets)
+  * Resources (chairs, tables, TV carts, sound systems, etc.)
+* Supports:
+
+  * Room reservation
+  * Drag-and-drop layout preview (even a simple grid is fine; focus on basic visual layout)
+* Tracks inventory:
+
+  * How many chairs, tables, etc.
+  * Which room they belong to
+* Supports a **monthly inventory list**:
+
+  * Auto-generate a list of “consumables” (e.g., cups, napkins, snacks).
+  * Later this can be tied to an **Amazon cart export** (for now, create a function stub and data structure only).
+
+---
+
+## 4.8 Metrics & Attendance Reporting
+
+Create a **Metrics module** that:
+
+* Sends automated weekly emails (or in-app notifications) to ministry leaders requesting attendance numbers for:
+
+  * Sunday service (adults, children, visitors)
+  * Youth
+  * Kids
+  * Men’s events
+  * Women’s events
+  * Prayer meetings
+  * Special events
+* If not completed within 2 days:
+
+  * Sends a reminder.
+* Stores:
+
+  * Date
+  * Ministry
+  * Attendance counts
+  * Visitors
+  * Salvations
+  * Baptisms
+  * Baptism in the Holy Spirit
+  * Any important notes.
+* Displays:
+
+  * Simple charts (line & bar graphs) over time.
+  * Filters by event type, ministry, time range.
+
+Keep charts clean and simple for non-technical users.
+
+---
+
+## 4.9 Support / Media / Resource Requests
+
+Create a **Request Center**:
+
+* Options:
+
+  * “Request Media / Announcement”
+  * “Request Support (volunteers, setup, tech)”
+  * “Request Resources (supplies, equipment)”
+* User selects:
+
+  * Event / date
+  * Ministry
+  * What they need
+* The system routes requests automatically to:
+
+  * The appropriate ministry leader or admin
+* Statuses:
+
+  * New → In Review → Approved → Completed → Declined
+* Notify requesters of updates.
+
+---
+
+## 4.10 Intern Portal
+
+Create an **Intern Portal**:
+
+* Admin can:
+
+  * Create an **Intern Profile**.
+  * Assign:
+
+    * Supervisor
+    * Intern responsibilities
+    * Required training modules
+    * Schedule (service, hours, meetings)
+  * Generate a **printable summary** of:
+
+    * What they did
+    * What they learned
+    * Modules completed
+    * Highlights (for recommendation letters or references)
+
+This printable output should be a clean PDF/report.
+
+---
+
+## 4.11 Meetings, Notes, and Team Communication
+
+Create a **Meeting Dashboard**:
+
+* Features:
+
+  * Schedule a meeting (date, time, participants, agenda).
+  * In-app notes:
+
+    * Action items
+    * Decisions
+    * Follow-ups
+  * “Minutes” view:
+
+    * Exportable/printable summary of meeting content.
+  * A simple **team chat thread** per meeting or ministry.
+  * A “Start Video Room” feature:
+
+    * Do not implement full Zoom; instead:
+
+      * Use WebRTC or a placeholder video-room component.
+      * Allow multiple participants to join.
+* Also include:
+
+  * A space where team members can “voice their thoughts and opinions”:
+
+    * Feedback form
+    * Anonymous option toggle for admins
+    * Categorize feedback by ministry or topic.
+
+---
+
+## 4.12 Social Media & Public Representation Policy
+
+From the Social Media manual and About Us manual, create:
+
+* A **global policy module** every leader and platform-visible volunteer must accept.
+* Key principles:
+
+  * You represent Christ and Garden City Church in public, including online.
+  * No inflammatory, profane, divisive, or deceptive posts that undermine the church’s witness or doctrine.
+  * No public attacks on other ministries, leaders, or denominations.
+  * Maintain alignment with Garden City doctrine.
+
+Add a required **digital agreement** and link this requirement to:
+
+* Leadership roles
+* Social Media team
+* Visible platform roles
+
+---
+
+# 5. LOGIC FOR MINISTRY ELIGIBILITY
+
+## 5.1 General Flow
+
+After onboarding + ministry survey + doctrinal responses:
+
+1. User chooses ministries they’re interested in.
+2. System:
+
+   * Checks background requirements (kids, youth, CR, counting).
+   * Checks Holy Spirit tier (for leadership/teaching roles).
+   * Assigns training modules.
+   * Marks some ministries as:
+
+     * “Available Now”
+     * “Available After Training”
+     * “Available After Class X” (e.g., Holy Spirit class, Following Jesus, Next Night)
+
+## 5.2 Safety & Background Checks
+
+For ministries involving children, youth, finances, or high trust:
+
+* Flag them as “Requires Background Check.”
+* Add fields to user:
+
+  * `background_check_status` (Not Started / Pending / Approved / Expired)
+  * `background_check_date`
+* App should:
+
+  * Remind admin when checks are due to be renewed.
+
+## 5.3 Holy Spirit Tier Logic
+
+Use “Tier-Based” approach (Option B):
+
+* If user indicates full assent and experience:
+
+  * Eligible for:
+
+    * Worship leadership
+    * Teaching roles
+    * CORE group leadership
+    * Intercessory team
+    * Celebrate Recovery leadership
+    * Youth preaching/teaching
+    * Board or staff track (where other requirements are met)
+
+* If user indicates “still learning” / seeking understanding:
+
+  * Show message (paraphrased from user request):
+
+    > “We are grateful that you are open to continue learning and growing in your faith and knowledge on the Holy Spirit. We invite you to investigate the following ministries with the understanding that all ministries and ministry leaders are seeking to live, move, and grow in the leading and presence of the Holy Spirit. By serving in these ministries, we anticipate that you will learn, move, and grow with us.”
+
+  * Eligible (by default) for ministries like:
+
+    * Hospitality & Welcome
+    * Facilities & Setup
+    * Café & Fellowship Support
+    * Media/Production/CREW (non-lead roles)
+    * Ushers & First Impressions
+    * Outreach/Service projects
+    * Admin support roles
+
+  * Can **move into leadership-track roles** after:
+
+    * Completing Holy Spirit class module
+    * Being approved by leadership.
+
+---
+
+# 6. UX PRINCIPLES
+
+Throughout the app:
+
+* **Zero learning curve** is a must.
+* Use **step-by-step flows** and clear headings like:
+
+  * “Start Here”
+  * “Your Next Step”
+  * “Training Assigned to You”
+* Avoid:
+
+  * Cluttered dashboards
+  * Complex admin-style UI for volunteers
+* Volunteers should always see:
+
+  * Where they are in the process
+  * What they’ve completed
+  * What’s next
+  * Who their leader is
+
+Admins and leaders can have more complex tools, but still with clarity and simple navigation.
+
+---
+
+# 7. RESPECT EXISTING STRUCTURES
+
+This app is **not being built in a vacuum.**
+You must:
+
+* Inspect the existing codebase (if available).
+* Identify:
+
+  * Current survey module
+  * Any existing calendar logic
+  * Any user data schemas
+* When implementing new structures:
+
+  * **Extend or migrate without data loss.**
+  * Avoid renaming critical fields unless you provide safe migrations.
+
+Make sure:
+
+* Existing ministry survey is now **“Survey Module”**.
+* Any previously defined service types, ministry roles, or calendar events are **mapped into the new structure** where appropriate.
+
+---
+
+# 8. OUTPUT EXPECTATIONS
+
+From this spec, you should produce:
+
+1. **Backend models** (User, Ministry, TrainingModule, Question, Answer, Event, Room, Resource, SurveyResponse, Badge, XPLog, Role, etc.).
+2. **API endpoints** to:
+
+   * Manage users, ministries, events, training, surveys, metrics.
+3. **Front-end pages**:
+
+   * Onboarding flow
+   * Training Hub
+   * Calendar
+   * Requests Center
+   * Metrics Dashboard
+   * Meeting Dashboard
+   * Intern Portal
+4. **Seed data structures** (example ministries, categories, badges) that the church can customize.
+5. **Clear comments** in the code so future non-expert devs can maintain and extend it.
+
+---
+
+Build this as a **stable foundation** that Garden City Church can use for years, with the flexibility to add future modules (e.g. ACP voting processes, additional classes, external integrations) without rewriting the core.
+
+This is not just an app.
+It is the **Garden City Serve & Lead Hub** — the backbone for discipleship, serving, training, and leadership development.

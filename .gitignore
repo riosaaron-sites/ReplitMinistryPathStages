@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+server/public/
+
+# Vite
+vite.config.ts.*
+
+# Caches
+.cache/
+*.cache
+.vite/
+.turbo/
+
+# Replit local state
+.local/
+.upm/
+.config/
+.replit.nix
+
+# Logs
+*.log
+npm-debug.log*
+/tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Archives (never commit large files)
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z
+*.part-*
+
+# Large assets (use Object Storage instead)
+attached_assets/*.pdf
+attached_assets/*.mp4
+attached_assets/*.mov
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test artifacts
+coverage/
+.nyc_output/
+
+# Drizzle backup files
+drizzle/meta/_journal.json.bak

@@ -1,0 +1,101 @@
+You are working in the existing MinistryPath codebase.
+
+GOAL:
+Fix the following issues system-wide, using canonical shared logic (no parallel features, no one-off hacks):
+1) Invites resend triggering all rows
+2) Profile update failing (photo saves but fields do not)
+3) Admin training workflow: self-submissions, notifications, and admin global progress + override
+4) Profile photo upload must work during initial onboarding
+All fixes must apply across the whole system, not just one screen.
+
+NON-NEGOTIABLES:
+- Do not introduce a new “second” invite system, training system, or profile system.
+- Reuse existing DB tables and services.
+- Keep changes minimal and localized to shared hooks/services/components.
+- After implementing, add a short testing checklist and log any assumptions.
+
+========================================================
+PART A — INVITES: “RESEND” MUST BE PER-ROW (NOT GLOBAL)
+========================================================
+1) Locate InviteManagement / Invites list UI where Resend is triggered.
+2) Identify why all rows animate/disable/resend together:
+   - shared loading boolean
+   - mutation state reused across rows
+3) Implement per-invite state:
+   - track `resendingInviteId` OR a map `resendingById`
+   - only the clicked row shows spinner/animation/disabled
+4) Ensure the resend API is called exactly once per click and only for that invite.
+5) Confirm “Resend All” only runs when explicitly triggered (if feature exists).
+
+========================================================
+PART B — PROFILE UPDATE: MAKE IT CANONICAL + ATOMIC
+========================================================
+Symptoms: photo appears to save, but text fields fail with “Failed to update profile. Please try again.”
+
+1) Find profile update endpoint and client hook.
+2) Determine failure reason (validation error, missing fields, schema mismatch, auth/role gating). Fix it properly.
+3) Ensure profile updates are atomic and return the updated user object.
+   - PATCH /api/profile (or current equivalent) must accept:
+     - name fields
+     - contact fields
+     - bio fields
+     - photoUrl (optional)
+4) Ensure client uses ONE canonical hook for profile updates across:
+   - profile page
+   - onboarding profile step
+   - anywhere else
+5) Ensure photo upload:
+   - returns photoUrl
+   - then profile update persists photoUrl along with other edits
+6) Improve error reporting:
+   - If server returns validation error, show the actual message in UI (user-friendly), not just “try again.”
+
+========================================================
+PART C — ONBOARDING: ENABLE PROFILE PHOTO UPLOAD
+========================================================
+1) Add photo upload control to onboarding profile step (if missing).
+2) Wire it to the same upload endpoint used by profile editing.
+3) After upload, store returned photoUrl in the onboarding form state and save via the canonical profile update endpoint.
+4) Confirm onboarding can complete with or without photo.
+
+========================================================
+PART D — ADMIN TRAINING: SELF VERIFICATION + GLOBAL VIEW + OVERRIDE
+========================================================
+Current issue: admin can submit training, but what happens next? Admin should be able to verify/approve their own training and also manage all members.
+
+Implement:
+
+1) Admin Training Console (new admin-only page):
+   - Shows all users and their training statuses
+   - Filter by ministry, role, status (submitted, approved, rejected)
+   - Shows “awaiting review” queue globally for admins
+2) Admin Actions:
+   - Approve (“Affirm readiness”)
+   - Reject (“Needs follow-up” with optional note)
+   - Override/Pass (admin-only) with required reason field
+3) Self-submission handling:
+   - Admin should receive notifications for their own submission (in-app and email)
+   - Admin can approve their own submission, BUT it must be logged with an audit trail
+4) Add an Audit Log table or reuse existing if present:
+   - trainingId, actedByUserId, actionType (APPROVE/REJECT/OVERRIDE), reason/note, createdAt
+   - Ensure overrides are visibly labeled as overrides in UI
+5) Notifications:
+   - When any training is submitted, send to:
+     - responsible leaders (existing logic)
+     - PLUS the submitting user if they are an admin/pastor (so they get notified too)
+   - Add notification links to the correct review/console page
+
+========================================================
+PART E — FINAL VERIFICATION
+========================================================
+After implementing, provide:
+1) List of files changed
+2) Why each fix is canonical (shared hooks/services)
+3) A 12-step manual test checklist that includes:
+   - Invite resend one row only
+   - Profile save updates text + photo
+   - Photo upload works in onboarding
+   - Admin submits training and then approves it
+   - Admin console shows all users and can approve/reject/override
+   - Notifications fire correctly for leader + admin self-submission
+Stop after completion.

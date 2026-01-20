@@ -1,0 +1,107 @@
+✅ REPLIT PROMPT — Finish Remaining Items (Outlook Metadata + CoachBubbles)
+INSTRUCTIONS Continue the remaining items ONLY. Do NOT deploy. Do NOT refactor unrelated code. Do NOT add new libraries. Keep changes minimal and surgical. Use existing Graph integration file(s) already created (e.g., server/outlook.ts) and existing calendar UI. Use existing CoachBubble component and patterns.
+REMAINING ITEMS TO COMPLETE
+	1	Outlook event metadata mapping (read categories from Outlook, write markers safely)
+	2	CoachBubble expansion to My Path, Training Viewer, Calendar
+
+PART 1 — Outlook Event Metadata Mapping (Read + Write, Safe)
+Goal
+Calendar categories must be editable in MinistryPath and must round-trip through Outlook so that:
+	•	MinistryPath can read events from Outlook and know which MinistryPath categories they belong to
+	•	MinistryPath can create/update events and preserve the category mapping
+	•	Filters work based on DB-driven categories (not hard-coded)
+Source of truth
+	•	Your editable categories live in MinistryPath DB via /api/categories
+	•	Outlook events must carry enough metadata so MinistryPath can map them back to category IDs
+Choose one mapping strategy (priority order)
+Strategy A (Preferred): Outlook categories
+If Graph supports reading/writing event.categories reliably in this tenant:
+	•	Store MinistryPath categories in Outlook event.categories as strings
+	•	Map them using a consistent naming convention:
+	◦	e.g. MP:mens-ministry, MP:sunday-services, MP:regular-sunday
+	•	When reading: extract MP: categories → slugs → map to DB category rows
+	•	When writing: set event.categories to include existing non-MP categories + MP categories
+Strategy B (Fallback): Embed marker in body
+If Strategy A is inconsistent, embed a marker in the event body (at end):
+<!-- MINISTRYPATH_META: {"categorySlugs":["mens-ministry"],"groupSlugs":["regular-sunday"]} -->
+Rules:
+	•	Only modify/replace the marker segment
+	•	Never wipe the rest of the body
+	•	Keep JSON small
+Data normalization required in your API response
+Update the existing GET /api/outlook/events response to include:
+	•	categoryIds: string[] (DB IDs)
+	•	categorySlugs: string[]
+	•	groupIds: string[] (or store as categories where type=GROUP)
+	•	rawOutlookCategories: string[] (optional for debugging)
+How to map
+	•	Fetch active categories from DB (or cached list)
+	•	Create lookup maps:
+	◦	slug → category row
+	◦	outlookCategoryName or MP: slug → category row
+On create/update routes
+When creating/updating an Outlook event:
+	•	Accept from client:
+	◦	selectedCategoryIds or selectedCategorySlugs
+	◦	selectedGroupIds or selectedGroupSlugs
+	•	Convert to slugs
+	•	Write metadata using Strategy A or B
+	•	Preserve any non-MinistryPath Outlook categories
+	•	Do NOT overwrite other Outlook fields unnecessarily
+Safety checks
+	•	Only treat categories with MP: prefix (or marker) as MinistryPath categories
+	•	Do not “take ownership” of Outlook events you didn’t create unless user explicitly edits them in MinistryPath UI
+	•	When updating:
+	◦	if event lacks MP marker/prefix and user edits categories in MinistryPath, add MP marker/prefix but keep existing data intact
+
+PART 2 — Calendar Filters Become Fully Dynamic
+Ensure the Calendar UI:
+	•	Loads categories from /api/categories
+	•	Groups filters by type: MINISTRY / SERVICE / GROUP / TAG
+	•	Stores selected filter IDs in localStorage
+	•	Filters Outlook events based on categoryIds returned by API
+	•	Default behavior: if nothing selected, show all active categories
+No hard-coded lists anywhere.
+
+PART 3 — CoachBubble Expansion (Minimum, High Impact)
+Use existing CoachBubble component
+Do NOT build a new system. Expand usage only.
+A) My Path page
+Show ONE bubble at a time using priority:
+	1	If user has any trainings with status SUBMITTED_FOR_REVIEW:
+	◦	Title: “Awaiting Leader Review”
+	◦	Body: “You’ve done your part. A leader will review this before it’s marked complete.”
+	◦	CTA: optional “View Submitted Items” (scroll/jump link)
+	2	Else if user has missing required class/trainings:
+	◦	Title: “Next Step”
+	◦	Body: “Complete the next required step to keep moving forward.”
+	◦	CTA: “Go to Next Step”
+	3	Else if user has no role/team:
+	◦	Title: “Choose a Team”
+	◦	Body: “Pick a team to begin serving and see your required path.”
+	◦	CTA: “View Teams”
+Respect dismissal logic. Show once unless reset.
+B) Training Viewer page
+	•	If quiz passed/submitted:
+	◦	Title: “Submitted for Review”
+	◦	Body: “Passing the quiz submits it for leader review. Completion happens after approval.”
+	•	If rejected:
+	◦	Title: “Needs Follow-Up”
+	◦	Body: “Review the notes and resubmit when ready.”
+C) Calendar page
+	•	Title: “Outlook Calendar”
+	•	Body: “Events come from Outlook. Use filters to focus by ministry or category.”
+	•	CTA optional: “Manage Categories” (leader/admin only)
+One bubble max per page.
+
+PART 4 — Verify + Finish
+Verification checklist (must be true before you stop)
+	1	I can create a new category in the admin UI → it appears immediately in Calendar filters
+	2	I create/edit an event in MinistryPath with categories → it writes to Outlook with MP metadata
+	3	Refresh calendar → categories are correctly recovered from Outlook and filters work
+	4	Existing Outlook categories unrelated to MinistryPath are preserved
+	5	CoachBubbles appear on My Path, Training Viewer, Calendar and are dismissible
+
+DO THE WORK NOW. DO NOT ASK QUESTIONS. STOP ONLY WHEN CHECKLIST PASSES.
+
+

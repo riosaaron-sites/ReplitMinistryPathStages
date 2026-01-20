@@ -1,0 +1,148 @@
+SYSTEM: Modify the existing MinistryPath app. Do NOT rebuild. Fix onboarding flow, role enforcement, ministry access rules, and profile persistence issues.
+
+GOAL: Enforce a single, linear onboarding experience that runs once, never loops, never repeats completed steps, and strictly controls how users are added to ministries.
+
+====================================================
+1) FIRST LOGIN ROUTING — FINISH SETUP ONLY
+====================================================
+
+When a brand-new user logs in for the first time:
+- Route immediately to “Finish Setup”
+- Do NOT allow access to the Dashboard until setup is fully complete
+- Disable all alternate routes during setup
+
+Finish Setup consists of EXACTLY these steps, in this order:
+
+----------------------------------------------------
+STEP 1: BUILD PROFILE (RUNS ONCE)
+----------------------------------------------------
+Collect profile information ONCE:
+- Name
+- Username
+- Bio
+- Links (if applicable)
+
+Role selection:
+- Present ONLY these three roles (and only these throughout the entire app):
+  1. Dream Team Member
+  2. Dream Team Leader
+  3. Pastor
+
+Save profile data and permanently mark this step complete.
+This step must never repeat automatically.
+
+----------------------------------------------------
+STEP 2: CHOOSE YOUR MINISTRY (DEFINES EXPERIENCE)
+----------------------------------------------------
+User selects their ministry (or ministries, if role allows).
+
+Rules:
+- This step defines the user’s experience across the app.
+- After selection:
+  - No other ministries should appear.
+  - The user must NOT be prompted to select additional ministries.
+- The ONLY ways a ministry can be added after this step are:
+  A) A pending invitation, or
+  B) An approved request
+
+IMPORTANT ACCESS RULE:
+- ONLY Dream Team Leaders and Pastors can onboard users into ministries via the Leadership Portal.
+- Dream Team Members cannot self-onboard into new ministries.
+- Dream Team Members may only:
+  - accept invitations, or
+  - request to join a ministry (approval required).
+
+Persist selected ministries globally:
+- Profile view
+- Edit Profile
+- Trainings
+- Permissions
+- Admin and Leadership Portal views
+
+----------------------------------------------------
+STEP 3: FAITH COMMITMENT
+----------------------------------------------------
+User completes Faith Commitment modules.
+
+After completion:
+- Mark Faith Commitment as complete.
+- Do NOT return the user to:
+  - profile bio
+  - links
+  - role selection
+  - ministry selection
+- Prevent freezing or re-render loops.
+
+----------------------------------------------------
+STEP 4: PROFILE PHOTO (CONDITIONAL)
+----------------------------------------------------
+If the user does NOT have a profile photo:
+- Prompt to upload a photo.
+
+If the user already has a profile photo:
+- Skip this step entirely.
+
+----------------------------------------------------
+STEP 5: COMPLETE SETUP
+----------------------------------------------------
+Mark onboarding as complete.
+Unlock Dashboard access.
+Route user directly to the Dashboard.
+
+====================================================
+2) POST-ONBOARDING RULES (STRICT)
+====================================================
+
+- Do NOT ask for profile information again automatically.
+- Do NOT prompt to select additional ministries.
+- Do NOT restart onboarding logic.
+- Profile edits must only occur when the user explicitly chooses “Edit Profile” from the account menu.
+
+====================================================
+3) PROFILE EDITING & PERSISTENCE FIXES
+====================================================
+
+When viewing or editing a profile:
+- Display the ministries originally selected during onboarding.
+- Display any ministries added via accepted invitations or approved requests.
+- Do NOT reset, hide, or overwrite ministry selections.
+- Do NOT re-trigger onboarding steps.
+- Editing profile must never alter onboarding completion state.
+
+====================================================
+4) MINISTRY VISIBILITY, INVITES & REQUESTS
+====================================================
+
+Visibility:
+- Users see ONLY:
+  - their selected ministries
+  - ministries with pending invitations
+
+Invitations:
+- Leaders and Pastors can invite users into ministries via the Leadership Portal.
+- Accepted invitations add the ministry and populate trainings.
+- Declined invitations remain hidden unless re-invited.
+
+Requests:
+- Dream Team Members may request to join a ministry.
+- Requests must be approved by:
+  - a Dream Team Leader or
+  - a Pastor
+- Upon approval:
+  - ministry is added
+  - training modules populate automatically
+
+====================================================
+5) ACCEPTANCE TESTS (MUST PASS)
+====================================================
+
+1. New login → Finish Setup (never Dashboard).
+2. Role selection shows only 3 roles everywhere.
+3. Ministry selection happens once and defines experience.
+4. Only Leaders/Pastors can onboard users into ministries.
+5. Dream Team Members cannot self-add ministries.
+6. Faith Commitment completes → Dashboard (no loops).
+7. Profile bio/links never repeat automatically.
+8. Profile photo step appears only if missing.
+9. Edit Profile shows retained ministry selections.
+10. No freezing or redirect loops after setup.

@@ -1,0 +1,107 @@
+MINISTRYPATH — PHASE 7.2
+BIBLICAL LITERACY DEPTH + DISCIPLESHIP IMPACT
+STOP AFTER PHASE 7.2 REPORT
+
+This phase EXTENDS Phase 7. Do NOT redo Phase 7 or Phase 7.1 work.
+
+ABSOLUTE RULES
+- Do NOT redesign onboarding or dashboards.
+- Do NOT change training generation pipelines.
+- Do NOT modify roles/permissions.
+- This phase is ONLY about Biblical Literacy survey depth and impact.
+- STOP after Phase 7.2 and return the required output.
+
+GOALS
+1) Make Biblical Literacy measurement more meaningful (but not intimidating)
+2) Ensure results clearly impact members (encouragement + next steps)
+3) Ensure leaders/admins can see and act on results
+
+---
+
+## A) BIBLICAL LITERACY QUESTION EXPANSION (MANDATORY)
+
+1) Expand Biblical Literacy section to 18–24 questions total.
+2) Organize into 4 buckets:
+- Bible Basics
+- Story & Timeline
+- Jesus & Salvation
+- How to Read the Bible (context, genre)
+
+3) Difficulty balance:
+- ~40% easy
+- ~40% medium
+- ~20% challenge (fair, no trick questions)
+
+---
+
+## B) SCORING & LEVELS (MANDATORY)
+
+Define literacy levels:
+- Low
+- Developing
+- Strong
+
+Store:
+- total literacy score
+- per-bucket scores
+
+---
+
+## C) MEMBER-FACING IMPACT (MANDATORY)
+
+1) On Survey Results page:
+- Show literacy level
+- Show brief explanation
+- Show 2–4 recommended next steps depending on level:
+  - Start 365 Bible Plan
+  - Attend Discipleship Hour
+  - Complete Following Jesus
+  - Optional Bible Basics training module
+
+2) On Dashboard:
+- Small “Growth Snapshot” or “Biblical Literacy” card
+- Encouraging tone (no shame language)
+
+---
+
+## D) LEADER / ADMIN VISIBILITY (MANDATORY)
+
+1) In People / Admin views:
+- Leaders can see Biblical Literacy results for people in their ministries
+- Pastors/Admins can see results for all users
+
+2) Display:
+- Literacy level
+- Bucket breakdown
+- Suggested coaching focus
+
+---
+
+## E) TONE & SAFETY
+- Pastoral tone only
+- No judgment language
+- Literacy results are guidance, not labels
+
+---
+
+PHASE 7.2 REQUIRED OUTPUT (RETURN ONLY THIS)
+
+1) QUESTION COUNT & STRUCTURE
+- total questions
+- questions per bucket
+
+2) SCORING LOGIC
+- how levels are determined
+
+3) MEMBER EXPERIENCE
+- where results appear
+- example recommendations by level
+
+4) LEADER/ADMIN EXPERIENCE
+- where results appear
+- access rules
+
+End with this exact sentence:
+“Phase 7.2 complete. Biblical Literacy is now robust and actionable.”
+
+STOP.

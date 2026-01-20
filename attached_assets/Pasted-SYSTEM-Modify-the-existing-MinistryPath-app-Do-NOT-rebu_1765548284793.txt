@@ -1,0 +1,209 @@
+SYSTEM: Modify the existing MinistryPath app. Do NOT rebuild. Correct onboarding flow, ministry selection logic, dashboard behavior, training requirements, and required-classes interaction. Remove redundancy, prevent freezes, and enforce consistency.
+
+GOAL: Ensure onboarding runs once, ministry selection is accurate and persistent, dashboard is clean and role-aware, and trainings reflect only what is truly required.
+
+====================================================
+1) WELCOME TO THE DREAM TEAM — MINISTRY SELECTION FIX
+====================================================
+
+Issue:
+The “Choose Your Ministry” list is currently incorrect.
+
+Fix:
+- Display ALL ministries listed under “Ministry Roles” (Profile Settings).
+- Do NOT display a partial or filtered list unless intentionally role-restricted.
+- Allow selection of one or more ministries as appropriate to role.
+
+Persistence:
+- Whatever ministries are selected here MUST:
+  - remain checked later under Profile Settings
+  - remain consistent across:
+    - Profile
+    - Edit Profile
+    - Dashboard
+    - Trainings
+    - Discipleship Journey
+
+Dashboard Personalization:
+- Dashboard greeting should reflect role + selected ministry/ministry names.
+  Example:
+  “Welcome John Doe — Dream Team Member | Kingdom Children”
+
+====================================================
+2) REQUIRED CLASSES — INTERACTIVE STATUS FLOW
+====================================================
+
+Issue:
+“Required Classes” warning is passive and unclear.
+
+Fix:
+- The “Update Status” action must route the user to:
+  → My Journey (Discipleship view)
+- From there, the user can mark:
+  - Next Night
+  - Following Jesus
+
+Enhanced Interaction (Required):
+When selecting status, require user input — not simple toggles.
+
+Next Night:
+- Ask:
+  - Date attended
+  - (Optional) Location
+- Confirmation via original affirmation statement
+
+Following Jesus:
+- Options:
+  - Completed
+  - Scheduled / Intend to take
+- If completed:
+  - Ask date attended
+- If scheduled/intended:
+  - Keep status as PENDING until completed
+- Confirmation via original affirmation statement
+
+Sunday Service Context:
+- Do NOT treat Sunday worship as Next Night.
+- Ask clarifying questions:
+  - Do you consistently attend Sunday mornings?
+  - Do you attend Discipleship Hour / Sunday School?
+
+Admin Tracking:
+- All answers and dates must be visible to admins.
+- Persistent warning remains until both classes are COMPLETE.
+
+====================================================
+3) ONBOARDING FREEZE & REPEAT STEPS — FIX
+====================================================
+
+Issue:
+After selecting Next Night / Following Jesus and clicking “Complete Onboarding”:
+- App freezes
+- Requires multiple clicks
+- Repeats profile setup
+
+Fix:
+- “Complete Onboarding” must be:
+  - single-action
+  - idempotent (cannot run twice)
+- Once onboarding is complete:
+  - NEVER route back to profile setup
+  - NEVER re-ask bio, links, phone, social fields
+  - NEVER re-trigger profile photo unless missing
+
+====================================================
+4) PROFILE PHOTO FLOW — CORRECTION
+====================================================
+
+Rules:
+- Profile photo upload is requested ONLY IF no photo exists.
+- Successful upload:
+  - must not show error
+  - must persist immediately
+- Failed upload:
+  - show clear error only when request actually fails
+
+Profile completion (bio, links, phone, socials):
+- Asked ONCE during initial setup
+- Editing only allowed later via “Edit Profile”
+
+====================================================
+5) DISCIPLESHIP JOURNEY — NEXT STEPS LOGIC
+====================================================
+
+Welcome / Discipleship Page:
+After “What’s Left / Next Steps to Complete”:
+- Display ONLY:
+  - ministry-specific training for the ministry selected at onboarding
+
+Dashboard:
+- “What’s Left / Next Steps” should ONLY appear if:
+  - account is incomplete (profile photo missing, bio missing, etc.)
+- Once account is complete:
+  - remove “What’s Left” from Dashboard
+
+Next Steps Content:
+- Show ONLY ministry-specific training
+- When a step is marked complete:
+  - remove it from “Next Steps”
+  - reflect progress in Discipleship Path below
+- Discipleship Path area becomes the historical + editable overview
+
+====================================================
+6) DASHBOARD — SIMPLIFICATION
+====================================================
+
+Dashboard should ONLY display:
+- Welcome message (role + ministry)
+- Required Classes warning (if applicable)
+- About Us
+- Ask for Help
+- My Roles
+
+Remove:
+- Redundant training cards
+- Duplicate surveys
+- Any content already accessible elsewhere
+
+====================================================
+7) TRAINING REQUIREMENTS — STRICT RULES
+====================================================
+
+RULE:
+Manuals are NOT required unless the user selected the associated ministry.
+
+----------------------------------------------------
+MINISTRY-SPECIFIC MANUALS (Required ONLY if ministry selected)
+----------------------------------------------------
+
+City Youth Worship Manual  
+CREW Manual  
+Intercessory Ministry Manual  
+CORE Minister Manual  
+Social Media Manual  
+Usher Ministry Manual  
+Celebrate Recovery Manual  
+Facilities Ministry Manual  
+Counting Ministry Manual  
+Kingdom Children Manual  
+
+(Extended versions apply ONLY when explicitly required by ministry role)
+
+----------------------------------------------------
+LEADER / PASTOR REQUIRED (In addition to ministry manuals)
+----------------------------------------------------
+
+Required for Dream Team Leaders & Pastors:
+- Ministry Leaders Manual
+- Language of a Leader
+- Recruitment 101
+- Ministry Development Questionnaire
+
+Pastor ONLY:
+- Employee Manual
+
+----------------------------------------------------
+CHURCH-WIDE RESOURCES (NOT REQUIRED)
+----------------------------------------------------
+
+Available to all users but NOT required:
+- About Us Manual
+- SERVE Booklet
+- Discipleship Model
+- Live the Life, Tell the Story
+- Downloads / Resources
+
+Clearly label these as:
+“Optional Resources — Not Required”
+
+====================================================
+8) FINAL RULE (NON-NEGOTIABLE)
+====================================================
+
+Manuals must NEVER appear as required unless:
+- the user selected the associated ministry, OR
+- the manual is role-required (Leader/Pastor)
+
+No redundant trainings.
+No hidden logic.
+No surprise requirements.

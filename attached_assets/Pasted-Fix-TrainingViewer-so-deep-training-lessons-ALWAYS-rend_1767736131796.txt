@@ -1,0 +1,53 @@
+Fix TrainingViewer so deep training lessons ALWAYS render for deep trainings.
+
+PROBLEM:
+All trainings show the generic fallback screen:
+"Lesson Overview... When you're ready, submit this training for leader review. Submit for Review"
+This is happening because TrainingViewer only renders deep training when:
+if (isDeepTraining && currentLesson)
+and currentLesson is derived from lessons[currentLessonIndex].
+If currentLessonIndex is undefined/out of range at render time, currentLesson is falsy and the UI falls back, even though lessons exist.
+
+SOURCE EVIDENCE:
+- TrainingViewer gate requires (isDeepTraining && currentLesson)
+- lessons are confirmed present in DB and API response for deep trainings
+
+REQUIREMENTS (NO DIALOG):
+1) In client/src/pages/member/TrainingViewer.tsx:
+   A) Ensure the deep training check uses the parsed lessons array:
+      const isDeepTraining = module?.isDeepTraining === true && parsedLessons.length > 0;
+      const lessons = parsedLessons;
+
+   B) Introduce a safe lesson index:
+      const safeLessonIndex =
+        typeof currentLessonIndex === "number" &&
+        currentLessonIndex >= 0 &&
+        currentLessonIndex < lessons.length
+          ? currentLessonIndex
+          : 0;
+
+      const currentLesson = lessons[safeLessonIndex];
+
+   C) Change the render decision:
+      - If isDeepTraining is true, render deep training view.
+      - Do NOT require currentLesson to be truthy to enter deep training view.
+      - If lessons length is 0, THEN fallback.
+
+2) Submission guard:
+   - Ensure "Submit for Review" is NOT shown immediately for deep trainings.
+   - Only show submission after the deep training flow reaches completion criteria
+     (at minimum: last lesson completed; if the system requires knowledge check or assessment, require those too).
+
+3) System-wide:
+   - This fix must apply to ALL deep trainings (Recruitment 101, Baptism Handout, etc.) via the same TrainingViewer.
+   - Do not add new endpoints or schema.
+
+4) Verification steps:
+   - Confirm Recruitment 101 now opens to Lesson 1 of 8 with lesson title/content and Next Lesson works
+   - Confirm Baptism Handout does the same
+   - Confirm the generic fallback is only used when lessons truly do not exist
+   - Confirm Submit for Review is not visible at start of deep trainings
+
+After implementing:
+- Provide a short summary of what was changed and the files modified.
+- Stop.

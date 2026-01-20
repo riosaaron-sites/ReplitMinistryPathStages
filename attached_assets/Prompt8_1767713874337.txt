@@ -1,0 +1,101 @@
+You are working in the existing MinistryPath codebase.
+
+GOAL:
+Replace XP (experience points) with a pastoral, non-gamified progress system called “Milestones” or “Path Progress,” WITHOUT rewriting core logic or data models.
+
+CRITICAL CONSTRAINTS:
+- Do NOT add a new points or scoring system.
+- Do NOT rebuild training, onboarding, or notification flows.
+- Reuse existing events, audit logs, and state transitions.
+- This is a language + presentation + light-mapping change.
+
+==================================================
+PART A — CONCEPTUAL REPURPOSING (NO DB REWRITE)
+==================================================
+1) Treat any existing XP-related logic as an internal progress trigger, not a score.
+2) Stop surfacing XP values to users entirely.
+3) Introduce a conceptual layer:
+   - “Milestone”
+   - “Progress Step”
+   - “Readiness Marker”
+   (Choose one term and use it consistently; prefer “Milestone” or “Path Progress.”)
+
+==================================================
+PART B — USER-FACING LANGUAGE CHANGES
+==================================================
+Replace XP language in:
+- Notifications
+- Emails
+- UI messages
+- CoachBubbles
+- Toasts / alerts
+
+Examples:
+- “+XP” → “Milestone Reached”
+- “You gained XP” → “You’ve taken a meaningful step forward”
+- “Level up” → REMOVE entirely
+- “Progress increased” → “You’re moving forward on your path”
+
+Ensure tone is:
+- encouraging
+- pastoral
+- affirmational
+- not competitive
+
+==================================================
+PART C — MILESTONE DEFINITIONS (DERIVED, NOT STORED)
+==================================================
+Define milestones based on existing system states:
+
+- Onboarding Started
+- Profile Completed
+- Team Joined
+- Training Submitted
+- Training Affirmed by Leader
+- Ready to Serve (derived when required trainings are affirmed)
+
+Do NOT store these as a new table.
+Derive them from existing data and states.
+
+==================================================
+PART D — UI PRESENTATION (MINIMAL)
+==================================================
+1) Where XP was previously shown (if anywhere):
+   - Replace with a simple progress indicator:
+     - “You’re progressing”
+     - “Next milestone: [X]”
+2) Optional (only if trivial):
+   - Simple checklist-style display on “My Path” page
+   - No percentages, no levels, no scores
+
+==================================================
+PART E — ADMIN & LEADER VIEW
+==================================================
+1) Leaders and admins should see:
+   - current status per member
+   - milestones reached (derived)
+2) Admin override actions should log:
+   - “Milestone affirmed via admin override”
+   in audit logs (language only; reuse existing logs)
+
+==================================================
+PART F — CLEANUP
+==================================================
+1) Remove XP references from:
+   - user notifications
+   - emails
+   - CoachBubbles
+2) Keep underlying numeric fields untouched if they exist, but unused.
+3) Verify no XP wording appears in the UI.
+
+==================================================
+FINAL OUTPUT
+==================================================
+- List files updated
+- Confirm no DB schema changes
+- Provide a short test checklist:
+  - Training approval triggers milestone messaging
+  - No XP visible anywhere
+  - My Path reflects forward movement without points
+
+STOP after completion.

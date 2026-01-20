@@ -1,0 +1,111 @@
+Create a single comprehensive handoff file named:
+
+MINISTRYPATH_HANDOFF.txt
+
+This file must capture the CURRENT, REAL STATE of the MinistryPath system so a new ChatGPT thread can diagnose and finish the project without rehashing history.
+
+DO NOT FIX ANYTHING.
+DO NOT ADD FEATURES.
+DO NOT CLEAN UP CODE.
+JUST REPORT FACTS.
+
+==============================
+SECTION 1 — BUILD & DEPLOYMENT
+==============================
+- Is the currently tested app Preview or Published?
+- Latest publish timestamp
+- Commit hash / build identifier if available
+- Are Preview and Published currently identical? (Yes/No/Unknown)
+- List any recent build or TypeScript errors that were fixed
+
+==============================
+SECTION 2 — USER ROLES & TEST ACCOUNTS
+==============================
+For EACH test account used (admin, leader, member):
+- email
+- role
+- ministry assignments
+- onboarding status (complete/incomplete)
+- training progress summary (counts by status)
+
+==============================
+SECTION 3 — TRAINING MODULE INVENTORY
+==============================
+For EACH training module (Recruitment 101, Baptism Handout, Discipleship Pathway, etc.):
+- module id
+- title
+- isPublished
+- isActive
+- isDeepTraining
+- lessons field:
+  - type (array / string / null)
+  - length
+- draft vs published state
+- where this module appears:
+  - Admin Training Management
+  - Member Training Hub
+  - Both
+
+==============================
+SECTION 4 — TRAINING VIEWER BEHAVIOR (CRITICAL)
+==============================
+For EACH role (admin, member):
+- Route used when opening a training (exact URL path)
+- What renders:
+  - Lesson 1 content
+  - OR fallback "Lesson Overview"
+- Is "Submit for Review" visible immediately? (Yes/No)
+- Expected vs actual behavior
+
+==============================
+SECTION 5 — TRAINING PROGRESS LOGIC
+==============================
+For a test user:
+- training_progress rows for each module
+- currentLessonIndex values
+- submittedAt / approvedAt values
+- any progress marked complete incorrectly
+
+==============================
+SECTION 6 — API EVIDENCE
+==============================
+Paste RAW JSON responses for:
+- GET /api/training/modules/:id  (for at least one failing module)
+- GET training list endpoint used by Training Hub
+- GET training progress endpoint
+
+==============================
+SECTION 7 — KNOWN FIXES ALREADY APPLIED
+==============================
+List ONLY what has already been done, for example:
+- TrainingViewer safeLessonIndex added
+- Deep training detection changed to infer from lessons
+- TypeScript build fixes
+- Progress reset for admin
+- Notification fixes
+(Be factual — no assumptions.)
+
+==============================
+SECTION 8 — CURRENT BLOCKERS
+==============================
+Plain language summary:
+- What is still broken
+- Where fallback still appears
+- Which roles are affected
+- Why this blocks real use of the app
+
+==============================
+SECTION 9 — DO NOT DO AGAIN
+==============================
+List things that should NOT be reattempted in the next thread:
+- No new training systems
+- No parallel viewers
+- No UI-only hacks
+- No XP / gamification
+
+==============================
+END OF FILE
+==============================
+
+Save this file and make it downloadable.
+Do not print it to chat.

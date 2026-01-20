@@ -1,0 +1,331 @@
+================================================================================
+DIAG_TRAINING_MODULE_BAPTISM.txt
+Generated: 2026-01-06
+================================================================================
+
+SECTION 1: MODULE IDENTIFICATION
+================================================================================
+Module ID: f6d2efb7-64c4-479d-a8a6-0577a9d078e3
+Route URL: /trainings/f6d2efb7-64c4-479d-a8a6-0577a9d078e3
+API Endpoint: GET /api/training/modules/f6d2efb7-64c4-479d-a8a6-0577a9d078e3
+Title: Baptism Handout
+
+================================================================================
+SECTION 2: FULL JSON RESPONSE FROM DATABASE
+================================================================================
+{
+  "id": "f6d2efb7-64c4-479d-a8a6-0577a9d078e3",
+  "title": "Baptism Handout",
+  "slug": "baptism-handout",
+  "description": "Deep training module based on the Baptism Handout manual. This comprehensive training includes 8 lessons, knowledge checks, and scenario-based assessments.",
+  "is_deep_training": true,
+  "is_active": true,
+  "is_published": true,
+  "audience": "all",
+  "lesson_summary": null,
+  "lessons": [
+    {
+      "id": "lesson-1",
+      "title": "Understanding the Meaning of Baptism",
+      "lessonNumber": 1,
+      "whyThisMatters": "Understanding the meaning of baptism is crucial for both personal faith and effective ministry. It helps church volunteers explain its significance to new believers, ensuring they grasp the spiritual transformation it represents. This understanding fosters a culture of obedience and discipleship within the church, emphasizing baptism as a step of spiritual growth rather than a mere ritual.",
+      "teachingContent": "Baptism, derived from the Greek word 'baptizo,' means 'to immerse' or 'to submerge.' It represents a profound spiritual symbol of cleansing, death to the old self, and resurrection into new life. Baptism serves as a public declaration of inward transformation—a visible testimony of the invisible work of Christ in believers. Scripture highlights its significance through metaphors such as cleansing (Psalm 51:7; Ezekiel 36:25-27), life and the Holy Spirit (John 4:14; John 7:38–39), and death and resurrection (Romans 6:4; Colossians 2:12). As Christians, baptism is not merely a tradition but an act of obedience modeled by Jesus Himself and commanded for His followers. It is symbolic of our surrender to God and a step into discipleship.",
+      "reflectionPrompt": "How does understanding the symbolism of baptism deepen your appreciation for this ordinance?",
+      "scriptureReferences": ["Psalm 51:7", "John 7:38", "Romans 6:4"]
+    },
+    {
+      "id": "lesson-2",
+      "title": "Why We Are Baptized: Biblical Foundations",
+      "lessonNumber": 2,
+      "whyThisMatters": "This lesson strengthens the theological foundation for baptism, enabling volunteers to confidently answer questions about its significance. By understanding its biblical roots, church workers can guide others into this act of obedience, fostering spiritual growth and unity in the church community.",
+      "teachingContent": "The practice of baptism is deeply rooted in Scripture. Jesus Himself was baptized to 'fulfill all righteousness' (Matthew 3:15), setting an example for His followers. He also commanded His disciples to baptize others in the name of the Father, Son, and Holy Spirit (Matthew 28:19). The early Church embraced baptism as a vital step of faith, as seen in Acts 2:38–41, where new believers were baptized immediately following repentance. Baptism symbolizes burial and resurrection (Romans 6:4), marking new life in Christ (2 Corinthians 5:17). This act of obedience is not optional for believers but a step of surrender that testifies to Christ's work in them.",
+      "reflectionPrompt": "Why do you think baptism is a necessary step for believers, and how does it reflect obedience to Christ?",
+      "scriptureReferences": ["Matthew 3:15", "Acts 2:38", "Romans 6:4"]
+    },
+    {
+      "id": "lesson-3",
+      "title": "Old Testament Roots and Symbolism of Baptism",
+      "lessonNumber": 3,
+      "whyThisMatters": "Understanding the Old Testament roots of baptism enriches its meaning, connecting it to the broader narrative of God's redemption. Church volunteers can use these stories to help new believers grasp the continuity of God's plan throughout Scripture and see baptism as part of their role in that story.",
+      "teachingContent": "While baptism is a New Testament practice, its roots can be traced back to the Old Testament. Ceremonial washings, such as those in Numbers 8:7, symbolized cleansing and purification. Psalm 51:7 reflects the cry for spiritual cleansing, pointing to the inner renewal baptism represents. Biblical imagery like Noah's Ark (Genesis 6–8) and the Red Sea crossing (Exodus 14) also illustrate themes of salvation through water. These foundational stories reveal God's redemptive plan, showing how water has been used symbolically to separate His people from sin and death, offering them a new life.",
+      "reflectionPrompt": "How do the Old Testament examples of cleansing and salvation through water deepen your perspective on baptism?",
+      "scriptureReferences": ["Psalm 51:7", "Exodus 14"]
+    },
+    {
+      "id": "lesson-4",
+      "title": "Baptism as an Ordinance: Obedience Over Mysticism",
+      "lessonNumber": 4,
+      "whyThisMatters": "This lesson clarifies misconceptions about baptism, ensuring church volunteers can articulate its purpose effectively. Understanding baptism as an act of obedience allows believers to approach it with humility and commitment, fostering a culture of faith-based action within the church.",
+      "teachingContent": "In Pentecostal tradition, baptism is recognized as an ordinance—an act of obedience rather than a sacrament that imparts salvation. Jesus submitted to baptism not because He needed cleansing but to 'fulfill all righteousness' (Matthew 3:15), demonstrating obedience to God's plan. Baptism is deeply meaningful but not mystical; its power lies in the believer's choice to obey God. James 1:22 reminds us that obedience leads to spiritual growth, and baptism is an early step in this journey of faith. It is a response to salvation, not the cause of it, emphasizing that only Christ saves (John 14:6; Ephesians 2:8–9).",
+      "reflectionPrompt": "How does viewing baptism as an act of obedience rather than a mystical act impact your understanding of its significance?",
+      "scriptureReferences": ["Matthew 3:15", "James 1:22", "Ephesians 2:8"]
+    },
+    {
+      "id": "lesson-5",
+      "title": "Believer's Baptism: Why We Don't Baptize Infants",
+      "lessonNumber": 5,
+      "whyThisMatters": "This lesson equips church volunteers with the theological reasoning behind believer's baptism, enabling them to address questions or concerns from families. Understanding this principle fosters clarity and alignment in the church's practices, promoting biblical adherence in ministry.",
+      "teachingContent": "Scripture teaches that baptism follows personal faith and repentance. Acts 2:41 and Acts 8:12 show examples of individuals being baptized after believing the Gospel. Infants, however, cannot repent or profess faith (Romans 10:9–10). Instead, we follow the biblical model of dedication, as seen in Luke 2:22–24, when Jesus' parents presented Him at the temple. Baptism is a response to spiritual rebirth, not physical birth (John 3:5). It is an outward sign of an inner covenant with Christ, marking the believer's conscious decision to follow Him.",
+      "reflectionPrompt": "Why is it significant that baptism follows personal faith and repentance?",
+      "scriptureReferences": ["Acts 2:41", "Luke 2:22"]
+    },
+    {
+      "id": "lesson-6",
+      "title": "Baptized Into Christ: A Life of Allegiance",
+      "lessonNumber": 6,
+      "whyThisMatters": "This lesson emphasizes the transformative nature of baptism, helping church volunteers inspire new believers to embrace their new identity in Christ. It reinforces the idea that baptism is not merely symbolic but a declaration of allegiance that shapes their walk with Jesus.",
+      "teachingContent": "In the early Church, baptism marked a radical turning point for believers. It was not merely a rite of passage but a declaration of separation from the world and allegiance to Christ (Romans 6:1–4). Baptism signified entry into Christ's Body, the Church, and a commitment to live according to His teachings (Ephesians 4:4–6). Acts 16:30–33 illustrates how baptism was often immediate, following repentance and faith. This step reflects a lifelong commitment to follow Jesus, embracing His call to discipleship and turning away from sin (Luke 9:23).",
+      "reflectionPrompt": "How does baptism as a declaration of allegiance to Christ challenge and inspire you in your daily walk?",
+      "scriptureReferences": ["Romans 6:1", "Ephesians 4:4"]
+    },
+    {
+      "id": "lesson-7",
+      "title": "How Should We Baptize? Biblical Practices",
+      "lessonNumber": 7,
+      "whyThisMatters": "This lesson ensures consistency in the church's baptism practices, helping volunteers understand the biblical reasoning behind immersion and the Trinitarian formula. It fosters unity and clarity in ministry, strengthening the church's obedience to Christ's commands.",
+      "teachingContent": "The Bible provides clear guidance on how baptism should be practiced. Jesus modeled baptism by immersion in water (Matthew 3:16), and the early Church continued this practice using 'living water'—a flowing source. We baptize in the Trinitarian name of the Father, Son, and Holy Spirit, as commanded by Jesus (Matthew 28:19). This formula reflects the full revelation of God's nature and affirms the believer's connection to the triune God. Some traditions baptize 'in Jesus' name' only, but the full biblical instruction emphasizes the Trinitarian approach.",
+      "reflectionPrompt": "Why is it important to follow Jesus' example and command when baptizing others?",
+      "scriptureReferences": ["Matthew 3:16", "Matthew 28:19"]
+    },
+    {
+      "id": "lesson-8",
+      "title": "Preparing for Baptism: A Step of Commitment",
+      "lessonNumber": 8,
+      "whyThisMatters": "Church volunteers play a vital role in preparing candidates for baptism, ensuring they understand its significance and are spiritually ready. This lesson equips volunteers to guide and encourage others, fostering a supportive environment that celebrates commitment to Christ.",
+      "teachingContent": "Baptism is not for the perfect but for the repentant. Acts 2:38 emphasizes repentance as the prerequisite for baptism, highlighting the need for a transformed heart. This step signifies the beginning of a lifelong journey with Christ, marked by daily commitment and spiritual growth (Luke 9:23). Preparing for baptism involves prayer, reflection, and readiness to publicly declare faith in Jesus. As believers take this step, they affirm their decision to turn from sin and follow Him wholeheartedly.",
+      "reflectionPrompt": "How can you prepare your heart to support others in their journey toward baptism?",
+      "scriptureReferences": ["Acts 2:38", "Luke 9:23"]
+    }
+  ],
+  "study_questions": [],
+  "knowledge_check_questions": [
+    {"id": "kc-1", "question": "What does the word 'baptism' mean in its original Greek form?", "questionType": "multiple-choice", "options": ["A. To sprinkle", "B. To immerse or submerge", "C. To wash lightly", "D. To anoint with oil"], "correctAnswer": "B", "explanation": "The word 'baptism' comes from the Greek 'baptizo,' which means 'to immerse or submerge,' symbolizing a complete cleansing or transformation."},
+    {"id": "kc-2", "question": "Which of the following is NOT a biblical symbol of baptism?", "questionType": "multiple-choice", "options": ["A. Cleansing", "B. Resurrection into new life", "C. Spiritual rebirth", "D. Physical birth"], "correctAnswer": "D", "explanation": "Baptism symbolizes cleansing, spiritual rebirth, and resurrection into new life, but it does not represent physical birth."}
+  ],
+  "intensive_assessment_questions": [/* Full array present in DB - truncated for readability */],
+  "reflection_prompt": null,
+  "manual_id": null,
+  "estimated_minutes": null,
+  "xp_reward": null,
+  "passing_score": null,
+  "is_required": null
+}
+
+================================================================================
+SECTION 3: FIELD TYPE SUMMARY
+================================================================================
+typeof lessons:                    jsonb (PostgreSQL native)
+lessons is array:                  YES
+lessons.length:                    8
+moduleType (if present):           NOT PRESENT IN SCHEMA
+title:                             "Baptism Handout"
+is_deep_training:                  true
+lesson_summary:                    null
+study_questions:                   [] (empty array)
+knowledge_check_questions:         PRESENT (array with items)
+intensive_assessment_questions:    PRESENT (array with items)
+audience:                          "all"
+is_active:                         true
+is_published:                      true
+
+Fields implying deep training:
+- is_deep_training = true
+- lessons array with 8 complete lesson objects
+- Each lesson has: id, title, lessonNumber, whyThisMatters, teachingContent, reflectionPrompt, scriptureReferences
+
+================================================================================
+SECTION 4: CODE SNIPPETS
+================================================================================
+
+A) BACKEND HANDLER: /api/training/modules/:id (server/routes.ts lines 3805-3835)
+--------------------------------------------------------------------------------
+  app.get('/api/training/modules/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const module = await storage.getTrainingModule(req.params.id);
+      if (!module) {
+        return res.status(404).json({ message: "Training module not found" });
+      }
+      const rawAssessments = await storage.getTrainingAssessments(req.params.id);
+      
+      // Transform assessments to frontend format with numeric correctAnswer
+      const assessments = rawAssessments.map(a => {
+        // Convert letter answer (A, B, C, D) to numeric index (0, 1, 2, 3)
+        let correctAnswerIndex = 0;
+        if (typeof a.correctAnswer === 'string') {
+          const letterMap: Record<string, number> = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
+          correctAnswerIndex = letterMap[a.correctAnswer.toUpperCase()] ?? 0;
+        } else if (typeof a.correctAnswer === 'number') {
+          correctAnswerIndex = a.correctAnswer;
+        }
+        
+        return {
+          id: a.id,
+          moduleId: a.moduleId,
+          question: a.questionText,
+          options: Array.isArray(a.options) ? a.options : [],
+          correctAnswer: correctAnswerIndex,
+          explanation: a.explanation,
+        };
+      });
+      
+      // If module lacks lesson content but has a linked manual, try to get from manual analysis
+      let lessonSummary: string | null = module.lessonSummary || null;
+      // ... continues with response handling
+
+B) STORAGE/QUERY FUNCTION (server/storage.ts lines 1042-1045)
+--------------------------------------------------------------------------------
+  async getTrainingModule(id: string): Promise<TrainingModule | undefined> {
+    const [module] = await db.select().from(trainingModules).where(eq(trainingModules.id, id));
+    return module;
+  }
+
+C) TRAINING VIEWER CONDITIONAL LOGIC (client/src/pages/member/TrainingViewer.tsx)
+--------------------------------------------------------------------------------
+
+PARSING LOGIC (lines 216-235):
+  // Explicitly parse lessons from the module data to handle potential type issues
+  const parsedLessons: DeepLesson[] = (() => {
+    if (!module?.lessons) return [];
+    // Handle case where lessons might be a string (unlikely but defensive)
+    if (typeof module.lessons === 'string') {
+      try {
+        return JSON.parse(module.lessons);
+      } catch {
+        return [];
+      }
+    }
+    // Handle case where it's already an array
+    if (Array.isArray(module.lessons)) {
+      return module.lessons;
+    }
+    return [];
+  })();
+  
+  const isDeepTraining = module?.isDeepTraining === true && parsedLessons.length > 0;
+  const lessons = parsedLessons;
+  const currentLesson = lessons[currentLessonIndex];
+
+RENDER DECISION (line 1142):
+  if (isDeepTraining && currentLesson) {
+    return (
+      <div className="space-y-4">
+        // ... DEEP TRAINING VIEW WITH LESSONS, NAV, etc.
+        <h2 className="text-xl font-bold">{currentLesson.title}</h2>
+        <p className="text-sm text-muted-foreground">
+          Lesson {currentLessonIndex + 1} of {lessons.length}
+        </p>
+        // ...
+      </div>
+    );
+  }
+
+FALLBACK VIEW (lines 1247-1384):
+  const sections = module.contentSections || [];
+  const lessonContent = module.lessonSummary || module.description || "";
+
+  return (
+    <div className="space-y-4">
+      // ...
+      <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+        <BookOpen className="w-5 h-5" />
+        Lesson Overview
+      </h2>
+      // Shows description, video, sections but NOT individual lessons
+      // Shows "Submit for Review" button
+    </div>
+  );
+
+================================================================================
+SECTION 5: DATABASE SNAPSHOT (RAW ORM OUTPUT)
+================================================================================
+
+PostgreSQL Query: SELECT * FROM training_modules WHERE id = 'f6d2efb7-64c4-479d-a8a6-0577a9d078e3'
+
+Key Fields from ORM layer BEFORE client transmission:
+- id: "f6d2efb7-64c4-479d-a8a6-0577a9d078e3"
+- title: "Baptism Handout"
+- is_deep_training: true (boolean)
+- lessons: JSONB array with 8 lesson objects (see Section 2 for full content)
+  - Each object has: id, title, lessonNumber, whyThisMatters, teachingContent, reflectionPrompt, scriptureReferences
+- lesson_summary: null
+- study_questions: [] (empty array)
+- knowledge_check_questions: [...] (populated array)
+- intensive_assessment_questions: [...] (populated array)
+
+Raw lessons field as returned from DB (first 500 chars):
+[{"id": "lesson-1", "title": "Understanding the Meaning of Baptism", "lessonNumber": 1, "whyThisMatters": "Understanding the meaning of baptism is crucial for both personal faith and effective ministry. It helps church volunteers explain its significance to new believers, ensuring they grasp the spiritual transformation it represents. This understanding fosters a culture of obedience and discipleship within the church, emphasizing baptism as a step of spiritual growth rather than a mere ritual."...
+
+PostgreSQL pg_typeof(lessons): jsonb
+lessons is valid array: YES (jsonb_array_length = 8)
+
+================================================================================
+SECTION 6: NETWORK TRACE
+================================================================================
+
+Expected Client Request:
+- URL: GET /api/training/modules/f6d2efb7-64c4-479d-a8a6-0577a9d078e3
+- Method: GET
+- Auth: Cookie-based session (requires authentication)
+- Expected Status: 200 OK
+
+Response Structure (from backend handler):
+- Returns module object with all fields
+- Includes transformed assessments array with numeric correctAnswer
+- JSONB fields (lessons, study_questions, knowledge_check_questions, etc.) passed through directly
+
+Potential Other API Calls on Training Page:
+- GET /api/training/progress (user's progress on all modules)
+- GET /api/training/modules (list of all modules)
+- GET /api/user (current user info)
+- GET /api/notifications (notification count)
+
+Known Issues:
+- None identified at network layer
+- Database returns proper JSONB array for lessons
+- Backend handler passes lessons through without modification
+
+================================================================================
+SECTION 7: ANALYSIS SUMMARY
+================================================================================
+
+DATABASE STATE:
+- Module exists with id: f6d2efb7-64c4-479d-a8a6-0577a9d078e3
+- is_deep_training = true
+- lessons = valid JSONB array with 8 fully-populated lesson objects
+- All lesson objects have required fields (id, title, lessonNumber, whyThisMatters, teachingContent, reflectionPrompt, scriptureReferences)
+
+CONDITIONAL LOGIC (line 1142):
+  if (isDeepTraining && currentLesson)
+  
+This requires:
+1. isDeepTraining = true (module?.isDeepTraining === true && parsedLessons.length > 0)
+2. currentLesson = lessons[currentLessonIndex] must be truthy
+
+PARSING LOGIC (lines 217-232):
+- Checks if module.lessons is a string -> JSON.parse
+- Checks if module.lessons is already an Array -> use directly
+- Falls back to empty array []
+
+POTENTIAL FAILURE POINTS:
+1. If module.lessons is neither string nor Array (e.g., object, undefined handled differently)
+2. If Array.isArray() fails due to cross-realm issues or proxy objects
+3. If lessons array elements don't match DeepLesson type interface
+4. If currentLessonIndex is out of bounds
+
+TESTED WORKING:
+- Recruitment 101 (181b134b-5ca2-4e27-8a02-975fef2f3c97) shows lessons correctly
+- Same parsing logic, same code path
+
+OPEN QUESTION:
+If Baptism module has identical database structure to Recruitment 101 (both is_deep_training=true, both have 8-item lessons arrays), why would one work and the other not?
+
+Possible causes to investigate:
+1. Network/API response difference between the two modules
+2. Cache state difference
+3. User session/progress difference affecting render path
+4. React Query cache returning stale/different data
+5. Module being accessed via different route or component
+
+================================================================================
+END OF DIAGNOSTIC FILE
+================================================================================

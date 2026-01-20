@@ -1,0 +1,375 @@
+UPDATED ADD-ON PROMPT (Include This in V3.4 / V3.5)
+
+PRIORITY BUILDER DIRECTIVE:
+Implement everything listed here only where it does not yet exist, and adjust existing components to create a seamless user experience. Remove all dead ends, blank pages, and unclear flow points.
+
+1. TEAM MANAGEMENT + MESSAGING (Leader-Level)
+
+Leaders must have the following fully functional abilities inside Team Management:
+
+Leader Capabilities
+
+View Team Members
+
+Name, photo, email
+
+Ministry roles
+
+Onboarding status indicator (red/yellow/green/blue)
+
+Training completion %
+
+Add Team Members
+
+Add by name + email
+
+Automatically send portal invite
+
+Auto-enroll into correct ministry training path
+
+Remove Team Members
+
+Remove from ministry (NOT delete user account)
+
+User maintains profile + training history
+
+Only Admins can delete users globally
+
+Messaging
+
+Bulk message entire ministry
+
+Message subgroups (Greeters, Sound Techs, Café, etc.)
+
+Message individuals
+
+All messages appear in the user’s global message center
+
+2. JOIN A MINISTRY (User-Level)
+
+If a user has not selected a ministry yet, they must see a “Join a Ministry” button in:
+
+Dashboard
+
+My Profile
+
+Menu
+
+Join Process:
+
+User chooses ministry (from a full list with descriptions)
+
+User selects role (Greeter, Worship Vocals, Camera Op, Security, etc.)
+
+Ministry Leader receives request
+
+Once approved:
+
+User is added to the team
+
+Auto-enrolled into the ministry training track
+
+Ministry appears on their profile
+
+Training modules unlock
+
+If a user is already in multiple ministries, they can toggle between them in their profile.
+
+3. BUTTON + FLOW VALIDATION (No Dead Ends)
+
+Audit the entire app UI and make sure:
+
+Every button leads to a functioning, meaningful screen
+
+No broken links, empty placeholders, or “Not implemented” pages
+
+Every “Back” button returns the user logically
+
+All CTAs guide the user toward completing a next step
+
+Areas requiring special attention:
+
+Onboarding
+
+Manuals
+
+“Start Training” / “Take Quiz” / “Review Results”
+
+Messaging
+
+Calendar
+
+Rooms & Requests
+
+Metrics submission
+
+Team Management
+
+4. MY PROGRESS DASHBOARD (User-Level)
+
+Every user must be able to click “My Progress” from the main dashboard.
+
+The My Progress page MUST show:
+A. Completed Trainings
+
+About Us Manual quiz score + date
+
+Ministry Survey results
+
+Ministry-specific manual quizzes + status
+
+Following Jesus class status
+
+Any additional training (Language of a Leader, Recruitment 101, etc.)
+
+B. Incomplete / Next Steps
+
+What the user must do next
+
+A “Start” or “Continue” button for each pending module
+
+C. Ministry Toggles
+
+If the user serves in multiple ministries, they should toggle between:
+
+Worship Team
+
+Landing Team
+
+Media (Sound, Propresenter, Lighting, Camera)
+
+Ushers
+
+Security
+
+Café
+
+Next Gen
+
+CREW
+
+CORE Ministers
+
+etc.
+
+Each ministry shows its own training progress, not mixed together.
+
+5. MANUAL LIBRARY — FIX BROKEN LINKS
+
+Builder must ensure that:
+
+Every manual uploaded in prior prompts is actually integrated
+
+Clicking a manual opens a working page with the content (PDF viewer or HTML representation)
+
+Manuals must exist for:
+
+Worship
+
+City Youth
+
+Kingdom Children
+
+Intercessory
+
+Social Media
+
+CREW
+
+Discipleship Hour
+
+Facilities
+
+Security
+
+Ushers
+
+Celebrate Recovery
+
+CORE Ministers
+
+Counting Team
+
+Ministry Leaders
+
+Recruitment 101
+
+Language of a Leader
+
+About Us Manual
+
+Holy Spirit Class
+
+Employee Manual
+
+FOLLOWING JESUS
+
+SERVE Booklet
+
+And all other uploaded PDFs
+
+If a manual link is clicked:
+
+It should NEVER lead to an empty page or 404.
+
+If any manual is missing, the system must flag it automatically in the admin backend.
+
+Manuals should have:
+
+Preview mode
+
+“Start Training” button
+
+“Take Quiz” (10–15 questions)
+
+6. TEAM CONNECTION STRUCTURE
+
+Under “Team Connection,” build the structure EXACTLY as follows:
+
+Ministry Leaders
+Pastoral Team
+Landing Team
+
+Greeters
+
+First Impressions
+
+Community Care
+
+Ushers
+Security
+Next Gen
+
+Kingdom Children
+
+City Youth
+
+Café
+Worship Team
+Media
+
+ProPresenter
+
+Sound
+
+Lighting
+
+Media Production
+
+CREW
+
+Users should be able to:
+
+View the list of ministries
+
+Click any ministry to see:
+
+Description
+
+Leader info
+
+Team members
+
+Active trainings
+
+Expected responsibilities
+
+Message the leader or members
+
+7. BACKEND REQUIREMENTS (ADMIN + LEADERS)
+Leaders:
+
+View team’s training progress
+
+View quiz scores
+
+Resend training
+
+Reset training
+
+See incomplete onboarding
+
+Toggle between ministries they lead
+
+Admins:
+
+See ALL ministries
+
+See ALL users
+
+Archive users
+
+Archived users hidden unless filter="Archived"
+
+Auto-delete after 180 days
+
+Delete users (with warning: ALL DATA WILL BE LOST)
+
+Review metrics submissions
+
+Override metrics
+
+8. ROOMS + CALENDAR ENHANCEMENTS
+Rooms Module must allow:
+
+Add a room
+
+Edit room name
+
+Edit capacity
+
+Delete room
+
+Add room availability
+
+Drag-and-drop layout editor
+
+Room Requests:
+
+Submit request
+
+Pending → Approved/Denied
+
+Auto-reflect on Calendar
+
+Calendar:
+
+Show all events
+
+Filter by ministry
+
+Filter by room
+
+Click event → details
+
+9. METRICS (ATTENDANCE & REPORTING)
+
+As previously defined, but now with:
+
+Reporting Setup:
+
+When a leader creates a metric:
+
+Ministry/activity name
+
+Day & time
+
+Recurrence
+
+Location
+
+Required fields (attendance, volunteers, salvations, etc.)
+
+Submission:
+
+48-hour window
+
+Automatic email reminders every 24 hours
+
+“Did Not Happen” with reason
+
+Temporary Snooze for date ranges
+
+BUILDER REMINDER:
+
+All of this must integrate with existing modules. Nothing should be overwritten or reset. Missing features must be implemented. Existing features must be fixed and improved.

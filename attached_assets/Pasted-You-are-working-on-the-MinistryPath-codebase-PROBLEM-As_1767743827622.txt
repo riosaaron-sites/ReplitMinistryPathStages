@@ -1,0 +1,90 @@
+You are working on the MinistryPath codebase.
+
+PROBLEM:
+As admin (and other users), Training modules like "Recruitment 101" and "Baptism Handout" are not usable. When clicking trainings, the UI often shows a generic fallback:
+
+"Lesson Overview ... When you're ready, submit this training for leader review. Submit for Review"
+
+Also, in the trainings area, modules appear "complete" even when the user has not taken them. User is not receiving expected notifications for their own submissions/approvals in some cases.
+
+REQUIREMENTS:
+- Diagnose the root cause with evidence (DB state + API responses + UI logic).
+- Repair it in a system-wide way across ALL routes and in BOTH Preview and Published builds.
+- Do NOT create a second/parallel training system. Fix the existing one.
+- Keep it minimal: functional > fancy. Avoid costly AI/generation unless required.
+- After fixes, provide a short verification checklist with results.
+
+STEP 1 — PRODUCE A SINGLE DIAGNOSTIC TXT FILE
+Create /tmp/TRAINING_DIAG_REPORT.txt and include:
+
+A) ENVIRONMENT
+- Is this Preview or Published currently being tested?
+- Latest commit hash (or equivalent), and last publish timestamp if available.
+
+B) DB TRUTH FOR THE PROBLEM MODULES
+For each module matching titles like "Recruitment 101" and "Baptism" (or their slugs):
+- training_modules.id, title, slug
+- isDeepTraining (or equivalent)
+- lessons column presence/type/length (NULL? string? array? object?)
+- lessonSummary present?
+- isRequired, isActive
+- any fields used by UI to decide deep-training rendering
+
+Also include: for the currently tested user
+- user.id, role
+- their ministry assignments and required training rules
+- training progress rows for those module IDs (status, currentLessonIndex, submittedAt, approvedAt, etc.)
+
+C) API EVIDENCE
+For each problem module ID:
+- Call GET /api/training/modules/:id as the member user and show the JSON keys that matter (lessons, lessonSummary, etc.).
+- Call GET endpoints used by TrainingHub for listing and progress.
+Include the response shape and whether lessons is missing/empty.
+
+D) UI/LOGIC TRACE
+Explain (with file+line references):
+- Where TrainingViewer decides to show deep lessons vs generic fallback.
+- Where TrainingHub decides “completed” / “all caught up” / “no trainings assigned”.
+- Any default status logic that could incorrectly mark modules complete.
+
+STEP 2 — FIX THE ROOT CAUSE (DO NOT GUESS)
+Apply the smallest correct fixes. Likely fixes include (choose only what the evidence proves):
+1) If lessons are NULL/missing in DB: provide a safe regeneration path:
+   - Add an admin-only endpoint POST /api/admin/trainings/:id/regenerate-lessons (or similar)
+   - It should generate/store deep lessons for that module using existing deepTrainingService
+   - It must not affect completed/submitted progress states incorrectly
+   - Add a “Regenerate Lessons” button in Admin Training Module view (minimal UI)
+2) If lessons exist but are being dropped in API serialization: fix the server typing/serialization so lessons always returns as an array.
+3) If the UI shows “complete” when it means “none assigned”:
+   - Fix copy and logic in TrainingHub:
+     - “No trainings assigned yet” state if user has no required/available trainings or if filtering removed everything
+     - “All trainings complete” only when every assigned training is truly completed/affirmed
+   - Ensure admins/leaders can still access trainings for testing even if none are required (add an “All Trainings” section that lists active trainings).
+4) Ensure “Submit for Review” is only available after finishing deep lessons (or after knowledge check/assessment), and never appears immediately just because lessons failed to load.
+
+STEP 3 — NOTIFICATIONS + ADMIN SELF-FLOW
+- Confirm: when admin submits their own training, they receive an in-app notification and (if email configured) email, just like any user.
+- Confirm: leader notifications trigger only for the right leader scopes.
+- Add an Admin override panel:
+  - Admin can view all users’ training progress
+  - Admin can mark approved/rejected with audit log
+  - No parallel tables; use existing progress + approvals system
+
+STEP 4 — VERIFY IN BOTH PREVIEW AND PUBLISHED
+- Run the integrity audit script (npx tsx scripts/integrity-audit.ts) and include results in the report.
+- Add a tiny “build stamp” visible in Admin → System Status showing commit hash/build time so we can confirm deployed code matches preview.
+- Publish if needed, then repeat a spot-check to ensure the same fix is live.
+
+DELIVERABLES (MUST DO):
+1) Write /tmp/TRAINING_DIAG_REPORT.txt with the evidence + file/line references + fix summary.
+2) Implement the fixes.
+3) Provide a short “Verified checklist” showing what you tested and the outcome:
+   - Open Recruitment 101 → Lesson 1 renders
+   - Navigate lessons
+   - Cannot submit until completion
+   - Progress status correct
+   - Notifications appear
+   - TrainingHub does not falsely show “complete”
+   - Behavior matches in Published
+
+Do not ask the user questions. Use the codebase + logs + DB queries to prove the cause and fix it.

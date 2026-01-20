@@ -1,0 +1,72 @@
+MinistryPath – Profile, Ministries, Invitations, and Login Updates
+(Add/modify these features to the existing app – do not rebuild from scratch.)
+1. Profile Creation & Ministry Selection Logic
+A. Role-Based Profile Behavior
+Update the profile creation flow to behave differently depending on the user’s role:
+Pastors & Leaders
+On profile creation, pastors and leaders must:
+Select which ministries they specifically lead.
+These ministries define:
+Which teams they have oversight of.
+Which training modules and admin views they see in the app.
+Dream Team Members (Volunteers)
+On profile creation, Dream Team members must:
+Select which ministries they serve in,
+unless they joined the app through an invitation that already specifies a ministry (see below).
+These selected ministries:
+Determine which manuals and trainings populate under My Trainings.
+Determine which leaders can view their progress.
+2. Invitations & Requesting to Join Ministries
+A. Invitation with Pre-Selected Ministry
+When a pastor/leader invites a new user into the app, they can:
+Attach one or more specific ministries to that invitation.
+When the invited user accepts:
+Those ministries should already be selected on their profile.
+The user should not need to re-select them to get started.
+B. Request to Join Other Ministries
+After a user accepts an invitation and completes profile creation:
+They should have the ability to request to join additional ministries from within their profile or a “Join a Ministry” section.
+When they request to join another ministry:
+A notification/approval request is sent to:
+The ministry leader(s) of that ministry
+And/or a global admin, depending on the existing permission system.
+The ministry is only added to their profile after approval.
+Once approved:
+The appropriate ministry manual(s) and associated trainings are added automatically to My Trainings.
+3. Login / Account Creation Screen Updates
+Update the login screen to properly support both existing users and new users.
+A. Login Screen Should Provide:
+Existing User Login
+Fields:
+Email
+Password
+Button: Log In
+On success: route to the main dashboard/home screen.
+New Account Creation (Sign Up)
+A clear option such as: “Create Account” or “New here? Sign up.”
+When selected, show fields:
+Username
+Email
+Password
+(Optional) Invitation Code if your current design uses invite links/codes.
+Button: Create Account
+B. Approval Logic (If Required by Environment / Replit)
+If the environment (e.g., Replit backend) requires manual approval for new accounts:
+After a new user signs up:
+Mark their account status as “Pending Approval”.
+Prevent access to the full app until approved by an admin.
+Admins should have a simple interface to:
+View pending users
+Approve or reject accounts
+On approval:
+The user receives access based on:
+Their role (pastor/leader/dream team)
+And initial ministries (from invitation or profile selection)
+4. Important Integration Notes
+Do not remove or break existing training flows, manuals, or My Trainings logic.
+These changes are additive and must:
+Use the existing roles system (Dream Team, Leader, Pastor).
+Plug into the current training assignment logic (ministry selection → ministry manuals → My Trainings).
+Any new ministries selected or approved after signup should:
+Automatically attach the relevant manuals.
+Automatically generate the associated training modules and surveys as already defined in the app

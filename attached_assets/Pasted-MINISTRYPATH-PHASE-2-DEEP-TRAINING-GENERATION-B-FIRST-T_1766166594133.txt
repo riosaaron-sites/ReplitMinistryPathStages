@@ -1,0 +1,170 @@
+MINISTRYPATH — PHASE 2
+DEEP TRAINING GENERATION (B FIRST, THEN A)
+STOP AFTER PHASE 2 REPORT
+
+You have completed Phase 1. Proceed to Phase 2 ONLY.
+
+ABSOLUTE RULES (NON-NEGOTIABLE)
+- Do NOT redesign onboarding yet.
+- Do NOT redesign dashboards yet.
+- Do NOT change navigation yet.
+- Do NOT touch Rooms/Calendar/Meetings/Planning Center yet.
+- Do NOT refactor roles system-wide yet.
+- Phase 2 is ONLY: generate and verify DEEP training modules from manuals, with correct assignment rules.
+- STOP after Phase 2 and output the report sections listed at the bottom.
+
+GOAL
+Transform manuals into robust, reviewable training modules with:
+1) Teaching series (8–12 lessons minimum)
+2) Knowledge check (light)
+3) Intensive assessment (scenario + application)
+4) Reflection (stored and visible to leaders/admins)
+Users MUST be able to revisit completed trainings (content + results + reflection) at any time.
+
+DEFINITIONS
+Manual categories (already implemented):
+- ministry_manual (default training = ON)
+- leadership_training (default training = ON)
+- resource (default training = OFF unless explicitly enabled)
+
+Training must always store:
+- sourceManualId
+- category
+- audience requirements (Member/Leader/Pastor + optional tags later)
+- whether required or optional
+- publish/unpublish
+
+QUALITY STANDARD (VERY IMPORTANT)
+A “training module” is INVALID if:
+- it contains only a summary and a few questions
+- it has fewer than 8 lessons
+- it lacks a scenario-based assessment
+- it cannot be revisited after completion
+- it does not store results clearly
+
+PHASE 2 EXECUTION ORDER (B → then A)
+
+STEP 1 — Select “Core Manuals” (B)
+Identify and generate deep training modules for these CORE manuals first (use title matching):
+- About Us
+- Discipleship Pathway (or any equivalent “Discipleship Path / Journey” manual)
+- SERVE Orientation (or “Serve Booklet” equivalent)
+- Live the Life, Tell the Story (if separate manuals exist, treat each as core)
+- Following Jesus (if present as a resource/training manual)
+Additionally, include these core leadership manuals if present:
+- Language of a Leader
+- Recruitment 101
+- Ministry Leaders Manual (or equivalent)
+
+If exact titles differ, match by closest intent and list what you selected.
+
+STEP 2 — Generate deep training for Core Manuals ONLY
+For each selected core manual:
+A) Create 8–12 lesson segments minimum
+   - Each segment must include:
+     - Title
+     - Teaching content (clear paragraphs; not bullet-only)
+     - “Why this matters in serving / church culture”
+     - A short reflection prompt
+     - Scripture references where appropriate (do not invent verses; reference only if present in manual or clearly required by the topic)
+
+B) Knowledge Check
+   - 8–15 questions
+   - Mix: multiple choice + short answer
+   - Provide correct answers and explanations
+
+C) Intensive Assessment (REQUIRED)
+   - 10–20 questions
+   - Must include:
+     - scenario-based questions (real ministry situations)
+     - application-based questions (“what would you do?”)
+   - Must include answer key + explanations
+   - Passing score configurable (default 70%)
+
+D) Reflection
+   - Required final reflection submission
+   - Stored permanently to userTrainingProgress record (or linked table)
+   - Visible to assigned leader/admin/pastor
+
+E) Revisit Support
+   - Ensure TrainingViewer supports:
+     - reopening completed training
+     - viewing lesson content
+     - viewing past answers/scores
+     - viewing reflection responses
+   - If this is missing, implement it now (Phase 2 is allowed to add this because it is core to training quality).
+
+F) Assignment Rules (Core)
+   - About Us / Discipleship Pathway / SERVE Orientation / Live the Life / Tell the Story:
+     - required for Dream Team Members, Leaders, Pastors (all experiences)
+   - Leadership manuals (Language of a Leader, Recruitment 101, Ministry Leaders Manual):
+     - required for Leaders and Pastors by default (not members)
+
+Publish state:
+- Core trainings should be “published” so they can be taken.
+
+STEP 3 — Quality Gate Report (Core Manuals)
+After generating core trainings, you MUST produce an internal quality check:
+- Confirm each core training has 8–12 lessons
+- Confirm each has knowledge check + intensive assessment + reflection
+- Confirm revisit works
+- Confirm assignments match rules
+
+If any fail, fix them before proceeding.
+
+STEP 4 — Proceed to remaining manuals (A)
+Now generate training modules for the remaining manuals using category defaults:
+- ministry_manual: generate training ON (required for that ministry)
+- leadership_training: generate training ON (required for leaders/pastors unless specified)
+- resource: generate training OFF by default
+   - BUT: if the resource manual is clearly onboarding/culture/policy critical, enable training ON and mark it required for all or for leaders (use best judgment and list which you enabled)
+
+STEP 5 — Ministry-specific assignment rules
+For each ministry_manual:
+- Link training to the correct ministryId
+- Visibility restricted to users assigned to that ministry
+- Required for onboarding into that ministry
+
+STEP 6 — Ensure manual→training sync
+After all trainings generated:
+- trainingModules.manualId must be set for all generated modules
+- manualAnalysis must correspond to the analysis source (prefer DOCX/MD/TXT over PDF)
+- if analysis source missing, still generate but flag as “needsAnalysisSource” in report
+
+STOP CONDITIONS
+At the end of Phase 2, DO NOT proceed to Phase 3 (dashboard redesign) or Phase 4 (onboarding redesign).
+
+PHASE 2 REQUIRED OUTPUT (RETURN ONLY THIS)
+1) CORE MANUALS SELECTED (B)
+- list titles matched
+- category for each
+- audience requirement for each
+
+2) CORE TRAININGS GENERATED (B) — QUALITY TABLE
+For each core training:
+- # lessons (must be >= 8)
+- knowledge check question count
+- intensive assessment question count
+- reflection required? (yes/no)
+- revisit supported? (yes/no)
+
+3) REMAINING TRAININGS GENERATED (A)
+- total count generated
+- count by category (ministry_manual / leadership_training / resource)
+- list any resources where training was enabled and why
+
+4) MISSING ANALYSIS SOURCES
+- manuals missing DOCX/MD/TXT and what’s needed
+
+5) ASSIGNMENT SUMMARY
+- what trainings are required for Members (all)
+- what trainings are required for Leaders/Pastors
+- what trainings are ministry-specific
+
+6) ANY FILES/COMPONENTS UPDATED FOR TRAINING REVIEWABILITY
+- list key files changed (viewer, progress, schema)
+
+End with this exact sentence:
+“Phase 2 complete. Awaiting authorization to proceed to Phase 3.”
+
+DO NOT ASK QUESTIONS AT THE END. STOP.

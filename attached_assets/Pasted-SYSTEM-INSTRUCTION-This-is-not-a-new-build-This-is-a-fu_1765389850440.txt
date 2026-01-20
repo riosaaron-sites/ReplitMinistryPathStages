@@ -1,0 +1,316 @@
+SYSTEM INSTRUCTION:
+This is not a new build. This is a full integration, upgrade, and continuation of the existing MinistryPath app already being developed. Do NOT delete or replace existing code, structure, modules, or user data.
+Instead, expand, refine, integrate, and connect all features below into the current app structure, resolving redundancy by merging content intelligently.
+
+The final product must be:
+Simple. Intuitive. Zero learning curve. Clean. Beautiful. Lightweight. Logical. Ministry-ready.
+
+All screens must clearly present next steps with obvious navigation. Every user must always think:
+
+“I know exactly what to do next.”
+
+🔥 PRIMARY PURPOSE OF THE APP
+
+MinistryPath is a church engagement and operations hub designed for Garden City Church.
+It helps users onboard into the church, discover where they fit, complete ministry training, schedule availability, and communicate with ministry leaders — all while following our discipleship model:
+
+Worship → NEXT → Learn → Love → Lead
+
+Users are part of the GCC Dream Team and receive ministry-specific and universal training based on roles and permissions.
+
+🔥 CORE APP STRUCTURE (BUILD & INTEGRATE)
+
+Maintain or enhance existing modules and ensure all data flows between them:
+
+Home Dashboard
+
+What’s Next Pathway
+
+Ministry Survey Module
+
+Training Modules
+
+User Profile & Roles
+
+Leader Portal
+
+Admin Portal
+
+Calendar & Planning Center Integration
+
+Room Reservation System
+
+Messaging/Announcements Center
+
+Resource + PDF Library
+
+Background Check Status
+
+Team/Ministry Toggle
+
+Progress & Completion Tracking
+
+Shared Directory / Contact View
+
+Notifications System
+
+Settings & Permissions Controls
+
+🔥 FEATURE REQUIREMENTS — IMPLEMENT FULLY
+🧍 User Onboarding
+
+When a new user signs up, display:
+
+Welcome
+
+About Us (collapsible sections from About Us Manual.pdf)
+
+Church Doctrine acknowledgement
+
+Holy Spirit alignment questions (required)
+
+“I do not oppose or reject Garden City’s doctrinal position regarding the Baptism of the Holy Spirit…”
+
+Includes:
+
+Scripture for Tongues (Acts 2:4)
+
+Prophecy (1 Cor. 14:1)
+
+Power / Dunamis (Acts 1:8)
+
+Include responses:
+
+Yes, I affirm
+
+I am still learning
+
+I am actively seeking
+
+If they select the second or third option, respond with:
+“We are grateful that you are open to continue learning and growing in faith. We invite you to continue exploring relevant ministries. Serving here means learning, growing, and being discipled.”
+
+This stage does not restrict access.
+
+⚙️ Profile Builder
+
+User must complete:
+
+Name
+
+Contact Info
+
+Emergency contact
+
+Gender
+
+Background check required? (Badge shown if completed)
+
+Ministry involvement (select one or more)
+
+Availability (drag-and-click weekly availability picker)
+
+Skills & spiritual gifts
+
+Personality results (optional future survey)
+
+Training status
+
+Assigned leader displayed
+
+Users may serve in multiple ministries. If so, display a toggle system to switch views.
+
+📍 Role Assignment Paths
+
+Users may enter in two ways:
+
+Leader Invitation
+
+Leader enters name + email.
+
+System sends invite with required training path auto-generated.
+
+User builds profile and automatically enters designated training.
+
+Self Registration
+
+User selects ministry.
+
+Leader receives notification to approve.
+
+Upon approval, user receives ministry training path.
+
+📚 Training System
+
+Every ministry has:
+
+Required ministry PDF (use the uploaded files — extract content and images when applicable)
+
+A 10–15 question assessment automatically generated from the manual text
+
+Status tracking and scoring
+
+Additional universal trainings:
+
+Following Jesus Course
+
+Language of a Leader
+
+Recruitment 101
+
+Celebrate Recovery (if applicable)
+
+Track:
+
+% completion
+
+Scores
+
+Date completed
+
+Required next steps
+
+Retakes if score < 70%
+
+🗂 Resource Integration
+
+Use all uploaded PDF content appropriately:
+
+Manuals become training modules
+
+Icons/images/emojis from PDFs should be used to enhance UI and fun visual experience
+
+Do NOT alter tone or core meaning
+
+Ensure text formatting matches original integrity
+
+🗓 Calendar, Planning Center, and Room Reservation
+
+Integrate calendar module using previously defined service types:
+
+Service categories:
+
+Standard Service
+
+Special Service
+
+Super Service
+
+Users should see:
+
+Service schedule
+
+Upcoming trainings
+
+Ministry assignments
+
+Events by priority category (Mission Critical → Optional)
+
+Room requests:
+
+Auto-generate approval workflow
+
+Assign responsible ministry
+
+Show resource/inventory (tables, chairs, tech)
+
+👥 Permissions and Access Logic
+Role	Access
+Volunteer	Sees only their trainings, messages, profile
+Ministry Leader	Sees only their ministry team progress
+Admin	Full access across all ministries and reporting
+📬 Messaging + Notification System
+
+Message center shared across all ministries
+
+Filters: All | By Ministry | By Leader | System
+
+Notifications:
+
+New message
+
+New training assignment
+
+Approval decisions
+
+Calendar change
+
+Scheduling conflict
+
+🔍 Leader + Admin Back End
+
+Leaders and admins get:
+
+Progress dashboard
+
+Exportable completion reports
+
+Team roster with role tagging
+
+Ability to assign manual updates
+
+Progress by ministry, person, and survey
+
+Admins may toggle ministry views.
+
+🧩 Integrating Existing Survey
+
+The already built ministry survey remains but is moved under:
+
+Menu → Pathway → Optional: Discover Your Gifts
+
+It should inform:
+
+Role confirmation
+
+Suggested ministries
+
+Additional training needs
+
+🔁 UX Requirement
+
+After completing any section, system must clearly display:
+
+✔ Completed
+➡ What’s Next (button)
+
+“No dead ends.”
+
+💾 Save & Resume
+
+All progress autosaves.
+Users may exit and continue later without losing work.
+
+🧠 Development Instruction
+
+Optimize UI for age 8–80.
+
+Use plain language.
+
+Use collapsible sections for large content.
+
+Maintain existing working code.
+
+Logically merge overlapping instructions — do NOT discard.
+
+Build lightweight, fast, responsive design.
+
+📌 Final App Identity Rules
+
+All users = GCC Dream Team
+
+Display ministry identity:
+
+Example: GCC Dream Team — Usher
+
+Use branding colors, tone, theology, and voice from uploaded PDFs.
+
+🚀 Execute the Build
+
+Begin integrating all instructions above now. Maintain existing code. Expand logic. Resolve conflicts through intelligent merging — never deletion.
+
+When integration is complete, return a status summary:
+
+“Module updated, conflicts resolved, next recommended step is ___.”
+
+END OF COMMAND

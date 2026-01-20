@@ -1,0 +1,467 @@
+🚀 MASTER PROMPT V3 (AI-Optimized for Replit)
+
+Do NOT overwrite or reset the existing codebase.
+Integrate, merge, and expand the existing modules according to the instructions below.
+
+🔥 APP NAME: MinistryPath — Church Engagement & Operations Hub
+
+This prompt updates and completes the MinistryPath app.
+All prior modules remain; you are integrating new features, fixing gaps, connecting flows, and ensuring a complete onboarding → training → ministry involvement pipeline with no dead ends.
+
+1. GLOBAL APP REQUIREMENTS
+
+Keep UI extremely simple (ages 8–80).
+
+No dead ends — every screen must show Next Step.
+
+Save progress automatically.
+
+Merge redundant earlier features intelligently.
+
+Use uploaded PDFs for training content, manuals, graphics, and text.
+
+All users = GCC Dream Team.
+
+Support multi-ministry membership with ministry toggles.
+
+Leaders see only their teams; admins see all.
+
+Volunteers see only their own training progress.
+
+2. UNIVERSAL ONBOARDING FLOW (MANDATORY FOR ALL USERS)
+
+Trigger onboarding automatically if user.onboardingCompleted = false.
+
+ONBOARDING STEPS
+
+Welcome Screen → “Get Started”
+
+About Us (collapsible sections) including:
+
+Who We Are
+
+Discipleship Model (use PDF content)
+
+Core Values (with scriptures)
+
+Add generosity scriptures: 2 Cor 9:6–8, Acts 20:35, Prov 11:25, Luke 6:38
+
+Statement: “We desire that everything we do reflects these values. These guide us, but they do not restrict app functions.”
+
+Holy Spirit Alignment Questions (non-blocking)
+
+Always show response:
+“We are grateful you’re open to learning and growing. Serving here means growing together in the Holy Spirit.”
+
+Ministry Selection + Availability
+
+Allow multiple ministries (all from provided PDFs).
+
+Ask weekly availability.
+
+Auto-Assign Training Path
+
+Global courses for all users
+
+Ministry-specific manuals + quizzes
+
+Leader-only modules (Language of a Leader, Recruitment 101)
+
+Set onboardingCompleted = true.
+
+Redirect to My Training.
+
+3. TRAINING MODULES (REQUIRED)
+Global Training for ALL Users
+
+Following Jesus
+
+About Us
+
+Doctrine Overview
+
+Discipleship Model
+
+Ministry Culture & Expectations
+
+Safety (as applicable)
+
+Ministry-Specific Training
+
+For each ministry selected:
+
+Load the correct manual from the PDFs
+
+Present manual content (PDF viewer or in-app text)
+
+Auto-generate a 10–15 question quiz
+
+Track score, completion date, and next step
+
+Leader Training
+
+If user is a leader:
+
+Language of a Leader
+
+Ministry Leaders Manual
+
+Recruitment 101
+
+Additional doctrine content (if applicable)
+
+Training Behaviour
+
+After every module → show Next Step
+
+Never show a blank page
+
+Store quiz results in user profile
+
+Leader dashboards must show team member progress
+
+4. MULTI-MINISTRY LOGIC
+
+Users can serve in multiple ministries.
+
+Implement:
+
+A ministry toggle (tabs or dropdown)
+
+Independent training paths per ministry
+
+Shared message center with filters
+
+Cross-ministry notifications
+
+Unified user profile (ONE account, multiple ministries)
+
+If a leader invites a user into an additional ministry:
+
+Do NOT create a new profile
+
+Add ministry to their list
+
+Assign new ministry training path
+
+Notify user: “You have been added to a new ministry.”
+
+5. LEADER PORTAL
+
+Leaders must be able to:
+
+Create team (enter names/emails)
+
+Send automated invite
+
+View team progress panel:
+
+Training status
+
+Quiz scores
+
+Incomplete modules
+
+Deep view of answers
+
+Message individuals or team
+
+Approve users who self-register
+
+Leadership permissions:
+
+Leaders only see their team
+
+Admins see all ministries
+
+6. USER PROFILE REQUIREMENTS
+
+Include:
+
+Name / photo / contact
+
+Emergency contact
+
+Background check status (Kids, Youth, Security, Finance)
+
+Ministries they serve in
+
+Leader they report to
+
+Training progress overview
+
+Ministry toggle
+
+Message center
+
+Role identification
+
+Allow users to update:
+
+Availability
+
+Contact info
+
+Ministry preferences (pending leader approval)
+
+7. MANUALS LIBRARY
+
+Create “Ministry Manuals & Resources.”
+
+Pull content from EVERY uploaded PDF, including:
+
+Kingdom Children
+
+City Youth
+
+Worship
+
+CORE
+
+Ushers
+
+Security
+
+Celebrate Recovery
+
+Social Media
+
+CREW / AVL
+
+Facilities
+
+Intercessory
+
+Staff / Board
+
+Serve Booklets
+
+Leaders Manuals
+
+Discipleship Model
+
+Holy Spirit class
+
+About Us
+
+ANY remaining PDF
+
+Each entry includes:
+
+Preview
+
+Description
+
+“Read Manual”
+
+“Start Training”
+
+USE PDF images and icons/emoticons in UI where logical.
+
+8. MINISTRY SURVEY MODULE
+
+The existing Survey must remain intact.
+
+Place under:
+
+Menu → Pathway → “Discover Your Gifts (Optional Survey)”
+
+Survey results should:
+
+Inform ministry recommendations
+
+Not block progress
+
+Help leaders better place users
+
+Suggest new ministries for training
+
+9. CALENDAR MODULE (FULL CHURCH CALENDAR)
+
+Integrate the full calendar system from all prior prompts, including:
+
+Event Types
+
+Mission Critical
+
+Important & Strategic
+
+Meaningful, Not Essential
+
+Externally Initiated
+
+Standard Service
+
+Special Service
+
+Super Service
+
+Features
+
+View, add, filter events
+
+Categories & colors
+
+Volunteer needs
+
+Recurring events
+
+Leader/Admin permissions
+
+Integrate with Planning Center where possible
+
+Ensure calendar is accessible after training completion.
+
+10. PLANNING CENTER MODULE
+
+Must include:
+
+View assignments
+
+Accept/decline buttons
+
+Sync with calendar
+
+Show team schedule
+
+Leaders see their team’s assignments
+
+Verify training completion before scheduling
+
+11. ROOM REQUEST MODULE
+
+Must include:
+
+Room selection
+
+Resource list (tables, chairs, tech)
+
+Drag-and-drop layout
+
+Approval workflow
+
+Connect room reservations to calendar
+
+12. BACKGROUND CHECK MODULE
+
+Required for:
+
+Kids
+
+Youth
+
+Security
+
+Finance/Counting
+
+Users see:
+
+Their background check status
+
+Action required
+
+Leaders see:
+
+Which team members are cleared
+
+13. MESSAGING + NOTIFICATION CENTER
+
+Implement:
+
+Inbox
+
+Group messages per ministry
+
+Leader → team announcements
+
+Filters (All, By Ministry, System)
+
+Push-style notifications
+
+Notification badges
+
+Cross-ministry alerts
+
+14. DASHBOARD OVERHAUL (NO DEAD ENDS)
+
+Dashboard must show:
+
+Next Required Step
+
+Training Progress
+
+Ministry Tabs
+
+Upcoming Events
+
+Planning Center tasks
+
+Message Center
+
+Leader Contact
+
+Manuals Library
+
+Background Check status
+
+Notification badge
+
+Calendar access
+
+Never leave dashboard empty.
+
+15. ABOUT US – FINAL CORRECTION
+
+Include the following corrected Core Values section:
+
+Biblically Grounded — 2 Tim 3:16; 2 Pet 1:21
+
+Mission/Evangelistic Oriented — Matt 28
+
+Holy Spirit Empowered — Acts 2
+
+Relationally Nurturing — 1 John 4:7–8
+
+Community Driven — Matt 16:18; Acts 2:47
+
+Pursuing Excellence — Phil 4:8; 2 Cor 8:7; Prov 22:9; 1 Pet 2:9
+
+Generous — 2 Cor 9:6–8; Acts 20:35; Prov 11:25; Luke 6:38
+
+Do NOT tie app logic to value alignment.
+Values guide culture only.
+
+16. WHAT THE BUILDER MUST DO NOW
+
+Implement, repair, and complete the missing features:
+
+The user onboarding flow must run correctly when testing.
+
+After onboarding, training paths must auto-populate.
+
+Manuals must appear and be usable.
+
+Next Step Engine must prevent dead ends.
+
+Calendar, messaging, and Planning Center modules must be visible post-training.
+
+Multi-ministry support must be active.
+
+Leader dashboard and Admin dashboard must function.
+
+Room Request module must be implemented.
+
+Background check logic must activate for appropriate ministries.
+
+17. FINAL BUILDER DIRECTIVE
+
+Do NOT discard previous code.
+Do NOT rebuild from scratch.
+Merge all logic above into the existing architecture.
+Fill in missing modules.
+Ensure smooth user flow.
+All PDFs must be referenced and converted into module content.
+
+Return output as:
+
+“MinistryPath modules integrated successfully. Next recommended build steps are: ___.”

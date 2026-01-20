@@ -1,0 +1,39 @@
+Update the Training Approval workflow to support “continue to next training” without granting completion/advancement until ministry leader approval.
+
+REQUIREMENTS:
+1) Allow progression:
+   - If a training requiresApproval=true and the member submits it (status=submitted), the UI should immediately offer a “Continue to Next Training” action.
+   - Being able to start the next training must NOT depend on the previous being approved.
+
+2) Prevent advancement:
+   - XP, badges, certifications, role eligibility, “path completion,” and any other rewards/advancement MUST NOT trigger for submitted status.
+   - Only trigger rewards/advancement when:
+     a) requiresApproval=false AND status=completed
+     b) requiresApproval=true AND leader approves AND status transitions to approved
+
+3) Correct leader-by-ministry approval enforcement (server-side):
+   - Each training is associated with a ministry (training.ministryId or equivalent).
+   - Only users who are leaders of that SAME ministry may approve or reject that submitted training.
+   - If a leader from another ministry attempts approval/rejection, return 403.
+   - Admin/Owner may optionally override, but ONLY via a clearly labeled “Admin Override” endpoint/UI that requires an extra confirmation.
+
+4) Ministry-scoped review queue:
+   - Build/adjust the leader review inbox so leaders only see submissions for trainings tied to ministries they lead.
+   - The submission list should show: trainee name, training title, submittedAt, and an “Open for Review” action.
+
+5) UI clarity:
+   - Submitted state should say: “Awaiting review by <Ministry Name> Leader”
+   - Include a “Continue to Next Training” button if a next training exists in the path/sequence.
+   - If the next training is also approval-required, that is fine—keep the same rules.
+
+6) Tests:
+   - Add tests ensuring:
+     - submitted does not grant rewards
+     - leader of correct ministry can approve
+     - leader of wrong ministry cannot approve (403)
+     - trainee can start next training while prior is submitted
+
+DELIVERABLES:
+- Implement changes in code (backend enforcement + UI).
+- End with “What changed” and “How to test in the app”.
+- Do not require shell commands or manual DB work by the user.

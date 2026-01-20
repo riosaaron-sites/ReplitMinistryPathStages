@@ -1,0 +1,93 @@
+You are my senior product + UX + backend systems architect for MinistryPath (Garden City Church, Beverly MA). The platform is built and launch-ready. I have NOT implemented anything yet. You previously produced a post-launch improvement spec, and then revised it to add:
+- Ministry Ownership as a First-Class System Rule
+- Notifications with Pastoral Intent Labels & Tone Safeguards
+- Global Messaging soft-friction for cross-team messaging
+- 3 Pastoral/Human outcome acceptance tests
+
+NOW, extend that revised spec by adding a new requirement: LEADERSHIP LOCK + DELEGATION for the Leaders-first testing round. Do not remove or weaken any existing requirements. Do not add extra features beyond what is specified.
+
+NEW REQUIREMENT: LEADERSHIP LOCK + DELEGATION (Leaders-first testing round)
+- In round one testing, I will invite ministry leaders first.
+- During onboarding, add a step: “Do you lead a ministry?” (Yes/No).
+- If Yes: they must select which ministry/ministry roles they lead.
+- Once selected, they become the Primary Leader for those ministries (locked-in).
+- The ministry/ministry roles they lead must be removed from their normal “join ministry” options in their profile (to avoid them onboarding as a normal participant in the ministry they lead). Instead, show a distinct state: “Leading” vs “Serving.”
+- A Primary Leader can add a Secondary Leader OR grant leadership access for that same ministry. This grants scoped leader privileges for that ministry.
+- Admin/Owner can remove leaders, swap primary leaders, add/remove secondary leaders, and resolve ministries with no leader.
+- Rule remains: every ministry must have at least one assigned leader (enforced by swap-first workflows and admin override). Define a safe fallback notification route if a ministry temporarily has no leader.
+
+EXISTING REQUIREMENTS (must remain enforced):
+1) People Directory + Admin People Panel unified as one canonical Person/User record:
+   - Admin/Owner: global view/edit/delete anyone.
+   - Pastors & Leaders: global VIEW everyone; modify/delete ONLY:
+     a) people they personally invited/added OR
+     b) people directly under ministries they lead.
+   - Dream Team Members: view ONLY people in their own ministry team(s); not other teams.
+   - Directory reflects Admin changes globally.
+
+2) Profile UX wiring:
+   - Ministry Roles, Training History, My Journey must be clickable and deep-link to canonical pages with correct filters/context.
+
+3) Full profile reset & linkage:
+   - Provide safe wipe plan for all test users and dependent records, preserving system config (roles/tags/ministries), manuals, trainings, help center, resources, discipleship path definitions.
+   - Ensure no orphaned records and referential integrity.
+
+4) Fresh onboarding:
+   - Improve clarity without adding unnecessary steps.
+   - “What’s Next” prompts must deep-link to the right completion actions.
+
+5) Leader notifications (in-app + email):
+   - When someone onboards into a ministry, notify that ministry’s leader(s) in-app and via email.
+   - Use pastoral intent labels and tone safeguards.
+   - Include: What happened? Why am I seeing this? What can I do?
+   - Define triggers, recipients, rate limiting, audit.
+
+6) Messaging Center:
+   - All users can message anyone globally regardless of directory visibility.
+   - Add soft-friction notice when messaging outside one’s team (informational only, not blocking).
+
+DELIVERABLES (update the spec with these additions):
+A) Updated canonical data model (tables/entities + key fields):
+   - users/person (single source of truth)
+   - ministry_memberships (serving/participant)
+   - ministry_leadership_assignments (primary/secondary, start/end, assignedBy, locked flags)
+   - invitations (invitedBy, invitedRole, invitedMinistryScope)
+   - audit_logs (leader swaps, deletions, assignments)
+   - notifications + notification_deliveries (in-app + email)
+   - messages + message_threads (global messaging)
+   Include constraints and cascade delete rules.
+
+B) Updated permissions matrix (Role × Capability):
+   - Must reflect leadership lock behaviors and scoped authority.
+
+C) Updated People unification plan:
+   - Endpoints/services must enforce canonical record + scoped edit/delete.
+   - Directory visibility rules vs messaging global rules must be explicit.
+
+D) Updated onboarding spec:
+   - Add “Do you lead a ministry?” step.
+   - Define how leadership lock is applied.
+   - Define what the user sees in profile afterward (Leading vs Serving sections).
+
+E) Updated leader management spec:
+   - How a primary leader adds a secondary leader (UI + permission checks).
+   - How admin swaps leaders safely (swap-first workflow, confirmation copy).
+   - What happens to notifications and permissions when a leader is removed/swapped.
+
+F) Updated notification spec:
+   - Add triggers for: leader locked-in, secondary leader added, leader swapped.
+   - Ensure notifications remain invitational and non-shaming.
+
+G) Updated acceptance criteria:
+   - Provide at least 25 test scenarios total, including leadership locking, delegation, admin swaps, directory visibility rules, global messaging rules, and reset integrity.
+
+OUTPUT FORMAT:
+1) Executive summary (highest impact first)
+2) Prioritized backlog (High/Medium/Low) with effort (S/M/L) and dependencies
+3) Full updated spec sections A–G
+4) Launch confidence checklist
+
+CONSTRAINTS:
+- Pastoral tone, accessible.
+- Avoid overbuilding; do not add features beyond requirements.
+- Do not ask clarifying questions; make reasonable assumptions and state them clearly.

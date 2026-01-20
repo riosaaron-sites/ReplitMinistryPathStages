@@ -1,0 +1,135 @@
+Test Flow 1: Training lifecycle can’t lie (non-negotiable)
+A) Member submits
+
+Log in as a member
+
+Start a training that requires approval
+
+Take quiz and pass
+
+Confirm the UI says:
+
+Submitted for review
+
+NOT completed
+
+No “you’re cleared / continue / trophy” vibes
+
+B) Leader reviews
+
+Log in as the leader of that ministry
+
+Confirm leader gets:
+
+Email (Training Submitted)
+
+In-app notification with a link that actually opens the review
+
+Leader clicks approve (“Affirm readiness”)
+
+Go back to member: confirm training becomes Completed only now
+
+Repeat once with Rejected:
+
+Member sees “Needs follow-up”
+
+Leader sees it in team status
+
+If anything in this flow is off, do not publish.
+
+Test Flow 2: Team join → leader awareness loop
+
+Invite a new person to a ministry (Worship, etc.)
+
+Accept invite as that person
+
+Confirm leader receives:
+
+Email: “New person joined your team…”
+
+In-app notification (clickable)
+
+Leader opens Leadership → My Team
+
+Confirm the new person appears with:
+
+ministry assignment
+
+onboarding status
+
+training status counts
+
+Trigger onboarding start/completion and confirm leader gets the right notifications (not spammed).
+
+Test Flow 3: Outlook categories round-trip (MP: strategy must work)
+A) New category creation
+
+As admin, create a new category: Outreach Night
+
+Confirm it appears in Calendar filters immediately
+
+B) Create event in MinistryPath
+
+Create a calendar event in MinistryPath
+
+Assign categories including Outreach Night
+
+Confirm it writes to Outlook
+
+C) Verify round-trip
+
+Refresh calendar in MinistryPath
+
+Confirm event comes back with the same categories and filter works
+
+D) Preserve non-MP categories
+
+In Outlook (manually), add a non-MinistryPath category to that event
+
+Update the event in MinistryPath (change title/time)
+
+Confirm the non-MP category remains (MinistryPath should not wipe it)
+
+If non-MP categories get wiped, that’s a hard no-go for deployment.
+
+Test Flow 4: Room booking (thin slice)
+
+As leader/admin, open room booking
+
+Check availability for a time that should be busy
+
+Confirm it blocks conflicts
+
+Book a room
+
+Confirm the booking appears on the room/resource calendar in Outlook
+
+Publish decision
+
+✅ Publish only after all flows above pass with:
+
+2 ministries
+
+2 leaders
+
+2 members
+
+1 new category you create
+
+1 Outlook event you modify from Outlook directly
+
+If you can pass that, you’re ready for a small pilot rollout (5–10 users) before a full church-wide launch.
+
+One last thing I’d add before production (tiny but priceless)
+
+A “System Status” panel for admin:
+
+Outlook connection status (success/fail + last tested)
+
+DB status
+
+Email mode: “real email” vs “fallback mailto/copy”
+
+This prevents you from debugging blind at 11:47pm on a Saturday. Ask me if you want the prompt for that.
+
+If you paste your results from the four test flows (even just “passed/failed + what looked weird”), I’ll tell you exactly whether it’s safe to publish and what to fix first.

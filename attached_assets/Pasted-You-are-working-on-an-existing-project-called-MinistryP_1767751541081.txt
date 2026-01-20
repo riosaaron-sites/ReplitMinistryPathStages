@@ -1,0 +1,68 @@
+You are working on an existing project called MinistryPath.
+
+Goal:
+Training modules in /trainings/:id are showing the fallback UI (“When you're ready, submit this training for leader review”) and a Submit button, but NOT showing lesson/test content. This is happening for every module.
+
+Constraints:
+- Do NOT re-architect.
+- Do NOT introduce new systems.
+- Diagnose and repair ONLY what is broken.
+- Focus ONLY on: training delivery, progress state, role-based access.
+- All fixes must be system-wide and production-safe.
+- Do NOT change schema and do NOT add tables.
+- Do NOT add alternate viewers.
+- Do NOT apply CSS/UI-only hacks.
+
+Known facts:
+- The database is correct. Example module query confirms lessons exist:
+  id: f6d2efb7-64c4-479d-a8a6-0577a9d078e3
+  title: “Baptism Handout”
+  published: true
+  active: true
+  lessons_type: array
+  lesson_count: 8
+- The intended behavior is to render Lesson 1 of 8, Next Lesson button, etc.
+- The fallback behavior appears when the viewer believes lessons are missing or cannot be parsed.
+- Deep training detection MUST be based on lessons array presence, NOT strict boolean checks.
+
+TASKS (do all steps in order):
+
+1) Runtime diagnosis (no guessing):
+   - In TrainingViewer.tsx, temporarily log:
+     - module id
+     - typeof module.lessons
+     - Array.isArray(module.lessons)
+     - parsedLessons.length
+   - Also inspect Network response for GET /api/training/modules/:id and confirm whether lessons field is present, and whether it arrives as array or string.
+
+2) Frontend fix (system-wide):
+   - In TrainingViewer.tsx:
+     a) Do NOT render fallback while module is still loading. If module is null/undefined, show a simple loading state.
+     b) Parse lessons robustly:
+        - If module.lessons is an array, use it.
+        - If module.lessons is a string, JSON.parse and use it if it becomes an array.
+        - Otherwise default to [].
+     c) Deep training inference: const isDeepTraining = parsedLessons.length > 0;
+     d) Only show fallback if isDeepTraining is false AFTER module has loaded.
+     e) Ensure missing progress does NOT cause fallback. Default currentLessonIndex to 0 safely.
+
+3) Backend normalization (system-wide, production-safe):
+   - In server/routes.ts, in the handler for GET /api/training/modules/:id:
+     - Ensure the JSON response ALWAYS includes lessons as an array.
+     - If the fetched module.lessons is a string, parse it.
+     - If it’s not an array, set to [].
+     - Return { ...module, lessons }.
+
+4) UI correctness:
+   - Ensure “Submit for Review” button is NOT shown on fallback and not shown until user is eligible (at minimum: lessons exist AND user is on last lesson; keep server-side guard unchanged).
+
+5) Acceptance criteria:
+   - For multiple modules, opening /trainings/:id shows real lesson content (Lesson 1 of 8 etc.), not fallback.
+   - Next Lesson advances properly.
+   - Submit for Review does not appear immediately.
+   - Works for different accounts/roles, including pastor/admin.
+
+Deliverable:
+- Provide the exact file changes with code diffs/snippets.
+- Keep changes minimal and safe.
+- Do not remove existing server-side guards; only prevent incorrect UI state and ensure lessons delivery is consistent.

@@ -1,0 +1,164 @@
+0) Pre-test setup (5 minutes)
+
+You need two test accounts + two ministries.
+
+Create ministries: Worship, Men’s
+
+Accounts:
+
+Leader A (leader of Worship)
+
+Member 1 (assigned to Worship)
+
+Optional: Member 2 (assigned to Men’s)
+
+Confirm Admin System Status panel shows:
+
+DB: ✅
+
+Outlook: ✅
+
+Email/Mailgun: ✅ (or “fallback mode” clearly indicated)
+
+If Email is not ✅, you can still test in-app notifications, but don’t publish until email is sorted (since leader workflow depends on it).
+
+1) Critical loop: Training lifecycle cannot lie (15 minutes)
+Steps
+
+Log in as Member 1
+
+Start a training that requires approval
+
+Take quiz and PASS
+
+Must be true (PASS conditions)
+
+Training status becomes SUBMITTED_FOR_REVIEW (or equivalent label)
+
+It does NOT show “Completed”
+
+No “you’re cleared / keep going” language
+
+CoachBubble says submitted for review
+
+Log in as Leader A
+
+Verify you received:
+
+In-app notification (clickable, goes to the right place)
+
+Email notification (subject/body includes member name + ministry)
+
+Leader approves (“Affirm Readiness”)
+
+Log back in as Member 1
+
+Training now shows Completed (only after approval)
+
+Repeat rejection test
+
+Submit another training (or re-submit a rejected flow)
+
+Leader marks “Needs follow-up”
+
+Member sees:
+
+status: Rejected/Needs follow-up
+
+bubble explains what to do next
+
+cannot be marked completed until resubmitted + approved
+
+If any part auto-completes early → do not publish.
+
+2) Leader awareness loop: Team join + My Team view (10 minutes)
+Steps
+
+Invite Member 2 to Worship
+
+Accept invite as Member 2
+
+PASS conditions
+
+Leader A receives:
+
+Email: “New person joined your team … (Worship)”
+
+In-app notification with link
+
+Leader A goes to Leadership → My Team
+
+Member 2 appears
+
+shows onboarding status + training status counts
+
+CoachBubble does not spam or overlap
+
+3) Outlook category round-trip (15 minutes)
+Steps
+
+Create a new category: Outreach Night
+
+Go to calendar filters → confirm category appears immediately
+
+Create a new event in MinistryPath:
+
+Title: Outreach Night Test
+
+Apply category: Outreach Night
+
+Save
+
+PASS conditions
+
+Refresh calendar → event still has category
+
+Filter by Outreach Night → event appears
+
+Non-MP category preservation test (important)
+
+Open the same event in Outlook and add a normal Outlook category (not MP:)
+
+Update the event title in MinistryPath
+
+Check in Outlook: the non-MP category is still there
+
+If MinistryPath wipes non-MP categories → do not publish (that’s how you lose trust fast).
+
+4) Room booking conflict detection (10 minutes)
+Steps
+
+Book a room for 10:00–11:00
+
+Try booking again for 10:30–11:30
+
+PASS conditions
+
+Second booking fails with 409 conflict
+
+Response includes clear conflict details
+
+UI shows a human-readable message (“Conflicts with X from 10:00–11:00”)
+
+If you have an approval step, conflict is re-checked at approval time too
+
+Publish recommendation
+
+✅ If all 4 flows pass, publish and start with a pilot:
+
+2 leaders
+
+5–10 members
+
+2 ministries
+for one week.
+
+If anything fails, paste the failing step + screenshot/snippet and I’ll tell you exactly what to adjust.
+
+If you want Replit to “help test” (you can paste this)
+
+Tell Replit AI:
+
+“Don’t build anything else. Create a TESTING_CHECKLIST.md in the repo with the exact steps above, plus places in the UI where each step happens, and include expected status labels. Also add a small admin-only ‘Test Data’ helper page to create sample ministries/users/invites ONLY if such a page already exists; otherwise just document how to do it via existing UI.”
+
+That keeps cost low and makes testing repeatable.

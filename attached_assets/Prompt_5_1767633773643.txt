@@ -1,0 +1,74 @@
+You are working in the existing MinistryPath codebase.
+
+GOAL:
+Add a system-wide "Invite" button for leaders/pastors that supports inviting multiple people at once, WITHOUT creating a separate invite subsystem. Reuse the existing Team Invites system (/api/team-invites, TeamInvite storage, InviteAccept route, email sending).
+
+NON-NEGOTIABLES:
+- Do NOT create a new independent invite table or token system.
+- Do NOT hard-code ministry lists.
+- Leaders can only invite into ministries they oversee. Admin/pastor can invite into any ministry.
+- Keep UI simple: one modal, one text area for bulk input, minimal clicks.
+- Every invite created must appear in the existing InviteManagement list and use the same acceptance URL (/invite/:token).
+
+WHAT EXISTS (reuse it):
+- InviteManagement already posts to POST /api/team-invites with fields like firstName/lastName/email/ministryIds/roleType/message.
+- There is a public invite accept route at /invite/:token.
+- Storage layer already supports createTeamInvite and getTeamInvites.
+
+IMPLEMENTATION TASKS (IN ORDER):
+
+1) Add a global "Invite" button for leaders/pastors:
+- Place it in LeadershipLayout header (and optionally MemberLayout header ONLY if user has leadership access).
+- Button label: "Invite"
+- Clicking opens a modal: InviteModal
+
+2) Build InviteModal with two modes (tabs):
+A) Single Invite (reuse existing form fields)
+B) Bulk Invite (new)
+Keep the single invite fields consistent with InviteManagement.
+
+3) Bulk Invite UI (simple):
+- Textarea labeled: "Paste one person per line"
+- Supported formats per line:
+  - "John Doe <john@example.com>"
+  - "john@example.com"
+  - "John Doe, john@example.com"
+- Optional dropdown/checkboxes:
+  - Ministry selection (default preselected to leader’s ministry/ministries; admin can pick any)
+  - roleType default "member" (allow selecting "leader" if admin/pastor)
+  - optional message (applied to all invites)
+
+4) Backend: Bulk endpoint reusing same create logic
+- Add POST /api/team-invites/bulk
+- Payload:
+  {
+    invites: [{ firstName?, lastName?, email, ministryIds?, roleType?, roleName?, message? }, ...]
+  }
+- Validate each invite the same way single invite does.
+- For leaders (non-admin): enforce ministryIds ⊆ leader’s overseen ministries.
+- Create invites in a transaction when possible. If transaction not supported, create sequentially but return per-invite results.
+- Response should return:
+  { created: [...], failed: [{email, reason, line}] }
+
+5) Email behavior:
+- For each successfully created invite, send the same invite email that single invite uses (or whatever existing email pattern is used).
+- If email is not configured, use existing fallback behavior (copy/paste link + mailto), but DO NOT fail the invite creation.
+
+6) UX:
+- After submit, show a results summary:
+  - “Invited 12 people”
+  - “2 failed” with reasons (duplicate email, invalid email, not allowed ministry, etc.)
+- Invalidate query cache for /api/team-invites so InviteManagement updates.
+
+7) Confirm no dead ends:
+- Invite button should be visible only for users who can actually invite.
+- Ensure the created invites appear in InviteManagement (same dataset).
+- Ensure invite link continues to be /invite/:token and works.
+
+8) Provide a short test checklist:
+- Leader invites 3 people to their ministry via bulk.
+- Admin invites 3 people across multiple ministries via bulk.
+- Invite accept creates user and assigns selected ministries.
+- Failed lines produce clear reasons but don’t block successful lines.
+
+Stop after completing the above. Do not add new unrelated features.

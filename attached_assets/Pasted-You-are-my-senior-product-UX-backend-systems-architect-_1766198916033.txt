@@ -1,0 +1,111 @@
+You are my senior product + UX + backend systems architect for MinistryPath (Garden City Church, Beverly MA). The platform is built and launch-ready. You are NOT to rehash build history unless directly relevant. Your job is to produce a thorough, actionable post-launch improvement plan and the exact implementation spec (data model, permissions, UI behavior, notifications, reset plan) based on the requirements below.
+
+CONTEXT (do not rewrite, just use):
+- MinistryPath is a custom church platform with roles: Owner, Admin, Pastor, Leader, Member, Intern, Attendee.
+- Onboarding: welcome → profile → ministry → faith commitment → classes → completion.
+- Clear “What’s Next” logic exists but needs improvements to navigation/connection.
+- Trainings, assessments, discipleship path, health indicators, workboard, resources, help center, and admin backend are implemented.
+- Phase 8 complete; system is functionally launch-ready. No new feature development unless explicitly requested.
+
+GOAL:
+Prioritize post-launch improvements that fix coherence, authority, data linkage, onboarding freshness, and leader workflows—without overbuilding. Deliver a plan that is implementable immediately.
+
+KNOWN ISSUES / REQUIREMENTS:
+1) People Directory vs Admin People Panel must be unified
+- The church directory (People view) is disconnected from the Admin People panel.
+- There must be ONE canonical Person/User record as source of truth.
+- Admin must have global authority over directory people: view/edit/delete anyone.
+- Pastors and Leaders must have global VIEW of everyone (read-only by default).
+- Pastors and Leaders may only MODIFY/DELETE:
+  a) people they personally invited/added, OR
+  b) people directly under ministries they lead (their team).
+- Dream Team Members may only VIEW people in their own ministry team(s); they should not see other teams.
+- Directory must always reflect Admin edits/deletes.
+
+2) Profile sections must be clickable and connected (navigation + meaning)
+In “My Profile,” these sections must be intuitive and connected, not static:
+- Ministry Roles
+- Training History
+- My Journey
+Each must be clickable and take the user to the relevant canonical section:
+- Ministry Roles → role detail + expectations + reporting line + ministry context
+- Training History → Training Hub filtered to completed/in progress/recommended
+- My Journey → Discipleship Path with current stage and next step
+Also specify: correct empty states and explanations.
+
+3) Full profile reset + correct linkage
+- I need all profiles fully reset and everything linked correctly.
+- Provide a safe plan to wipe all test users and their dependent records while preserving:
+  configuration, roles, tags, manuals, trainings, help center content, resources library, discipleship path definitions.
+- The reset must avoid orphaned records and ensure referential integrity.
+- After reset, onboarding must feel fresh and coherent.
+
+4) Fresh onboarding experience
+- Propose improvements to onboarding to make it feel pastoral, clear, and guided.
+- Do NOT add unnecessary steps. Improve clarity, sequencing, and “why this matters.”
+- Ensure onboarding correctly sets:
+  ministries, roles (if applicable), faith commitment, class status, journey stage.
+- “What’s Next” prompts must correctly direct users to where they can complete items (e.g., update status should deep-link to Journey completion action).
+
+5) Leader invite / leadership scope / onboarding notifications
+- When inviting or welcoming new Leaders, I need to specify what ministry/ministry roles they LEAD.
+- When a new person onboards into a given ministry, the leader(s) of that ministry must be notified:
+  a) in-app notification
+  b) email notification to the leader’s profile email
+- Notifications must be pastoral, non-shaming, clear on next action.
+- Define when notifications trigger (e.g., ministry selection complete, onboarding completion, first serve signup, etc.).
+- Ensure leaders can manage/modify/delete people under their ministries (permission rules above).
+
+6) Messaging Center
+- The message center must allow ALL users to contact ANYONE in the entire system.
+- Messaging search/recipient selection is global, regardless of directory visibility limits.
+- Directory visibility and messaging permissions are separate.
+
+DELIVERABLES (must be thorough):
+A) Canonical data model + entity relationships
+- Define Person/User model and relationships: roles, ministries, ministryMemberships, leadershipAssignments, invitations, audit logs, notifications, messages.
+- Include key fields needed to enforce permissions: createdBy, invitedBy, ministryId(s), leaderOfMinistryId(s), reportingLine, etc.
+- Describe referential integrity rules and cascade delete strategy.
+
+B) Permissions matrix (explicit, unambiguous)
+- Table: Role × Capability (view directory, edit profile, delete user, view team, view all, message all, assign ministries, reset users).
+- Include special cases: Owner protected account, admin reset tool safety, pastors/leaders global view but scoped edit/delete.
+
+C) “People” system unification plan
+- Explain how to merge the Admin People panel and Directory into one source of truth.
+- Outline required changes to queries, endpoints, and UI.
+- Include migration steps if needed.
+
+D) Profile UX wiring spec
+- Exactly how each Profile section links and what filters/context it passes.
+- Define empty states and guidance text.
+
+E) Reset + relaunch plan
+- Step-by-step reset checklist.
+- Dry-run counts, safety confirmations, owner protection.
+- Post-reset smoke tests to confirm linkage, onboarding, permissions, directory, and messaging.
+- Suggested soft relaunch sequence (leaders first, then teams).
+
+F) Notification spec (in-app + email)
+- Event triggers
+- Recipient selection logic
+- Message templates (short pastoral drafts)
+- Rate limiting / avoiding spam
+- Audit trail
+
+G) Acceptance criteria (testable)
+- Provide clear test cases for each requirement (e.g., a Leader can view all people but can only edit X; Dream Team can only see their ministry; messaging works globally; deleting in admin removes from directory; profile links work; onboarding deep links work).
+
+OUTPUT FORMAT:
+1) Executive summary (bullet list of highest impact fixes first)
+2) Priority backlog (High/Medium/Low) with effort estimates (S/M/L) and dependencies
+3) The full implementation spec sections A–G above
+4) A final “Launch Confidence Checklist”
+
+CONSTRAINTS:
+- Pastoral tone, simple language, accessible for teens to seniors.
+- Do not shame users; encourage and guide.
+- Avoid overbuilding; stick to requirements.
+- Assume the platform is already built; this is post-launch improvement + coherence work.
+
+START NOW. Do not ask clarifying questions—make reasonable assumptions and clearly state them where needed.

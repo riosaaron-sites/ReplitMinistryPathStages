@@ -1,0 +1,176 @@
+🔒 MINISTRYPATH — PHASE 0 MASTER PROMPT
+
+AUDIT ONLY · STOP AFTER REPORT · NO CODE CHANGES
+
+You are working inside an existing, running codebase called MinistryPath.
+
+⚠️ IMPORTANT EXECUTION RULE
+You are instructed to perform PHASE 0 ONLY.
+You must STOP after producing the audit output described below.
+You must NOT modify any code.
+You must NOT delete anything.
+You must NOT generate training modules.
+You must NOT register manuals.
+You must NOT proceed to later phases unless explicitly instructed.
+
+CONTEXT (DO NOT CHANGE)
+
+The site currently runs in Replit.
+
+All new manuals have already been uploaded as files.
+
+Old manuals are still present in the database.
+
+A full overhaul is planned, but NOT YET.
+
+Your task right now is to understand the system, not change it.
+
+YOUR TASK — PHASE 0 (AUDIT ONLY)
+1️⃣ REVIEW THE ENTIRE CODEBASE
+
+You must examine:
+
+frontend pages and routes
+
+backend routes and services
+
+database schema
+
+onboarding flow
+
+dashboard logic
+
+manuals + training logic
+
+admin vs user permissions
+
+ministry, role, tag structures
+
+navigation and menus
+
+Do not assume intent — verify in code.
+
+2️⃣ IDENTIFY AND DOCUMENT THE FOLLOWING
+A. WHAT EXISTS
+
+Provide a clear list of:
+
+onboarding-related screens
+
+dashboard-related screens
+
+manuals handling
+
+training handling
+
+ministry structures
+
+admin functionality
+
+user roles/tags
+
+survey logic
+
+meetings / calendar / room features (if any exist)
+
+B. DISCONNECTS & PROBLEMS
+
+List clearly:
+
+dead-end pages
+
+redundant routes
+
+duplicate concepts (same thing in multiple places)
+
+“glitter” features (look complete but don’t function)
+
+places where manuals and trainings are not connected
+
+places where completion status does not allow review
+
+confusing navigation
+
+unnecessary or obsolete code
+
+C. DATA & STRUCTURE ISSUES
+
+Identify:
+
+where manuals are stored
+
+how trainings reference manuals (or don’t)
+
+whether manual categories currently exist
+
+whether training generation is shallow or incomplete
+
+how roles, tags, ministries, and permissions are handled
+
+what would block the planned overhaul if not fixed
+
+3️⃣ PREPARE FOR FUTURE PHASES (NO EXECUTION YET)
+
+Without implementing anything, propose:
+
+A phased refactor plan (Phase 1, Phase 2, Phase 3…)
+
+Where old manuals will be deleted safely
+
+Where new manuals will be registered and categorized
+
+Where deep training modules will be generated
+
+Where onboarding will be redesigned
+
+Where obsolete code can be safely removed
+
+Which files/components are likely to be deleted or consolidated
+
+⚠️ This is planning only, not execution.
+
+REQUIRED OUTPUT FORMAT (DO NOT DEVIATE)
+
+You must return ONLY the following sections:
+
+1. AUDIT REPORT
+
+Clear bullet list of what exists and how it works today
+
+2. DISCONNECT & REDUNDANCY LIST
+
+Clear list of problems and confusing areas
+
+3. REFACTOR ROADMAP (PROPOSED)
+
+Phased, high-level plan
+
+No code yet
+
+4. CONFIRMATION STATEMENT
+
+End your response with this exact sentence:
+
+“Phase 0 complete. No code has been modified. Awaiting authorization to proceed.”
+
+FINAL RULE
+
+If you attempt to:
+
+delete manuals
+
+modify code
+
+refactor files
+
+generate trainings
+
+redesign onboarding
+
+continue past Phase 0
+
+…you are violating instructions.
+
+STOP AFTER THE AUDIT.
+
+END OF PROMPT

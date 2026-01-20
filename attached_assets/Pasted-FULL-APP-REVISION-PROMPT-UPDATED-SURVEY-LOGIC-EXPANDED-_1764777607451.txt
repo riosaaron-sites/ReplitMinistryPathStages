@@ -1,0 +1,341 @@
+FULL APP REVISION PROMPT (UPDATED SURVEY LOGIC + EXPANDED MINISTRY FILTERS)
+For Garden City Church Ministry Assessment & Spiritual Gifts Survey
+1. Keep ALL Existing Features, Logic, Storage, Emails, Branding, and PDF Rendering
+
+Do not remove or break:
+
+Spiritual gift logic
+
+Personality-type logic
+
+Ministry recommendations
+
+Conditional logic
+
+Email automations
+
+Branding requirements
+
+Assessment storage
+
+Retroactive email sending
+
+PDFs
+
+All previously implemented instructions
+
+All of this remains fully intact.
+This prompt only strengthens the question logic, qualification filters, and precision of assessment pathways.
+
+2. New Gender Identification Logic (Mandatory First Step)
+
+Immediately after name/email:
+
+Ask: “What is your biological sex?”
+Options (STRICTLY):
+
+Male
+
+Female
+
+No other options permitted.
+
+If “Male” is selected:
+
+Bypass and permanently hide all questions relating to:
+
+Nursery
+
+Infants
+
+Toddlers
+
+Remove these ministry paths from ALL possible recommendation lists for men.
+
+Still allow male participants to be evaluated for:
+
+Children (non-nursery), depending on logic
+
+Youth
+
+All other ministries
+
+Still provide a full assessment and PDF summary.
+
+3. Children’s Ministry Qualification Logic
+Goal:
+
+Accurately filter out individuals who are not ready, qualified, appropriate, or temperamentally matched for serving with children.
+
+This requires more precise, more detailed, and more thorough questioning.
+The app is now authorized to ask up to 150 questions to achieve this precision.
+
+New children’s ministry filter categories:
+
+Include questions that assess:
+
+Comfort level working with children
+
+Patience
+
+Safety awareness
+
+Trauma sensitivity
+
+History with childcare (formal or informal)
+
+Emotional regulation
+
+Experience in structured environments
+
+Ability to follow safety protocols
+
+Clean CORI/DSS history (do NOT collect details—just ask if they can pass one)
+
+Physical capability to lift, carry, or assist children safely
+
+Ability to work under a leader
+
+Disqualifying logic (soft, pastoral, but firm):
+
+If someone:
+
+Indicates low patience
+
+Gets easily overwhelmed
+
+Has no desire to work with kids
+
+Indicates discomfort with safety protocols
+
+Cannot pass background requirements
+
+Expresses frustration toward children behaviors
+
+Dislikes structured classroom settings
+
+Cannot follow direction from a leader
+
+Has difficulty managing stress
+
+Prefer not to work with minors
+
+→ Quietly remove them from ALL children’s ministry recommendation pathways.
+They will still receive a full assessment and be guided toward other ministries.
+
+4. Youth Ministry Qualification Logic
+
+Add deeper questions focused on:
+
+Emotional maturity
+
+Boundaries
+
+Ability to handle sensitive conversations
+
+Trauma awareness
+
+Leadership under authority
+
+Ability to model Christian maturity
+
+Avoiding spiritual manipulation
+
+Communication skills
+
+Responsibility level
+
+Reliability
+
+Digital wisdom (social media boundaries)
+
+Temperament (avoid hot-headed or impulsive behaviors)
+
+If responses indicate:
+
+Lack of maturity
+
+Boundary issues
+
+Strong discomfort
+
+Poor communication skills
+
+Impulsivity
+
+Low responsibility
+
+Low interest
+
+→ Remove youth ministry from their recommendations.
+
+5. Add New Ministry Pathways (with filtering logic)
+
+You will now integrate three additional ministry opportunities into the assessment results:
+
+A. GriefShare (Support Group Ministry)
+
+Phrase recommendation as:
+“You might be a good fit for GriefShare.”
+
+Add questions that evaluate:
+
+Compassion levels
+
+Empathy
+
+Emotional stability
+
+Ability to listen without fixing
+
+Comfort with people in pain
+
+Respect for confidentiality
+
+Spiritual maturity
+
+Reliability
+
+Ability to follow curriculum
+
+Comfort discussing sensitive subjects
+
+DO NOT automatically qualify anyone for leadership.
+But DO create a path that says:
+“Based on your responses, you may eventually qualify to pursue leadership in GriefShare, pending further training and pastoral review.”
+
+B. Celebrate Recovery (CR)
+
+Phrase recommendation as:
+“You might be a good fit for Celebrate Recovery.”
+
+Add screening questions for:
+
+Vulnerability
+
+Transparency
+
+Accountability
+
+Understanding personal boundaries
+
+Respect for confidentiality
+
+Spiritual maturity
+
+Willingness to follow structure
+
+Reliability
+
+A heart to support others without control
+
+Leadership pathway messaging:
+“Your responses suggest you have qualities that could be developed into future Celebrate Recovery leadership, pending required steps and pastoral approval.”
+
+C. The Landing Team (Assimilation Team)
+
+This team includes:
+
+Greeters
+
+First Impressions
+
+Community Care Team (emails, cards, texts, calls)
+
+Add questions to evaluate:
+
+Warmth in communication
+
+Hospitality
+
+Attention to detail
+
+Ability to follow up
+
+Consistency
+
+People skills
+
+Phone comfort
+
+Ability to handle diverse personalities
+
+Joyful demeanor
+
+Reliability
+
+Courtesy
+
+Recommendation phrasing:
+“You might be a good fit for The Landing Team.”
+
+6. Strengthen General Ministry Logic
+
+Ensure the system:
+
+Avoids recommending ministries the participant is unfit for.
+
+Offers multiple alternative pathways if they are disqualified from one area.
+
+Keeps tone pastoral, encouraging, and uplifting—even when redirecting.
+
+Example redirection:
+“Based on your responses, it seems your gifts may be better suited for other ministries. Here are areas where you may thrive…”
+
+7. Keep Existing Ministry Options BUT Strengthen Filters
+
+For all other existing ministries (ushers, security, worship, facilities, outreach, etc.), add:
+
+Safety reasoning
+
+Schedule reliability checks
+
+Physical ability (for setup/breakdown)
+
+Musical competence (worship)
+
+Detail orientation (security)
+
+Flexibility & follow-through
+
+No need to rewrite full modules—just expand logic and add screening questions.
+
+8. Expand Question Bank (Authorized Up to 150 Questions)
+
+You may add up to 150 total questions as needed to:
+
+Improve accuracy
+
+Increase ministry alignment
+
+Better assess temperament, spiritual maturity, gifts, and personality
+
+Strengthen qualification filters
+
+Clarify genuine desire and ability
+
+The app should intelligently hide unnecessary questions based on earlier answers to keep the user experience clean and pastoral.
+
+9. Maintain Pastoral Tone
+
+Ensure all questions and disqualification logic remain:
+
+Warm
+
+Pastoral
+
+Clear
+
+Encouraging
+
+Free from harsh language
+
+Assume the best about participants
+
+Every redirect must feel uplifting.
+
+10. Everything Else Remains the Same
+
+All previously written automations, logic, email sending, PDF generation, Garden City branding, and ministry-pathway logic must remain fully intact.
+
+This prompt only enhances, expands, and refines the assessment.

@@ -1,0 +1,483 @@
+✅ REPLIT AI INSTRUCTION HEADER (PASTE THIS FIRST)
+
+You must follow these rules exactly:
+
+Do not ask questions. Make reasonable assumptions and proceed. If something is missing (credentials, API keys), implement a safe fallback mode and document it.
+
+Do not rewrite the app or change the tech stack. No framework swaps. No big refactors “for cleanliness.” Only targeted improvements.
+
+Work in small, safe commits. After each phase:
+
+ensure TypeScript compiles
+
+ensure server starts
+
+ensure client builds
+
+fix any errors immediately before continuing
+
+No TODO placeholders. If you can’t fully implement something due to missing credentials, implement the full integration surface (settings UI + server stubs + fallback behavior) so the app still functions.
+
+Do not remove files unless proven unused. If you delete anything, you must confirm it is not imported/referenced anywhere and document it in docs/overhaul_notes.md.
+
+No feature duplication.
+
+Planning Center remains the system for people + service scheduling.
+
+Outlook 365 remains the system for church calendar + rooms.
+MinistryPath only adds readiness, approvals, onboarding, team workflows, and reservation requests that create Outlook events upon approval.
+
+Keep navigation simple and ensure every page has clear next actions. No dead ends. No 404s.
+
+Document everything. Maintain docs/overhaul_notes.md with:
+
+phase summary
+
+file list changed
+
+routes added/modified
+
+migrations added
+
+configuration steps
+
+Proceed with the full overhaul prompt below, in order, without truncation.
+
+✅ MINISTRYPATH REPLIT AI OVERHAUL PROMPT (LIMIT-OPTIMIZED, FULL)
+YOUR ROLE
+
+You are a senior full-stack engineer + product architect working on an existing app called MinistryPath. Your job is to make the app fully working, tidy, and church-usable for training, onboarding, and team building—without duplicating Planning Center or Outlook 365.
+
+SCOPE BOUNDARIES (DO NOT VIOLATE)
+
+Planning Center is used for: people + volunteers in services. Do NOT build a replacement.
+
+Outlook 365 is source of truth for: church calendar + room reservations. Do NOT build a replacement.
+
+MinistryPath’s purpose: onboarding, trainings, approvals, readiness, leader visibility, meetings with outcomes, reservation requests layer.
+
+GLOBAL EXECUTION RULES
+
+Keep changes minimal and targeted. Prefer additive fixes over rewrites.
+
+Every phase must end with: (1) build passes, (2) app boots, (3) no new console errors from the primary flows.
+
+If you remove anything, you MUST prove it is unused (no imports, no route references, no DB dependencies).
+
+Add safe error handling for external integrations.
+
+PHASE 0 — PROJECT INVENTORY + SAFETY NET (NO FEATURE CHANGES YET)
+
+Identify the project structure:
+
+client entry file and router file
+
+server entry file
+
+main route registration
+
+DB schema files (Drizzle)
+
+Add a root-level docs/overhaul_notes.md where you will log:
+
+what you changed
+
+why
+
+file paths
+
+risks
+
+Add a /healthz endpoint:
+
+returns { ok: true }
+
+Add /healthz/db:
+
+checks DB connectivity safely
+
+returns { ok: true } or { ok: false, error }
+
+STOP. Ensure app builds and runs after Phase 0.
+
+PHASE 1 — DEAD LINKS / DEAD ENDS / BROKEN ROUTES (MAKE EVERYTHING NAVIGABLE)
+
+Goal: No page should lead nowhere. No client calls should 404.
+
+Audit and fix ROUTE MISMATCHES between client and server:
+
+If client calls /api/role-assignments/me but server has /api/role-assignments/my, either:
+
+add alias route on server OR update client to match
+
+Implement missing endpoints that the UI expects:
+
+/api/training/progress/all (leader-only)
+
+/api/training/required (current user required trainings)
+
+/api/user-ministries/invited (or remove that UI element if it’s dead; prefer implementing)
+
+Add route alias /dashboard → / (client redirect or router alias).
+
+Audit Help Center “related links” and ensure every path exists.
+
+Deliverable at end of Phase 1:
+
+A “Route Map” section in docs/overhaul_notes.md listing:
+
+all client routes
+
+all server routes
+
+any aliases added
+
+Confirm no obvious 404s in console.
+
+STOP. Ensure app builds and runs after Phase 1.
+
+PHASE 2 — PERMISSIONS HARDENING (NO DATA LEAKS)
+
+Goal: correct visibility for members vs leaders vs admin/pastor.
+
+Identify role model:
+
+member vs leader vs admin/pastor
+
+ministry leadership lock: primary/secondary leadership assignments
+
+Implement centralized permission helpers:
+
+requireAuth
+
+requireLeader
+
+requireAdmin
+
+requireMinistryLeader(ministryId) for scoped access
+
+Apply permissions to sensitive endpoints:
+
+user directory endpoints
+
+training approvals endpoints (to be created)
+
+meeting records
+
+background check views
+
+Add a “scoped directory” endpoint for member messaging:
+
+GET /api/directory returns only users who share a ministry with the caller
+
+remove any UI dependence on GET /api/users for normal members (leaders can still access broader endpoints)
+
+STOP. Ensure app builds and runs after Phase 2.
+
+PHASE 3 — TRAINING APPROVAL WORKFLOW (CORE FIX)
+
+Goal: stop auto-pass. completion requires leader approval.
+
+Add/confirm training progress status model:
+
+in_progress
+
+submitted
+
+approved
+
+rejected
+
+Update training completion logic:
+
+When a user completes a quiz/assessment:
+
+store attempt
+
+mark progress as submitted NOT complete
+
+DO NOT award XP yet
+
+When leader approves:
+
+mark as approved
+
+award XP
+
+unlock readiness
+
+When leader rejects:
+
+mark as rejected
+
+store leader feedback notes
+
+allow user to resubmit
+
+Implement leader endpoints:
+
+GET /api/training/submissions (scoped to ministries leader oversees)
+
+POST /api/training/progress/:progressId/approve
+
+POST /api/training/progress/:progressId/reject
+
+Update UI:
+
+Member training page shows status and “submitted awaiting review”
+
+Leader portal shows approval queue with approve/reject and notes
+
+Add audit logging for approvals/rejections.
+
+STOP. Ensure app builds and runs after Phase 3.
+
+PHASE 4 — UNIFY PROFILE / ROLES / JOURNEY (MAKE IT FEEL LIKE ONE APP)
+
+Goal: eliminate silos. one “command center.”
+
+Create or enforce one unified progress endpoint:
+
+GET /api/user-progress must return everything needed for:
+
+profile
+
+trainings
+
+readiness checklist
+
+roles and ministries
+
+background check status
+
+meetings + action items summary
+
+Make Profile the hub:
+
+show “My Next Steps” checklist
+
+show “My Ministries” served and led
+
+show required trainings outstanding with statuses
+
+Redefine “My Roles” into “My Ministry Snapshot”:
+
+ministry-by-ministry cards:
+
+leader badge
+
+teammates list (scoped)
+
+expectations
+
+qualifications/training requirements
+
+quick actions: request meeting, message leader, view trainings
+
+Ensure “Training History” and “My Journey” are not dead ends; they link to canonical pages.
+
+STOP. Ensure app builds and runs after Phase 4.
+
+PHASE 5 — MEETINGS & MESSAGES → TEAM CENTER (OUTCOME-FIRST)
+
+Goal: a real meeting center with agenda + action items + recap.
+
+Rename navigation “Messages” to “Meetings & Messages”
+
+Meetings:
+
+create meeting (leader)
+
+agenda builder
+
+notes/minutes
+
+action items required (assignee + due date + status)
+
+attendance tracking (simple)
+
+Email:
+
+“Send agenda” to ministry team
+
+“Send recap” to ministry team
+
+Messaging:
+
+ministry-scoped channels or threads (simple)
+
+prevent global DM free-for-all for members
+
+Permissions:
+
+only leaders can publish official minutes
+
+members can comment or submit reflection if enabled
+
+STOP. Ensure app builds and runs after Phase 5.
+
+PHASE 6 — CALENDAR + ROOM RESERVATIONS (OUTLOOK 365 SOURCE OF TRUTH)
+
+Goal: MinistryPath shows calendar and handles room requests; Outlook holds authoritative events.
+
+IMPORTANT: Do not build a full calendar system. Implement only:
+
+unified calendar view
+
+request + approval flow for rooms
+
+Outlook integration stubs if credentials not present
+
+Calendar view:
+
+show Outlook events read-only (if integration configured)
+
+show MinistryPath internal items (trainings, onboarding sessions)
+
+provide “View in Outlook” link for Outlook events
+
+Room reservations:
+
+define Rooms list (admin-managed)
+
+request form with setup/teardown buffer
+
+conflict check via Outlook availability (if configured)
+
+approval workflow (facilities/admin or designated role)
+
+on approval: create Outlook event booking room
+
+Fallback mode:
+
+if Outlook integration not configured, allow requests but mark as “pending calendar sync”
+
+STOP. Ensure app builds and runs after Phase 6.
+
+PHASE 7 — ADMIN BRANDING + SAFE SETTINGS (REBRANDABLE WITHOUT BREAKING)
+
+Goal: remove logo inconsistencies and enable safe configuration.
+
+Create org_settings:
+
+logo URLs
+
+favicon URL
+
+colors
+
+app name
+
+homepage hero content + image
+
+Implement GET /api/org/settings
+
+Implement admin UI to edit settings with guardrails (no free-form HTML)
+
+Ensure landing + app header both use same settings.
+
+STOP. Ensure app builds and runs after Phase 7.
+
+PHASE 8 — FILE CLEANUP / CLUTTER REMOVAL / PERFORMANCE
+
+Goal: lighten repo and reduce confusion.
+
+Identify unused files:
+
+unused images
+
+unused components
+
+unused pages
+
+duplicate helpers
+
+Remove only if proven unused.
+
+Ensure no orphaned imports.
+
+Verify build output size improves.
+
+Document removals in docs/overhaul_notes.md.
+
+STOP. Ensure app builds and runs after Phase 8.
+
+PHASE 9 — HELP CENTER: BUILD THE USER MANUAL INSIDE THE APP
+
+There is no manual outside the app; Help must be sufficient for onboarding.
+
+Help center must be searchable and organized:
+
+Getting Started
+
+Onboarding & Trainings
+
+Roles & Readiness
+
+Meetings & Teams
+
+Calendar & Room Requests
+
+Leader Tools
+
+Common Questions
+
+Troubleshooting
+
+Each article must include:
+
+what this is
+
+when to use it
+
+step-by-step instructions
+
+what happens next
+
+who can access it (member/leader/admin)
+
+Add contextual “Help links” inside relevant pages:
+
+training viewer links to “How training approvals work”
+
+meetings page links to “How to run a meeting in MinistryPath”
+
+calendar page links to “How room requests work”
+
+STOP. Ensure app builds and runs after Phase 9.
+
+FINAL ACCEPTANCE CHECKLIST (MUST PASS)
+
+No obvious 404s from UI clicks
+
+No dead ends without a next step
+
+Training cannot be completed without leader approval (where required)
+
+Leader can review user status, trainings, ministries
+
+Meetings have agenda, notes, action items, email recap
+
+Calendar view works; room request works; Outlook integration respects source-of-truth rules
+
+Branding is consistent across landing and app
+
+Help center acts like a real user manual
+
+IMPORTANT: OUTPUT FORMAT
+
+After completing work, output:
+
+Summary of changes per phase
+
+List of files changed
+
+Any new routes added
+
+Any database migrations added
+
+Any manual steps required to configure Outlook integration
+
+Known limitations (only if unavoidable)
+
+Do not truncate. Do not skip phases. Do not leave “TODO” placeholders.

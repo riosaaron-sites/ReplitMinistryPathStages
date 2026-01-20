@@ -1,0 +1,247 @@
+Here’s a ready-to-paste prompt you can give to an AI app builder:
+
+---
+
+You are building a **web-based survey app** for **Garden City Church** (a Pentecostal / Spirit-filled church). The purpose of this app is to:
+
+1. Help people identify their **spiritual gifts**
+2. Suggest **best-fit ministry roles** in our church
+3. Give a simple **personality profile** (Jung / Myers-Briggs–style or 4-type temperament)
+
+The tone should be **Christ-centered, Bible-honoring, and Pentecostal-friendly** (openness to the gifts of the Spirit, without weird or extreme language).
+
+---
+
+## Core Goals
+
+Design an app that:
+
+* Asks **no more than 50 questions total**
+* Combines questions about:
+
+  * Spiritual gifts
+  * Personality traits
+  * Ministry interests and capacity
+* Produces:
+
+  * A short **spiritual gifts summary**
+  * A simple **personality type** summary
+  * A list of **top ministry recommendations** at Garden City Church
+
+---
+
+## Ministries to Match
+
+The app should map survey results to **specific ministries** we use at Garden City Church:
+
+* **First Impressions / Landing Team**
+
+  * Greeters
+  * Welcome / Guest Table (first-time guests, gifts, connection cards)
+* **Ushers**
+* **Security**
+* **Transportation**
+* **Café / Hospitality (Gift of Helps, Service)**
+* **Facilities / Setup / Cleaning**
+* **Worship Team**
+* **Media / Production**
+
+  * Sound
+  * Lyrics / ProPresenter
+  * Live stream / video / basic editing
+* **Creative Arts**
+
+  * Visual art
+  * Graphic design
+  * Dance
+  * Drama / spoken word
+  * Photography / videography
+* **Teaching / Discipleship**
+
+  * Adult Bible studies / Discipleship Hour
+* **Youth Ministry**
+* **Children’s Ministry (Kingdom Children)**
+* **Nursery**
+* **Young Adults**
+* **Outreach / Evangelism / Community Service**
+
+> **Important:**
+> For **Worship**, **Media**, and **Creative Arts**, build in questions that **verify real skill and experience** (not just interest). For example:
+>
+> * “Can you confidently play an instrument or sing in front of others?”
+> * “How many years have you practiced ___?”
+> * “Have you ever served on a worship or media team before?”
+> * “Can you provide a simple portfolio / sample of your work?” (graphics, video, etc.)
+
+If a person **lacks skill** but has **interest**, the app should:
+
+* Suggest **“growth pathway”** language such as:
+
+  * “You may not be ready to serve in Worship/Media yet, but you could explore lessons, shadowing, or training.”
+
+---
+
+## Spiritual Gifts to Detect
+
+Include questions to identify tendencies in gifts such as:
+
+* Prophecy / Encouraging, truth-telling, sensing God’s direction
+* Teaching / Explaining Scripture
+* Shepherding / Pastoral care / Nurturing people
+* Evangelism / Boldness to share the Gospel
+* Discernment / Spiritual sensitivity
+* Administration / Organization / Planning
+* Leadership / Vision / Initiative
+* Serving / Helps / Practical support
+* Mercy / Compassion / Care for the hurting
+* Giving / Generosity / Resourcing ministry
+* Hospitality / Welcoming / Hosting
+* Intercession / Prayer burden
+
+Each response should contribute weighted scores to **multiple gifts**, then rank the top 3–5 gifts at the end.
+
+---
+
+## Personality Layer
+
+Add a **lightweight personality profile** based on either a **4-type temperament** or a simplified **Jung / Myers-Briggs-style** approach.
+
+Focus on traits such as:
+
+* Introvert / Extrovert
+* People-focused vs. Task-focused
+* Detail-oriented vs. Big-picture
+* Structured vs. Flexible
+* Emotionally expressive vs. Reserved
+
+Use these traits to help fine-tune ministry suggestions. For example:
+
+* High extrovert + hospitality → First Impressions / Greeters / Café
+* Detail-oriented + steady → Facilities, Media, Administration, Security
+* Nurturing + patient → Children, Nursery, Follow-up care
+* Bold + evangelistic → Outreach, Street evangelism, Youth, Young Adults
+
+---
+
+## Question Design
+
+Total: **Under 50 questions**. Use a mix of:
+
+* **Likert scale** (Strongly Disagree → Strongly Agree)
+* **Multiple choice**
+* A few **Yes/No** or **True/False**
+
+Organize them roughly into 4 sections:
+
+1. **Spiritual Gifts & Ministry Preferences** (20–25 questions)
+
+   * Example themes:
+
+     * Comfort level praying with others
+     * Desire to teach / explain the Bible
+     * Enjoyment of serving behind the scenes
+     * Desire to share faith with strangers
+     * Sensitivity to spiritual atmosphere / discernment
+     * Willingness to lead vs. support
+     * Desire to care for children, youth, hurting people
+
+2. **Personality & Working Style** (10–15 questions)
+
+   * Example themes:
+
+     * Energy from people vs. solitude
+     * Preference for structure vs. spontaneity
+     * Comfort with conflict / leadership
+     * Attention to detail vs. big-picture thinking
+
+3. **Skills & Experience** (5–10 questions)
+   Include **conditional questions**:
+
+   * “Do you play an instrument or sing?”
+   * “How many years of experience do you have?”
+   * “Have you served on worship/media/children’s teams before?”
+   * “Are you comfortable using technology (slides, cameras, sound boards)?”
+
+4. **Availability & Capacity** (3–5 questions)
+
+   * Time availability (weekly / monthly)
+   * Comfort with early mornings, evenings, Sundays, events
+
+---
+
+## Scoring & Output
+
+At the end of the survey, the app should:
+
+1. Generate a **Spiritual Gifts Summary**
+
+   * Show top 3–5 gifts with simple descriptions.
+   * Example format:
+
+     * “Primary Gift: Teaching – You enjoy explaining God’s Word clearly and helping people understand truth.”
+
+2. Provide a **Personality Snapshot**
+
+   * Short type name (e.g., “People-Oriented Encourager,” “Organized Servant-Leader”)
+   * 2–3 bullet points describing how they typically show up in a team.
+
+3. Recommend **Top Ministry Fits at Garden City Church**
+
+   * Show **3–5 recommended ministries**, each with:
+
+     * Ministry name
+     * Short description of what serving there looks like
+     * Why they were matched (based on gifts/personality/skills)
+
+4. Optionally list **Secondary Options**
+
+   * “You may also be a good fit for: [list]”
+
+Make the language **encouraging, faith-filled, and practical**, e.g.:
+
+> “Based on your responses, you seem to have a strong gift of Helps and Hospitality, with a warm, people-oriented personality. You might thrive serving on our First Impressions Team, Café/Hospitality Team, or Outreach. These roles let you welcome people, make them feel at home, and show the love of Jesus in practical ways.”
+
+---
+
+## Authentication & Data
+
+**User Accounts / Resume Feature**
+
+* Allow users to **create a simple account** (email + password, or social login).
+* Allow them to **save progress** and **resume later** if they don’t finish in one sitting.
+
+**Upon Completion**
+
+* Automatically **email the full results** to the participant:
+
+  * Spiritual gifts summary
+  * Personality snapshot
+  * Ministry recommendations
+* Also **store the results** in the app’s database with:
+
+  * Name
+  * Email
+  * Phone (optional)
+  * Date completed
+  * Their gifts/personality/ministry matches
+
+Ideally include a way for admins to export results (e.g., CSV) or view them in an admin dashboard, but that’s secondary.
+
+---
+
+## UX & Style Notes
+
+* Design should feel **warm, modern, and welcoming**, not corporate.
+* Use language a **new or growing believer** can understand (avoid heavy jargon).
+* Let users know at the start:
+
+  * This tool is **not a prophecy**, but a **helpful guide**.
+  * Final placement will be through **conversation with a pastor or ministry leader**.
+
+At the end, display a **friendly next step**, like:
+
+> “Thank you for completing the Garden City Church Ministry & Spiritual Gifts Survey! A copy of your results has been emailed to you. A leader from our team may reach out to help you take your next step in serving. In the meantime, feel free to share your results with a pastor or ministry leader you trust.”
+
+---
+
+Build the entire app logic (survey questions, scoring system, personality mapping, and ministry recommendations) according to the specs above.

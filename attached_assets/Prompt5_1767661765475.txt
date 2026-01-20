@@ -1,0 +1,128 @@
+You are auditing the existing MinistryPath codebase for SYSTEM INTEGRITY.
+
+GOAL:
+Verify there are no dead ends, broken links, disconnected buttons, or parallel/duplicate features that do the same job but use different data paths (e.g., a second invite system, second notification store, or second category list).
+
+IMPORTANT:
+- Do NOT build new features.
+- Do NOT refactor broadly.
+- Changes should be minimal and only to fix verified integrity problems.
+- Prefer reporting + small fixes over redesign.
+- Produce a clear audit report + a short "verified test checklist".
+
+DELIVERABLES:
+1) Create a file: /docs/INTEGRITY_AUDIT.md
+2) Create a lightweight dev-only endpoint OR script that can run locally in Replit to validate:
+   - all routes exist
+   - help/related links point to real routes
+   - navigation links are valid
+   - key feature subsystems share the same data model
+3) Fix ONLY the issues you can prove.
+
+AUDIT STEPS (DO IN ORDER):
+
+A) ROUTE & LINK AUDIT (UI → Router)
+1) Generate a definitive list of client routes from the router configuration(s).
+2) Scan all UI code for navigation usage:
+   - <Link to="...">, href="...", navigate("..."), router.push(...)
+   - sidebar items, header buttons, CoachBubble CTAs, Help relatedLinks
+3) For each detected route link:
+   - Confirm it matches a real route
+   - Confirm it is reachable given role gating (member vs leader vs admin)
+4) Output a table in INTEGRITY_AUDIT.md with:
+   - Source file + line reference (approx ok)
+   - Link/route
+   - Valid? (yes/no)
+   - If gated, which role can access
+   - Fix recommendation
+
+B) ACTION AUDIT (Buttons/Forms → API → DB)
+1) Identify all primary user actions from the UI:
+   - Invite (single + bulk)
+   - Invite accept
+   - Notifications read/mark-all
+   - Team join request & approval
+   - Training submit for review
+   - Training approval/rejection
+   - Calendar create/update events
+   - Category CRUD
+   - Room booking
+2) For each action:
+   - Trace UI handler → API endpoint → storage method → DB table(s)
+   - Confirm there is exactly ONE authoritative path for each feature area:
+     - Invites: must use team-invites DB + /api/team-invites
+     - Notifications: must use notifications table + /api/notifications
+     - Categories: must use categories table + /api/categories
+     - Trainings: must enforce submitted/approved lifecycle
+     - Calendar: must use Outlook endpoints + category mapping
+3) Report in INTEGRITY_AUDIT.md:
+   - Feature
+   - UI entry points (pages/components)
+   - API endpoint(s)
+   - Storage/service functions
+   - DB table(s)
+   - Any parallel/duplicate path detected
+
+C) PARALLEL FEATURE DETECTION (Find clones/disconnected versions)
+Search the codebase for signs of duplicate systems by keyword clustering:
+- invites: "invite", "teamInvite", "token", "/invite", "invitation"
+- notifications: "notification", "bell", "isRead", "markAll", "createNotification"
+- categories: "category", "categories", "MP:", "MINISTRYPATH_META"
+- trainings: "completeTraining", "onComplete(", "submitted", "approved", "rejected"
+- calendar: "outlook", "graph", "events", "rooms", "book"
+For each cluster:
+- list all relevant files
+- determine if there are duplicate endpoints, duplicate tables, or duplicate services
+- if duplicates exist, mark one as canonical and either:
+  - delete the unused one ONLY if safe, or
+  - isolate it so it is not referenced anywhere
+
+D) DEAD-END UX AUDIT (Empty states + “no-op” CTAs)
+For these core pages:
+- My Path
+- Trainings / Training Viewer
+- Teams / Requests
+- Calendar
+- Meetings
+- Leadership: My Team, Invites, Approvals, Notifications
+Verify:
+- every primary CTA either navigates somewhere real or performs a real action
+- empty states include a next step that links to a valid route
+- no "coming soon" placeholders are reachable from primary navigation
+List any no-op buttons or dead routes.
+
+E) AUTOMATED DEV CHECK (Cheap, deterministic)
+Implement ONE of the following (choose cheapest):
+Option 1: A dev-only node script `scripts/integrity-audit.ts`
+Option 2: A dev-only endpoint `/api/dev/integrity-audit`
+It should output:
+- unknown routes referenced in code
+- broken help relatedLinks
+- duplicate endpoints detected (same intent)
+- duplicate DB tables or models detected for same feature domain
+It does NOT need to be perfect; it must catch the common failures.
+
+F) MINIMAL FIXES
+Apply small fixes ONLY when:
+- a link is broken
+- a route is unreachable due to role gating mismatch
+- a button points to a non-existent route
+- a CTA does nothing
+- a duplicate/parallel feature is actually referenced and causing inconsistency
+When fixing duplicates:
+- route everything to the canonical system
+- do NOT leave two systems active
+
+G) FINAL OUTPUT
+1) Write INTEGRITY_AUDIT.md with:
+   - Executive summary (what is safe vs risky)
+   - Route/link findings
+   - Action trace findings
+   - Duplicate/parallel findings
+   - Fixes made (file list)
+2) Provide a short manual test checklist (10 steps max) for:
+   - Invite bulk → accept → leader notified
+   - Training submit → leader review → completion
+   - Category create → calendar filter → outlook round trip
+   - Notifications bell → read → mark all
+STOP after delivering the report and minimal fixes.
