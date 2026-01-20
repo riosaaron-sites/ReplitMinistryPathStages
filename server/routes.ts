@@ -556,6 +556,179 @@ export async function registerRoutes(
   });
 
   // ==========================================================================
+  // SAFE IMPERSONATION SYSTEM (replaces bypass mode for user viewing)
+  // ==========================================================================
+
+  // Start impersonating a user (admin/owner only)
+  app.post('/api/admin/impersonate/start', isAuthenticated, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const admin = await storage.getUser(adminId);
+      
+      if (!admin || (admin.role !== 'admin' && admin.role !== 'owner')) {
+        return res.status(403).json({ message: "Only admins can impersonate users" });
+      }
+      
+      const schema = z.object({
+        targetUserId: z.string().uuid(),
+        reason: z.string().min(1, "Reason is required for audit purposes")
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid request", 
+          errors: parseResult.error.flatten() 
+        });
+      }
+      
+      const { targetUserId, reason } = parseResult.data;
+      
+      // Verify target user exists
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "Target user not found" });
+      }
+      
+      // Prevent impersonating owners if you're just an admin
+      if (targetUser.role === 'owner' && admin.role !== 'owner') {
+        return res.status(403).json({ message: "Cannot impersonate owner accounts" });
+      }
+      
+      // Set impersonation in session
+      if (req.session) {
+        req.session.impersonating = {
+          targetUserId,
+          originalAdminId: adminId,
+          startedAt: new Date().toISOString(),
+          reason
+        };
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        action: 'impersonation_start',
+        entityType: 'user',
+        entityId: targetUserId,
+        performedBy: adminId,
+        ipAddress: req.ip || req.connection?.remoteAddress || 'unknown',
+        reason,
+        previousValue: null,
+        newValue: { 
+          targetUserEmail: targetUser.email,
+          targetUserName: `${targetUser.firstName} ${targetUser.lastName}`
+        }
+      });
+      
+      console.log(`[Impersonate] Admin ${adminId} started impersonating ${targetUserId}. Reason: ${reason}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Impersonation started",
+        impersonating: {
+          userId: targetUserId,
+          name: `${targetUser.firstName} ${targetUser.lastName}`,
+          email: targetUser.email
+        }
+      });
+    } catch (error) {
+      console.error("Error starting impersonation:", error);
+      return handleApiError(error, res);
+    }
+  });
+
+  // Check current impersonation status
+  app.get('/api/admin/impersonate/status', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.session?.impersonating) {
+        return res.json({ isImpersonating: false });
+      }
+      
+      const { targetUserId, originalAdminId, startedAt, reason } = req.session.impersonating;
+      const targetUser = await storage.getUser(targetUserId);
+      
+      res.json({
+        isImpersonating: true,
+        targetUser: targetUser ? {
+          id: targetUser.id,
+          name: `${targetUser.firstName} ${targetUser.lastName}`,
+          email: targetUser.email,
+          role: targetUser.role
+        } : null,
+        originalAdminId,
+        startedAt,
+        reason
+      });
+    } catch (error) {
+      console.error("Error checking impersonation status:", error);
+      return handleApiError(error, res);
+    }
+  });
+
+  // Stop impersonating a user
+  app.post('/api/admin/impersonate/stop', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.session?.impersonating) {
+        return res.json({ success: true, message: "Not currently impersonating" });
+      }
+      
+      const { targetUserId, originalAdminId, startedAt, reason } = req.session.impersonating;
+      
+      // Create audit log for stopping
+      await storage.createAuditLog({
+        action: 'impersonation_stop',
+        entityType: 'user',
+        entityId: targetUserId,
+        performedBy: originalAdminId,
+        ipAddress: req.ip || req.connection?.remoteAddress || 'unknown',
+        reason: `Ended impersonation (started: ${startedAt}, original reason: ${reason})`,
+      });
+      
+      console.log(`[Impersonate] Admin ${originalAdminId} stopped impersonating ${targetUserId}`);
+      
+      // Clear impersonation from session
+      delete req.session.impersonating;
+      
+      res.json({ 
+        success: true, 
+        message: "Impersonation ended"
+      });
+    } catch (error) {
+      console.error("Error stopping impersonation:", error);
+      return handleApiError(error, res);
+    }
+  });
+
+  // Get impersonated user data (returns target user data when impersonating)
+  app.get('/api/admin/impersonate/user', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.session?.impersonating) {
+        // Not impersonating, return current user
+        const user = await storage.getUser(req.user.claims.sub);
+        return res.json({ impersonating: false, user });
+      }
+      
+      const { targetUserId } = req.session.impersonating;
+      const user = await storage.getUser(targetUserId);
+      
+      if (!user) {
+        // Target user was deleted, clear impersonation
+        delete req.session.impersonating;
+        return res.status(404).json({ message: "Impersonated user no longer exists" });
+      }
+      
+      res.json({ 
+        impersonating: true, 
+        user,
+        notice: "You are viewing as this user (read-only impersonation)"
+      });
+    } catch (error) {
+      console.error("Error getting impersonated user:", error);
+      return handleApiError(error, res);
+    }
+  });
+
+  // ==========================================================================
   // LOCAL AUTH ROUTES (Email/Password)
   // ==========================================================================
 
