@@ -50,7 +50,6 @@ import {
 import { z } from "zod";
 import { seedHelpArticles } from "./seedHelpArticles";
 import { seedCoreData } from "./seedCoreData";
-import { seedAdminUser } from "./seedAdminUser";
 import { slugify } from "./utils/slugify";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
@@ -456,6 +455,102 @@ export async function registerRoutes(
       });
     } catch (error) {
       console.error("Error force-completing onboarding:", error);
+      return handleApiError(error, res);
+    }
+  });
+
+  // ==========================================================================
+  // SECURE ADMIN BOOTSTRAP (replaces hardcoded ADMIN account)
+  // ==========================================================================
+  
+  app.post('/api/admin/bootstrap', async (req: any, res) => {
+    try {
+      const schema = z.object({
+        email: z.string().email(),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+        firstName: z.string().min(1),
+        lastName: z.string().min(1),
+        bootstrapKey: z.string()
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid request", 
+          errors: parseResult.error.flatten() 
+        });
+      }
+      
+      const { email, password, firstName, lastName, bootstrapKey } = parseResult.data;
+      
+      // Verify bootstrap key matches STATUS_KEY environment variable
+      if (!process.env.STATUS_KEY || bootstrapKey !== process.env.STATUS_KEY) {
+        console.log('[Bootstrap] Failed attempt - invalid key');
+        return res.status(403).json({ message: "Invalid bootstrap key" });
+      }
+      
+      // Check if any admin/owner users exist
+      const existingAdmins = await storage.getAllUsers();
+      const hasExistingAdmin = existingAdmins.some(u => 
+        u.role === 'admin' || u.role === 'owner'
+      );
+      
+      if (hasExistingAdmin) {
+        console.log('[Bootstrap] Rejected - admin accounts already exist');
+        return res.status(409).json({ 
+          message: "Admin accounts already exist. Use the normal admin invite flow." 
+        });
+      }
+      
+      // Check if email is already taken
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: "Email already in use" });
+      }
+      
+      // Create the first admin account
+      const passwordHash = await bcrypt.hash(password, 12); // Use cost 12 for admin accounts
+      
+      const adminUser = await storage.createUser({
+        email,
+        passwordHash,
+        authProvider: 'local',
+        firstName,
+        lastName,
+        role: 'owner', // First bootstrapped user gets owner role
+        onboardingState: 'DONE',
+        onboardingStatus: 'completed',
+        onboardingCompletedAt: new Date(),
+        profileCompletedAt: new Date(),
+        adminBypassMode: false, // Start with bypass disabled
+        status: 'active',
+        isArchived: false,
+      });
+      
+      console.log(`[Bootstrap] Created initial owner account for ${email} (ID: ${adminUser.id})`);
+      
+      // Log the bootstrap action (audit)
+      try {
+        await storage.createAuditLog({
+          action: 'admin_bootstrap',
+          entityType: 'user',
+          entityId: adminUser.id,
+          performedBy: adminUser.id,
+          ipAddress: req.ip || req.connection?.remoteAddress || 'unknown',
+          reason: 'Initial admin bootstrap',
+        });
+      } catch (auditError) {
+        console.warn('[Bootstrap] Could not create audit log:', auditError);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Admin account created successfully",
+        userId: adminUser.id,
+        email: adminUser.email
+      });
+    } catch (error) {
+      console.error("[Bootstrap] Error creating admin account:", error);
       return handleApiError(error, res);
     }
   });
@@ -9728,7 +9823,7 @@ export async function registerRoutes(
   registerCalendarCategoryRoutes(app);
 
   // Seed sample data if none exist
-  seedAdminUser();
+  // NOTE: seedAdminUser removed - use POST /api/admin/bootstrap with STATUS_KEY instead
   seedSampleManuals();
   seedSampleBadges();
   seedSampleRooms();
