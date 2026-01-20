@@ -1,5 +1,7 @@
 # MinistryPath
 
+**GitHub Repository**: https://github.com/riosaaron-sites/ReplitMinistryPathStages.git
+
 ## Overview
 MinistryPath is a comprehensive church engagement and operations platform for Garden City Church. It provides a **Member & Volunteer Portal** for onboarding, surveys, training, serving, and gamified discipleship, and a **Leadership & Operations Portal** for managing people, ministries, requests, metrics, resources, and events. A core feature is a 123-question spiritual gifts survey. The platform aims for a low learning curve, minimal clicks, a clean mobile-friendly UI, and guided user flows. Mandatory profile completion gates access to all features. It is built as a full-stack TypeScript application with a React frontend and Express backend.
 
