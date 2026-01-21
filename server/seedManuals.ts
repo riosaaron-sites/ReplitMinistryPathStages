@@ -31,7 +31,7 @@ function categorizeManual(filename: string): ManualEntry {
     return { 
       title: cleanName, 
       category: 'leadership_training', 
-      fileUrl: `/attached_assets/${filename}`,
+      fileUrl: `/assets/${filename}`,
       generateTraining: true,
       isRequired: false
     };
@@ -46,7 +46,7 @@ function categorizeManual(filename: string): ManualEntry {
     return { 
       title: cleanName, 
       category: 'resource', 
-      fileUrl: `/attached_assets/${filename}`,
+      fileUrl: `/assets/${filename}`,
       generateTraining: false,
       isRequired: false
     };
@@ -77,7 +77,7 @@ function categorizeManual(filename: string): ManualEntry {
       return { 
         title: cleanName, 
         category: 'ministry_manual', 
-        fileUrl: `/attached_assets/${filename}`,
+        fileUrl: `/assets/${filename}`,
         ministrySlug: slug,
         generateTraining: true,
         isRequired: true
@@ -88,7 +88,7 @@ function categorizeManual(filename: string): ManualEntry {
   return { 
     title: cleanName, 
     category: 'resource', 
-    fileUrl: `/attached_assets/${filename}`,
+    fileUrl: `/assets/${filename}`,
     generateTraining: false,
     isRequired: false
   };

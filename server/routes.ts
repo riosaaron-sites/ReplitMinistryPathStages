@@ -346,9 +346,11 @@ export async function registerRoutes(
   });
 
   // Serve attached_assets for ministry manuals (before auth to allow PDF access)
+  // Support BOTH /assets and /attached_assets for backward compatibility
   const assetsPath = path.resolve(process.cwd(), "attached_assets");
   if (fs.existsSync(assetsPath)) {
     app.use("/assets", express.static(assetsPath));
+    app.use("/attached_assets", express.static(assetsPath)); // backward compat
   }
 
   // Serve profile photo uploads
@@ -1808,9 +1810,9 @@ export async function registerRoutes(
             title,
             category,
             ministryId: ministryId || null,
-            fileUrl: `/attached_assets/${pdfFile}`,
+            fileUrl: `/assets/${pdfFile}`,
             fileType: 'pdf',
-            analysisSourceUrl: hasDocx ? `/attached_assets/${docxFiles.find(f => f.toLowerCase().includes(baseName.toLowerCase().slice(0, 20)))}` : null,
+            analysisSourceUrl: hasDocx ? `/assets/${docxFiles.find(f => f.toLowerCase().includes(baseName.toLowerCase().slice(0, 20)))}` : null,
             analysisSourceType: hasDocx ? 'docx' : null,
             generateTraining,
             isRequired: category === 'ministry_manual',

@@ -14,7 +14,20 @@ const openai = new OpenAI({
 
 export async function extractTextFromPdf(filePath: string): Promise<string> {
   try {
-    const normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+    // Normalize the path and map URL paths to filesystem paths
+    let normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+    
+    // Map /assets/<file> to attached_assets/<file>
+    if (normalizedPath.startsWith('assets/')) {
+      normalizedPath = 'attached_assets/' + normalizedPath.slice(7);
+    }
+    // /attached_assets/<file> already maps correctly
+    
+    // Handle uploads/manuals path if used
+    if (normalizedPath.startsWith('uploads/manuals/')) {
+      // Already correct format
+    }
+    
     const fullPath = path.join(process.cwd(), normalizedPath);
     if (!fs.existsSync(fullPath)) {
       throw new Error(`PDF file not found: ${fullPath}`);

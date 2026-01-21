@@ -11,9 +11,11 @@ export function serveStatic(app: Express) {
   }
 
   // Serve attached_assets for ministry manuals and other files
+  // Support BOTH /assets and /attached_assets for backward compatibility
   const assetsPath = path.resolve(process.cwd(), "attached_assets");
   if (fs.existsSync(assetsPath)) {
     app.use("/assets", express.static(assetsPath));
+    app.use("/attached_assets", express.static(assetsPath)); // backward compat
   }
 
   app.use(express.static(distPath));

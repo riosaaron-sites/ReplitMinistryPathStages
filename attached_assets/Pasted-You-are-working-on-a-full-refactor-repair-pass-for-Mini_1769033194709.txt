@@ -1,0 +1,71 @@
+You are working on a full refactor + repair pass for MinistryPath. The goal is to remove disjointed behavior and make features actually work end-to-end.
+
+PRIORITY 1 — Fix PDF/manual URL + file path consistency (critical)
+1) Standardize manual file URLs for browsers:
+   - Public URL must be /assets/<filename>.pdf
+   - The server must serve those PDFs from the attached_assets folder
+2) Backward compatibility:
+   - If a manual record currently has fileUrl starting with /attached_assets/, it must still work.
+   - Add a second static route so BOTH paths work:
+       app.use("/assets", express.static(attached_assets))
+       app.use("/attached_assets", express.static(attached_assets))
+3) Fix ingestion/analysis filesystem resolution:
+   - extractTextFromPdf currently joins process.cwd() + normalizedPath.
+   - Update it so:
+       - /assets/<file> maps to attached_assets/<file>
+       - /attached_assets/<file> maps to attached_assets/<file>
+       - uploads/manuals/<file> maps correctly too if used
+4) Update manual registration code so NEW manuals always save fileUrl as /assets/<file>
+
+PRIORITY 2 — Make training “presentations” real
+Implement a presentation experience in TrainingViewer:
+A) If a training module has manualId, fetch that manual and provide:
+   - "View Manual PDF" inline viewer (embed) + download link
+B) If module.lessons exists, render in a slide-like format:
+   - Each lesson = a “slide”
+   - Next/Prev buttons
+   - Progress indicator
+C) If nothing exists, show a helpful empty state:
+   - “This training hasn’t been generated yet”
+   - Link/button for leaders to regenerate
+
+PRIORITY 3 — Finish “Manage Questions” UI (it’s currently missing)
+In TrainingManagement.tsx:
+1) The Manage Questions button currently sets state but no dialog is rendered.
+2) Implement a Questions Manager dialog that:
+   - loads questions using GET /api/training/assessments/:moduleId
+   - lists questions
+   - allows edit of each question (question text, choices A-D, correct answer, explanation)
+   - save via PATCH /api/training/assessments/:id
+   - add new question via POST /api/training/assessments
+   - delete via DELETE /api/training/assessments/:id
+3) Add reorder support if sortOrder exists (optional but preferred)
+
+PRIORITY 4 — Calendar + Room Requests end-to-end
+Calendar:
+1) Ensure calendar categories are seeded on startup if empty.
+2) Improve UX when canAccessFeatures is false:
+   - show clear message explaining what to complete
+3) If data is empty, show “No events yet” + leader action CTA.
+
+Room Requests:
+1) Build a member-facing page (route: /requests/rooms or /rooms/request)
+2) UI should:
+   - load rooms from GET /api/rooms
+   - submit reservation via POST /api/room-reservations
+   - show “My Requests” list with status
+3) Keep leadership approval flow in place.
+
+PRIORITY 5 — Cleanup pass (no risky deletions)
+1) Run a usage scan and produce a CLEANUP_REPORT.md listing:
+   - unused components
+   - unused routes
+   - unused state/handlers
+   - duplicate logic (ex: static serving)
+2) Only delete files after the report, and only if confirmed unused.
+3) Do NOT truncate any large file; if routes.ts is too big, refactor into smaller route modules instead of deleting.
+
+Deliverables:
+- A list of code changes by file path
+- A short test checklist for each fixed feature
+- CLEANUP_REPORT.md
