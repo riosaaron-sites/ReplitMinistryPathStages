@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Pencil, BookOpen, Search, Users, CheckCircle, Clock, AlertCircle, Trash2, HelpCircle, FileQuestion, ThumbsUp, ThumbsDown, ClipboardList } from "lucide-react";
+import { Loader2, Plus, Pencil, BookOpen, Search, Users, CheckCircle, Clock, AlertCircle, Trash2, HelpCircle, FileQuestion, ThumbsUp, ThumbsDown, ClipboardList, Zap, Link2, Settings2, RefreshCw } from "lucide-react";
 import { HelpLink } from "@/components/HelpLink";
 import type { TrainingModule, UserTrainingProgress, User, Ministry } from "@shared/schema";
 import { insertTrainingModuleSchema, DISCIPLESHIP_STEPS } from "@shared/schema";
@@ -357,6 +357,101 @@ export default function TrainingManagement() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to delete training module. You may not have admin access.", variant: "destructive" });
+    },
+  });
+
+  // Bulk action state
+  const [bulkLinkResult, setBulkLinkResult] = useState<{
+    fixed: { moduleTitle: string; manualTitle: string }[];
+    stillUnlinked: { moduleTitle: string; reason: string }[];
+  } | null>(null);
+  const [bulkAnalyzeResult, setBulkAnalyzeResult] = useState<{
+    total: number;
+    results: { title: string; status: string }[];
+  } | null>(null);
+
+  // Bulk link trainings to manuals
+  const linkManualsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/fix-training-links", {});
+    },
+    onSuccess: (data: any) => {
+      setBulkLinkResult({
+        fixed: data.fixed || [],
+        stillUnlinked: data.stillUnlinked || [],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/training/modules?includeAll=true"] });
+      toast({ 
+        title: "Manuals Linked", 
+        description: `${data.fixed?.length || 0} trainings linked to manuals.` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Link Failed", 
+        description: error?.message || "Failed to link trainings to manuals. Admin access required.", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Bulk analyze manuals and generate content
+  const analyzeManualsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/analyze-training-manuals", {});
+    },
+    onSuccess: (data: any) => {
+      setBulkAnalyzeResult({
+        total: data.total || 0,
+        results: data.results?.map((r: any) => ({ title: r.title, status: r.status })) || [],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/training/modules?includeAll=true"] });
+      toast({ 
+        title: "Content Generation Started", 
+        description: `${data.results?.filter((r: any) => r.status === 'started').length || 0} manuals queued for analysis.` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Analysis Failed", 
+        description: error?.message || "Failed to analyze manuals. Leadership access required.", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Combined bulk action: link + generate
+  const runBulkActionMutation = useMutation({
+    mutationFn: async () => {
+      // Step 1: Link trainings to manuals
+      const linkResult = await apiRequest("POST", "/api/admin/fix-training-links", {});
+      // Step 2: Generate content for linked manuals
+      const analyzeResult = await apiRequest("POST", "/api/admin/analyze-training-manuals", {});
+      return { linkResult, analyzeResult };
+    },
+    onSuccess: (data: any) => {
+      setBulkLinkResult({
+        fixed: data.linkResult?.fixed || [],
+        stillUnlinked: data.linkResult?.stillUnlinked || [],
+      });
+      setBulkAnalyzeResult({
+        total: data.analyzeResult?.total || 0,
+        results: data.analyzeResult?.results?.map((r: any) => ({ title: r.title, status: r.status })) || [],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/training/modules?includeAll=true"] });
+      const linkedCount = data.linkResult?.fixed?.length || 0;
+      const analyzedCount = data.analyzeResult?.results?.filter((r: any) => r.status === 'started').length || 0;
+      toast({ 
+        title: "Bulk Action Complete", 
+        description: `${linkedCount} trainings linked, ${analyzedCount} manuals queued for content generation.` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Bulk Action Failed", 
+        description: error?.message || "Failed to complete bulk action. Admin access required.", 
+        variant: "destructive" 
+      });
     },
   });
 
@@ -807,6 +902,10 @@ export default function TrainingManagement() {
           </TabsTrigger>
           <TabsTrigger value="trainings" data-testid="tab-trainings">Training Modules</TabsTrigger>
           <TabsTrigger value="progress" data-testid="tab-progress">Recent Activity</TabsTrigger>
+          <TabsTrigger value="bulk" data-testid="tab-bulk" className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4" />
+            Bulk Actions
+          </TabsTrigger>
         </TabsList>
 
         {/* Pending Approvals Tab */}
@@ -1047,6 +1146,162 @@ export default function TrainingManagement() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Bulk Actions Tab */}
+        <TabsContent value="bulk" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Bulk Link & Generate Training Content
+              </CardTitle>
+              <CardDescription>
+                Automatically link training modules to their source manuals and generate lesson content using AI.
+                This operation matches trainings to manuals by ministry and title, then queues content generation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => runBulkActionMutation.mutate()}
+                  disabled={runBulkActionMutation.isPending || linkManualsMutation.isPending || analyzeManualsMutation.isPending}
+                  data-testid="button-bulk-link-generate"
+                >
+                  {runBulkActionMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Zap className="w-4 h-4 mr-2" />
+                  )}
+                  Link & Generate All
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => linkManualsMutation.mutate()}
+                  disabled={runBulkActionMutation.isPending || linkManualsMutation.isPending}
+                  data-testid="button-link-manuals"
+                >
+                  {linkManualsMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Link2 className="w-4 h-4 mr-2" />
+                  )}
+                  Link Manuals Only
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => analyzeManualsMutation.mutate()}
+                  disabled={runBulkActionMutation.isPending || analyzeManualsMutation.isPending}
+                  data-testid="button-generate-content"
+                >
+                  {analyzeManualsMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  Generate Content Only
+                </Button>
+              </div>
+
+              {/* Link Results */}
+              {bulkLinkResult && (
+                <div className="space-y-4 border rounded-lg p-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Link2 className="w-4 h-4" />
+                    Manual Linking Results
+                  </h3>
+                  
+                  {bulkLinkResult.fixed.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                        Successfully Linked ({bulkLinkResult.fixed.length})
+                      </p>
+                      <div className="grid gap-2">
+                        {bulkLinkResult.fixed.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                            <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span className="font-medium">{item.moduleTitle}</span>
+                            <span className="text-muted-foreground">linked to</span>
+                            <span>{item.manualTitle}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkLinkResult.stillUnlinked.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                        Could Not Link ({bulkLinkResult.stillUnlinked.length})
+                      </p>
+                      <div className="grid gap-2">
+                        {bulkLinkResult.stillUnlinked.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
+                            <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                            <span className="font-medium">{item.moduleTitle}</span>
+                            <span className="text-muted-foreground">{item.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkLinkResult.fixed.length === 0 && bulkLinkResult.stillUnlinked.length === 0 && (
+                    <p className="text-sm text-muted-foreground">All trainings are already linked to manuals.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Analysis Results */}
+              {bulkAnalyzeResult && (
+                <div className="space-y-4 border rounded-lg p-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4" />
+                    Content Generation Results
+                  </h3>
+                  
+                  {bulkAnalyzeResult.results.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">
+                        {bulkAnalyzeResult.results.filter(r => r.status === 'started').length} manuals queued,{' '}
+                        {bulkAnalyzeResult.results.filter(r => r.status === 'completed').length} already done,{' '}
+                        {bulkAnalyzeResult.results.filter(r => r.status === 'processing').length} in progress
+                      </p>
+                      <div className="grid gap-2 max-h-60 overflow-y-auto">
+                        {bulkAnalyzeResult.results.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
+                            {item.status === 'started' && <Clock className="w-4 h-4 text-blue-500 flex-shrink-0" />}
+                            {item.status === 'completed' && <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />}
+                            {item.status === 'processing' && <Loader2 className="w-4 h-4 text-amber-500 flex-shrink-0 animate-spin" />}
+                            <span className="font-medium">{item.title}</span>
+                            <Badge variant={item.status === 'completed' ? 'default' : item.status === 'started' ? 'secondary' : 'outline'}>
+                              {item.status}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No trainings need content generation. Either all are complete or none have linked manuals.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Help Text */}
+              <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+                <p className="font-medium">How this works:</p>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                  <li><strong>Link Manuals:</strong> Matches trainings to PDF manuals by ministry assignment and title similarity.</li>
+                  <li><strong>Generate Content:</strong> Uses AI to extract lessons, study questions, and quiz content from linked PDFs.</li>
+                  <li>Content generation runs in the background and may take several minutes per manual.</li>
+                  <li>Already processed manuals are skipped automatically.</li>
+                </ul>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
