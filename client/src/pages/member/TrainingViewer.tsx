@@ -29,6 +29,8 @@ import {
   Eye,
   Video,
   Clock,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { CoachBubble } from "@/components/CoachBubble";
 
@@ -62,9 +64,17 @@ interface IntensiveAssessmentQuestion {
   weight: number;
 }
 
+interface Manual {
+  id: string;
+  title: string;
+  fileUrl: string;
+  category?: string;
+}
+
 interface TrainingModule {
   id: string;
   ministryId?: string;
+  manualId?: string;
   title: string;
   description?: string;
   category?: string;
@@ -157,6 +167,12 @@ export default function TrainingViewer() {
   // Fetch ministries to display ministry name
   const { data: ministries = [] } = useQuery<Ministry[]>({
     queryKey: ["/api/ministries"],
+  });
+
+  // Fetch the linked manual if module has one
+  const { data: manual } = useQuery<Manual>({
+    queryKey: ["/api/manuals", module?.manualId],
+    enabled: !!module?.manualId,
   });
 
   // Get ministry name for current module
@@ -252,6 +268,9 @@ export default function TrainingViewer() {
   const hasIntensiveAssessment = !!(module?.intensiveAssessmentQuestions && module.intensiveAssessmentQuestions.length > 0);
   const assessments = module?.assessments || [];
   const hasAssessment = assessments.length > 0 || hasIntensiveAssessment;
+  const hasManual = !!(manual && manual.fileUrl);
+  const hasVideo = !!module?.videoUrl;
+  const hasAnyContent = hasLesson || hasManual || hasVideo;
 
   useEffect(() => {
     setCurrentStep('lesson');
@@ -1286,24 +1305,43 @@ export default function TrainingViewer() {
           <Progress value={calculateProgress()} className="h-2 mt-3" />
         </CardHeader>
         <CardContent className="space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
-              Lesson Overview
-            </h2>
-            
-            {lessonContent ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                {lessonContent.split('\n').map((paragraph, i) => (
-                  paragraph.trim() && <p key={i} className="mb-3">{paragraph}</p>
-                ))}
+          {!hasAnyContent && !hasAssessment && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 mx-auto flex items-center justify-center mb-4">
+                <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
               </div>
-            ) : (
-              <p className="text-muted-foreground">
-                {module.description || "This training module will help you learn important concepts for your ministry role."}
+              <h3 className="text-lg font-semibold mb-2">Training Not Generated Yet</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                This training module doesn't have content generated yet. 
+                A ministry leader can generate content from the linked manual.
               </p>
-            )}
-          </div>
+              <Button variant="outline" onClick={() => setLocation("/trainings")} data-testid="button-back-empty">
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Back to Training Hub
+              </Button>
+            </div>
+          )}
+
+          {hasAnyContent && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                Lesson Overview
+              </h2>
+              
+              {lessonContent ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  {lessonContent.split('\n').map((paragraph, i) => (
+                    paragraph.trim() && <p key={i} className="mb-3">{paragraph}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  {module.description || "This training module will help you learn important concepts for your ministry role."}
+                </p>
+              )}
+            </div>
+          )}
 
           {module.videoUrl && (
             <div className="space-y-3">
@@ -1342,6 +1380,52 @@ export default function TrainingViewer() {
             </div>
           )}
 
+          {manual && manual.fileUrl && (
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                Training Manual
+              </h3>
+              <div className="border rounded-lg overflow-hidden">
+                <div className="aspect-[4/5] w-full bg-muted">
+                  <iframe
+                    src={manual.fileUrl}
+                    className="w-full h-full"
+                    title={`${manual.title} PDF viewer`}
+                    data-testid="pdf-iframe"
+                  />
+                </div>
+                <div className="p-3 border-t bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">{manual.title}</span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      data-testid="button-open-pdf"
+                    >
+                      <a href={manual.fileUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Open in New Tab
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      data-testid="button-download-pdf"
+                    >
+                      <a href={manual.fileUrl} download>
+                        <Download className="w-4 h-4 mr-2" />
+                        Download
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {sections.length > 0 && (
             <div className="space-y-4">
               {sections.map((section, index) => (
@@ -1376,25 +1460,29 @@ export default function TrainingViewer() {
             </div>
           )}
 
-          <div className="bg-muted/50 p-4 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              {hasStudyQuestions 
-                ? "When you're ready, continue to reflection questions to think about what you've learned."
-                : hasKnowledgeCheck
-                  ? "When you're ready, continue to the knowledge check."
-                  : hasAssessment 
-                    ? "When you're ready, continue to the quiz to test your understanding."
-                    : "When you're ready, submit this training for leader review."
-              }
-            </p>
-          </div>
+          {hasAnyContent && (
+            <div className="bg-muted/50 p-4 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                {hasStudyQuestions 
+                  ? "When you're ready, continue to reflection questions to think about what you've learned."
+                  : hasKnowledgeCheck
+                    ? "When you're ready, continue to the knowledge check."
+                    : hasAssessment 
+                      ? "When you're ready, continue to the quiz to test your understanding."
+                      : "When you're ready, submit this training for leader review."
+                }
+              </p>
+            </div>
+          )}
         </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button onClick={handleNextStep} data-testid="button-next-step">
-            {hasStudyQuestions ? "Continue to Reflection" : hasKnowledgeCheck ? "Knowledge Check" : hasAssessment ? "Start Quiz" : "Submit for Review"}
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        </CardFooter>
+        {hasAnyContent && (
+          <CardFooter className="flex justify-end">
+            <Button onClick={handleNextStep} data-testid="button-next-step">
+              {hasStudyQuestions ? "Continue to Reflection" : hasKnowledgeCheck ? "Knowledge Check" : hasAssessment ? "Start Quiz" : "Submit for Review"}
+              <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );

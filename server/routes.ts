@@ -7054,6 +7054,21 @@ export async function registerRoutes(
   // MANUAL ANALYSIS & AI TRAINING GENERATION
   // =============================================================================
 
+  // Get a single manual by ID
+  app.get('/api/manuals/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const manual = await storage.getManual(id);
+      if (!manual) {
+        return res.status(404).json({ message: "Manual not found" });
+      }
+      res.json(manual);
+    } catch (error) {
+      console.error("Error fetching manual:", error);
+      return handleApiError(error, res);
+    }
+  });
+
   // Get manual analysis status
   app.get('/api/manuals/:id/analysis', isAuthenticated, async (req: any, res) => {
     try {
