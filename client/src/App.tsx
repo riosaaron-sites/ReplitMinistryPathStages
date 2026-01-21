@@ -49,6 +49,7 @@ import TeamConnection from "@/pages/member/TeamConnection";
 import MyProfile from "@/pages/member/MyProfile";
 import Messages from "@/pages/member/Messages";
 import ManualsLibrary from "@/pages/member/ManualsLibrary";
+import RoomRequest from "@/pages/member/RoomRequest";
 import HelpCenter from "@/pages/HelpCenter";
 import ResourcesLibrary from "@/pages/ResourcesLibrary";
 import ResetPassword from "@/pages/ResetPassword";
@@ -140,6 +141,7 @@ function AuthenticatedRouter() {
           <Route path="/my-progress" component={RedirectToMyPath} />
           <Route path="/my-roles" component={MyRoles} />
           <Route path="/teams" component={TeamConnection} />
+          <Route path="/rooms/request" component={RoomRequest} />
           <Route path="/messages" component={Messages} />
           <Route path="/manuals" component={ManualsLibrary} />
           <Route path="/resources" component={ResourcesLibrary} />
