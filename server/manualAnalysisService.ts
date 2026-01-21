@@ -12,24 +12,80 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-export async function extractTextFromPdf(filePath: string): Promise<string> {
+/**
+ * Normalize a file path/URL to a filesystem path.
+ * Handles:
+ * - Full URLs (strips protocol + domain)
+ * - Query strings and fragments
+ * - URL-encoded characters
+ * - Path separators
+ * - /assets/* and /attached_assets/* mapping
+ * - uploads/manuals/* paths
+ */
+function normalizePdfPath(inputPath: string): string {
+  let normalizedPath = inputPath;
+  
+  // 1. Strip protocol and domain from full URLs (e.g., https://example.com/assets/file.pdf)
   try {
-    // Normalize the path and map URL paths to filesystem paths
-    let normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-    
-    // Map /assets/<file> to attached_assets/<file>
-    if (normalizedPath.startsWith('assets/')) {
-      normalizedPath = 'attached_assets/' + normalizedPath.slice(7);
+    const url = new URL(normalizedPath, 'http://placeholder');
+    // If it parses as a full URL with a real host, extract just the pathname
+    if (normalizedPath.startsWith('http://') || normalizedPath.startsWith('https://')) {
+      normalizedPath = url.pathname;
     }
-    // /attached_assets/<file> already maps correctly
-    
-    // Handle uploads/manuals path if used
-    if (normalizedPath.startsWith('uploads/manuals/')) {
-      // Already correct format
-    }
-    
+  } catch {
+    // Not a valid URL, continue with original path
+  }
+  
+  // 2. Strip query strings and fragments
+  const queryIndex = normalizedPath.indexOf('?');
+  if (queryIndex !== -1) {
+    normalizedPath = normalizedPath.slice(0, queryIndex);
+  }
+  const hashIndex = normalizedPath.indexOf('#');
+  if (hashIndex !== -1) {
+    normalizedPath = normalizedPath.slice(0, hashIndex);
+  }
+  
+  // 3. Decode URL-encoded characters (e.g., %20 -> space)
+  try {
+    normalizedPath = decodeURIComponent(normalizedPath);
+  } catch {
+    // If decoding fails, continue with original
+  }
+  
+  // 4. Normalize path separators (Windows backslashes to forward slashes)
+  normalizedPath = normalizedPath.replace(/\\/g, '/');
+  
+  // 5. Strip leading slash
+  if (normalizedPath.startsWith('/')) {
+    normalizedPath = normalizedPath.slice(1);
+  }
+  
+  // 6. Map URL paths to filesystem paths
+  // /assets/<file> -> attached_assets/<file>
+  if (normalizedPath.startsWith('assets/')) {
+    normalizedPath = 'attached_assets/' + normalizedPath.slice(7);
+  }
+  // /attached_assets/<file> is already correct filesystem path
+  // uploads/manuals/<file> is already correct filesystem path
+  
+  return normalizedPath;
+}
+
+export async function extractTextFromPdf(filePath: string): Promise<string> {
+  const originalInput = filePath;
+  
+  try {
+    // Normalize the path using robust handling
+    const normalizedPath = normalizePdfPath(filePath);
     const fullPath = path.join(process.cwd(), normalizedPath);
+    
+    // Check if file exists
     if (!fs.existsSync(fullPath)) {
+      console.error('[PDF Extract] File not found:');
+      console.error('  Original input:', originalInput);
+      console.error('  Normalized path:', normalizedPath);
+      console.error('  Resolved filesystem path:', fullPath);
       throw new Error(`PDF file not found: ${fullPath}`);
     }
     
@@ -39,7 +95,8 @@ export async function extractTextFromPdf(filePath: string): Promise<string> {
     await parser.destroy();
     return result.text;
   } catch (error) {
-    console.error('Error extracting PDF text:', error);
+    console.error('[PDF Extract] Error extracting PDF text:', error);
+    console.error('  Original input:', originalInput);
     throw error;
   }
 }

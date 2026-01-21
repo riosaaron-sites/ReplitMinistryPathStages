@@ -10,13 +10,8 @@ export function serveStatic(app: Express) {
     );
   }
 
-  // Serve attached_assets for ministry manuals and other files
-  // Support BOTH /assets and /attached_assets for backward compatibility
-  const assetsPath = path.resolve(process.cwd(), "attached_assets");
-  if (fs.existsSync(assetsPath)) {
-    app.use("/assets", express.static(assetsPath));
-    app.use("/attached_assets", express.static(assetsPath)); // backward compat
-  }
+  // NOTE: Static assets (/assets, /attached_assets, /uploads) are mounted in routes.ts
+  // before auth middleware to allow unauthenticated PDF access. Do NOT duplicate here.
 
   app.use(express.static(distPath));
 

@@ -345,12 +345,17 @@ export async function registerRoutes(
     }
   });
 
-  // Serve attached_assets for ministry manuals (before auth to allow PDF access)
-  // Support BOTH /assets and /attached_assets for backward compatibility
+  // ============================================================================
+  // STATIC ASSETS - Single source of truth for /assets and /attached_assets
+  // Mounted BEFORE auth to allow unauthenticated PDF/manual access
+  // ============================================================================
   const assetsPath = path.resolve(process.cwd(), "attached_assets");
   if (fs.existsSync(assetsPath)) {
     app.use("/assets", express.static(assetsPath));
     app.use("/attached_assets", express.static(assetsPath)); // backward compat
+    console.log(`[Static] Serving /assets and /attached_assets from ${assetsPath}`);
+  } else {
+    console.warn(`[Static] attached_assets directory not found at ${assetsPath}`);
   }
 
   // Serve profile photo uploads
