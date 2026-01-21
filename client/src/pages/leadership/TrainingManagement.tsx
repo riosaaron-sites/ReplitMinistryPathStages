@@ -1073,6 +1073,335 @@ export default function TrainingManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Questions Manager Dialog */}
+      <Dialog 
+        open={questionsDialogOpen} 
+        onOpenChange={(open) => {
+          setQuestionsDialogOpen(open);
+          if (!open) setManagingQuestionsTraining(null);
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileQuestion className="w-5 h-5" />
+              Manage Questions - {managingQuestionsTraining?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Add, edit, or remove quiz questions for this training module.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {managingQuestionsTraining && (
+            <QuestionsManager 
+              moduleId={managingQuestionsTraining.id} 
+              onClose={() => {
+                setQuestionsDialogOpen(false);
+                setManagingQuestionsTraining(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Questions Manager Component
+function QuestionsManager({ moduleId, onClose }: { moduleId: string; onClose: () => void }) {
+  const { toast } = useToast();
+  const [editingQuestion, setEditingQuestion] = useState<Assessment | null>(null);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
+
+  // Form state for adding/editing questions
+  const [questionText, setQuestionText] = useState('');
+  const [options, setOptions] = useState(['', '', '', '']);
+  const [correctAnswer, setCorrectAnswer] = useState(0);
+  const [explanation, setExplanation] = useState('');
+
+  // Fetch questions for this module
+  const { data: questions = [], isLoading } = useQuery<Assessment[]>({
+    queryKey: ['/api/training/assessments', moduleId],
+    queryFn: async () => {
+      const res = await fetch(`/api/training/assessments/${moduleId}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch questions');
+      return res.json();
+    }
+  });
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: async (payload: AssessmentPayload) => {
+      const res = await apiRequest('POST', '/api/training/assessments', payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/training/assessments', moduleId] });
+      toast({ title: 'Question added successfully' });
+      resetForm();
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to add question', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<AssessmentPayload> }) => {
+      const res = await apiRequest('PATCH', `/api/training/assessments/${id}`, payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/training/assessments', moduleId] });
+      toast({ title: 'Question updated successfully' });
+      resetForm();
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update question', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/training/assessments/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/training/assessments', moduleId] });
+      toast({ title: 'Question deleted' });
+      setDeleteQuestionId(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to delete question', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  const resetForm = () => {
+    setQuestionText('');
+    setOptions(['', '', '', '']);
+    setCorrectAnswer(0);
+    setExplanation('');
+    setIsAddingNew(false);
+    setEditingQuestion(null);
+  };
+
+  const startEditing = (question: Assessment) => {
+    setEditingQuestion(question);
+    setQuestionText(question.question);
+    setOptions([...question.options, '', '', '', ''].slice(0, 4)); // Ensure 4 options
+    setCorrectAnswer(question.correctAnswer);
+    setExplanation(question.explanation || '');
+    setIsAddingNew(false);
+  };
+
+  const handleSubmit = () => {
+    if (!questionText.trim()) {
+      toast({ title: 'Please enter a question', variant: 'destructive' });
+      return;
+    }
+
+    const filledOptions = options.filter(o => o.trim());
+    if (filledOptions.length < 2) {
+      toast({ title: 'Please provide at least 2 options', variant: 'destructive' });
+      return;
+    }
+
+    // Convert 0-based index to letter (A, B, C, D)
+    const letterAnswers = ['A', 'B', 'C', 'D'];
+    const payload: AssessmentPayload = {
+      moduleId,
+      questionText: questionText.trim(),
+      options: filledOptions,
+      correctAnswer: letterAnswers[correctAnswer] || 'A',
+      explanation: explanation.trim() || undefined,
+      sortOrder: questions.length
+    };
+
+    if (editingQuestion) {
+      updateMutation.mutate({ id: editingQuestion.id, payload });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Existing Questions List */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Questions ({questions.length})</h3>
+          {!isAddingNew && !editingQuestion && (
+            <Button onClick={() => setIsAddingNew(true)} size="sm" data-testid="button-add-question">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Question
+            </Button>
+          )}
+        </div>
+
+        {questions.length === 0 && !isAddingNew && (
+          <div className="text-center py-8 text-muted-foreground border rounded-lg">
+            <FileQuestion className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>No questions yet. Add your first quiz question.</p>
+          </div>
+        )}
+
+        {questions.map((q, index) => (
+          <Card key={q.id} className="p-4" data-testid={`card-question-${q.id}`}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant="outline">Q{index + 1}</Badge>
+                  <p className="font-medium truncate">{q.question}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {q.options.map((opt, optIndex) => (
+                    <div 
+                      key={optIndex} 
+                      className={`flex items-center gap-2 px-2 py-1 rounded ${optIndex === q.correctAnswer ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-muted'}`}
+                    >
+                      <span className="font-semibold">{String.fromCharCode(65 + optIndex)}.</span>
+                      <span className="truncate">{opt}</span>
+                      {optIndex === q.correctAnswer && <CheckCircle className="w-3 h-3 flex-shrink-0" />}
+                    </div>
+                  ))}
+                </div>
+                {q.explanation && (
+                  <p className="text-sm text-muted-foreground mt-2 italic">Explanation: {q.explanation}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => startEditing(q)}
+                  data-testid={`button-edit-question-${q.id}`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setDeleteQuestionId(q.id)}
+                  data-testid={`button-delete-question-${q.id}`}
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Add/Edit Form */}
+      {(isAddingNew || editingQuestion) && (
+        <Card className="p-4 border-primary">
+          <h4 className="font-semibold mb-4">{editingQuestion ? 'Edit Question' : 'Add New Question'}</h4>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="question-text">Question</Label>
+              <Textarea
+                id="question-text"
+                value={questionText}
+                onChange={(e) => setQuestionText(e.target.value)}
+                placeholder="Enter your question..."
+                className="mt-1"
+                data-testid="input-question-text"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Answer Options</Label>
+              <RadioGroup value={String(correctAnswer)} onValueChange={(v) => setCorrectAnswer(parseInt(v))}>
+                {options.map((opt, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <RadioGroupItem value={String(index)} id={`option-${index}`} data-testid={`radio-correct-${index}`} />
+                    <span className="font-semibold w-6">{String.fromCharCode(65 + index)}.</span>
+                    <Input
+                      value={opt}
+                      onChange={(e) => {
+                        const newOptions = [...options];
+                        newOptions[index] = e.target.value;
+                        setOptions(newOptions);
+                      }}
+                      placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                      className="flex-1"
+                      data-testid={`input-option-${index}`}
+                    />
+                  </div>
+                ))}
+              </RadioGroup>
+              <p className="text-sm text-muted-foreground">Select the radio button next to the correct answer.</p>
+            </div>
+
+            <div>
+              <Label htmlFor="explanation">Explanation (Optional)</Label>
+              <Textarea
+                id="explanation"
+                value={explanation}
+                onChange={(e) => setExplanation(e.target.value)}
+                placeholder="Why is this the correct answer?"
+                className="mt-1"
+                data-testid="input-explanation"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={resetForm} data-testid="button-cancel-question">
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmit} 
+                disabled={createMutation.isPending || updateMutation.isPending}
+                data-testid="button-save-question"
+              >
+                {(createMutation.isPending || updateMutation.isPending) ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                {editingQuestion ? 'Update' : 'Add'} Question
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteQuestionId} onOpenChange={(open) => !open && setDeleteQuestionId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Question</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this question? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-question">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteQuestionId && deleteMutation.mutate(deleteQuestionId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-question"
+            >
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} data-testid="button-close-questions">
+          Close
+        </Button>
+      </DialogFooter>
     </div>
   );
 }
