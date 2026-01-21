@@ -5396,6 +5396,18 @@ export async function registerRoutes(
     }
   });
 
+  // Get current user's room reservations
+  app.get('/api/room-reservations/mine', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reservations = await storage.getRoomReservationsByUser(userId);
+      res.json(reservations);
+    } catch (error) {
+      console.error("Error fetching user room reservations:", error);
+      return handleApiError(error, res);
+    }
+  });
+
   app.post('/api/room-reservations', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

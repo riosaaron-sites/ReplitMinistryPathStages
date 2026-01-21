@@ -325,6 +325,7 @@ export interface IStorage {
   // Room reservations operations
   getRoomReservations(startDate: Date, endDate?: Date): Promise<RoomReservation[]>;
   getRoomReservationsForConflictCheck(roomId: string, startTime: Date, endTime: Date): Promise<RoomReservation[]>;
+  getRoomReservationsByUser(userId: string): Promise<RoomReservation[]>;
   getRoomReservation(id: string): Promise<RoomReservation | undefined>;
   createRoomReservation(reservation: InsertRoomReservation): Promise<RoomReservation>;
   updateRoomReservation(id: string, reservation: Partial<InsertRoomReservation>): Promise<RoomReservation>;
@@ -1239,6 +1240,12 @@ export class DatabaseStorage implements IStorage {
         gt(roomReservations.endTime, startTime)
       ))
       .orderBy(roomReservations.startTime);
+  }
+
+  async getRoomReservationsByUser(userId: string): Promise<RoomReservation[]> {
+    return await db.select().from(roomReservations)
+      .where(eq(roomReservations.requestedBy, userId))
+      .orderBy(desc(roomReservations.createdAt));
   }
 
   async getRoomReservation(id: string): Promise<RoomReservation | undefined> {

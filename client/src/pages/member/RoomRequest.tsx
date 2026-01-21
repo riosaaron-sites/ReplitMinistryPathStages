@@ -6,14 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { format, setHours, setMinutes, parseISO, addMinutes } from "date-fns";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { format, setHours, setMinutes } from "date-fns";
 import { Loader2, CalendarIcon, Clock, Users, MapPin, CheckCircle, XCircle, AlertCircle, Building2, Send } from "lucide-react";
 import type { RoomReservation } from "@shared/schema";
+import { z } from "zod";
 
 interface Room {
   id: string;
@@ -26,29 +29,44 @@ interface Room {
   isActive: boolean;
 }
 
+const formSchema = z.object({
+  roomId: z.string().min(1, "Please select a room"),
+  title: z.string().min(2, "Title must be at least 2 characters"),
+  date: z.date({ required_error: "Please select a date" }),
+  startTimeStr: z.string().min(1, "Start time required"),
+  endTimeStr: z.string().min(1, "End time required"),
+  attendeeCount: z.number().optional(),
+  notes: z.string().optional(),
+  setupTime: z.number().default(0),
+  teardownTime: z.number().default(0),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
 export default function RoomRequest() {
   const { toast } = useToast();
-  const [selectedRoomId, setSelectedRoomId] = useState<string>("");
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState<Date | undefined>();
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("10:00");
-  const [attendeeCount, setAttendeeCount] = useState("");
-  const [notes, setNotes] = useState("");
-  const [setupTime, setSetupTime] = useState("0");
-  const [teardownTime, setTeardownTime] = useState("0");
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      roomId: "",
+      title: "",
+      date: undefined,
+      startTimeStr: "09:00",
+      endTimeStr: "10:00",
+      attendeeCount: undefined,
+      notes: "",
+      setupTime: 0,
+      teardownTime: 0,
+    },
+  });
 
   const { data: rooms = [], isLoading: roomsLoading } = useQuery<Room[]>({
     queryKey: ['/api/rooms'],
   });
 
   const { data: myReservations = [], isLoading: reservationsLoading } = useQuery<RoomReservation[]>({
-    queryKey: ['/api/room-reservations', 'mine'],
-    queryFn: async () => {
-      const res = await fetch('/api/room-reservations?mine=true', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch reservations');
-      return res.json();
-    }
+    queryKey: ['/api/room-reservations/mine'],
   });
 
   const createMutation = useMutation({
@@ -58,39 +76,26 @@ export default function RoomRequest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/room-reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/room-reservations/mine'] });
       toast({ title: 'Room request submitted', description: 'A leader will review your request.' });
-      resetForm();
+      form.reset();
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to submit request', description: error.message, variant: 'destructive' });
     }
   });
 
-  const resetForm = () => {
-    setSelectedRoomId("");
-    setTitle("");
-    setDate(undefined);
-    setStartTime("09:00");
-    setEndTime("10:00");
-    setAttendeeCount("");
-    setNotes("");
-    setSetupTime("0");
-    setTeardownTime("0");
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedRoomId || !title.trim() || !date) {
-      toast({ title: 'Please fill in all required fields', variant: 'destructive' });
+  const onSubmit = (data: FormData) => {
+    if (!data.date) {
+      toast({ title: 'Please select a date', variant: 'destructive' });
       return;
     }
 
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const [endHour, endMin] = endTime.split(':').map(Number);
+    const [startHour, startMin] = data.startTimeStr.split(':').map(Number);
+    const [endHour, endMin] = data.endTimeStr.split(':').map(Number);
 
-    const startDateTime = setMinutes(setHours(date, startHour), startMin);
-    const endDateTime = setMinutes(setHours(date, endHour), endMin);
+    const startDateTime = setMinutes(setHours(data.date, startHour), startMin);
+    const endDateTime = setMinutes(setHours(data.date, endHour), endMin);
 
     if (endDateTime <= startDateTime) {
       toast({ title: 'End time must be after start time', variant: 'destructive' });
@@ -98,14 +103,14 @@ export default function RoomRequest() {
     }
 
     createMutation.mutate({
-      roomId: selectedRoomId,
-      title: title.trim(),
+      roomId: data.roomId,
+      title: data.title.trim(),
       startTime: startDateTime.toISOString(),
       endTime: endDateTime.toISOString(),
-      attendeeCount: attendeeCount ? parseInt(attendeeCount) : undefined,
-      notes: notes.trim() || undefined,
-      setupTime: parseInt(setupTime) || 0,
-      teardownTime: parseInt(teardownTime) || 0,
+      attendeeCount: data.attendeeCount || undefined,
+      notes: data.notes?.trim() || undefined,
+      setupTime: data.setupTime || 0,
+      teardownTime: data.teardownTime || 0,
       status: 'pending'
     });
   };
@@ -113,13 +118,13 @@ export default function RoomRequest() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>;
+        return <Badge variant="secondary" className="gap-1"><CheckCircle className="w-3 h-3" /> Approved</Badge>;
       case 'declined':
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Declined</Badge>;
+        return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> Declined</Badge>;
       case 'cancelled':
-        return <Badge variant="secondary"><XCircle className="w-3 h-3 mr-1" /> Cancelled</Badge>;
+        return <Badge variant="secondary" className="gap-1"><XCircle className="w-3 h-3" /> Cancelled</Badge>;
       default:
-        return <Badge variant="outline"><AlertCircle className="w-3 h-3 mr-1" /> Pending</Badge>;
+        return <Badge variant="outline" className="gap-1"><AlertCircle className="w-3 h-3" /> Pending</Badge>;
     }
   };
 
@@ -127,8 +132,8 @@ export default function RoomRequest() {
     return rooms.find(r => r.id === roomId)?.name || 'Unknown Room';
   };
 
+  const selectedRoomId = form.watch("roomId");
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
-
   const activeRooms = rooms.filter(r => r.isActive);
 
   if (roomsLoading) {
@@ -156,157 +161,237 @@ export default function RoomRequest() {
             <CardDescription>Fill out the details for your room reservation</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="room-select">Room *</Label>
-                <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-                  <SelectTrigger data-testid="select-room">
-                    <SelectValue placeholder="Select a room" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeRooms.map(room => (
-                      <SelectItem key={room.id} value={room.id} data-testid={`select-room-${room.id}`}>
-                        {room.name} {room.capacity && `(capacity: ${room.capacity})`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedRoom && (
-                  <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    {selectedRoom.location || 'No location specified'}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="title">Event Title *</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., Youth Ministry Meeting"
-                  data-testid="input-title"
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="roomId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Room *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-room">
+                            <SelectValue placeholder="Select a room" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {activeRooms.map(room => (
+                            <SelectItem key={room.id} value={room.id} data-testid={`select-room-${room.id}`}>
+                              {room.name} {room.capacity && `(capacity: ${room.capacity})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedRoom && (
+                        <div className="text-sm text-muted-foreground flex items-center gap-2">
+                          <MapPin className="w-4 h-4" />
+                          {selectedRoom.location || 'No location specified'}
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
 
-              <div className="space-y-2">
-                <Label>Date *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                      data-testid="button-date-picker"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      disabled={(date) => date < new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="start-time">Start Time *</Label>
-                  <Input
-                    id="start-time"
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    data-testid="input-start-time"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="end-time">End Time *</Label>
-                  <Input
-                    id="end-time"
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    data-testid="input-end-time"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="attendees">Attendees</Label>
-                  <Input
-                    id="attendees"
-                    type="number"
-                    value={attendeeCount}
-                    onChange={(e) => setAttendeeCount(e.target.value)}
-                    placeholder="Expected"
-                    min="1"
-                    data-testid="input-attendees"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="setup">Setup (min)</Label>
-                  <Select value={setupTime} onValueChange={setSetupTime}>
-                    <SelectTrigger data-testid="select-setup">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="15">15</SelectItem>
-                      <SelectItem value="30">30</SelectItem>
-                      <SelectItem value="60">60</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="teardown">Teardown (min)</Label>
-                  <Select value={teardownTime} onValueChange={setTeardownTime}>
-                    <SelectTrigger data-testid="select-teardown">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="15">15</SelectItem>
-                      <SelectItem value="30">30</SelectItem>
-                      <SelectItem value="60">60</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any special requirements or notes for the approval team..."
-                  className="min-h-[80px]"
-                  data-testid="input-notes"
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Event Title *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="e.g., Youth Ministry Meeting"
+                          data-testid="input-title"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={createMutation.isPending}
-                data-testid="button-submit-request"
-              >
-                {createMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Send className="w-4 h-4 mr-2" />
-                )}
-                Submit Request
-              </Button>
-            </form>
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date *</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                              data-testid="button-date-picker"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? format(field.value, "PPP") : "Pick a date"}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="startTimeStr"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Time *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            {...field}
+                            data-testid="input-start-time"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="endTimeStr"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End Time *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            {...field}
+                            data-testid="input-end-time"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="attendeeCount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Attendees</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Expected"
+                            min="1"
+                            onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                            value={field.value || ""}
+                            data-testid="input-attendees"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="setupTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Setup (min)</FormLabel>
+                        <Select 
+                          onValueChange={(v) => field.onChange(parseInt(v))} 
+                          value={String(field.value || 0)}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-setup">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="0">0</SelectItem>
+                            <SelectItem value="15">15</SelectItem>
+                            <SelectItem value="30">30</SelectItem>
+                            <SelectItem value="60">60</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="teardownTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Teardown (min)</FormLabel>
+                        <Select 
+                          onValueChange={(v) => field.onChange(parseInt(v))} 
+                          value={String(field.value || 0)}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-teardown">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="0">0</SelectItem>
+                            <SelectItem value="15">15</SelectItem>
+                            <SelectItem value="30">30</SelectItem>
+                            <SelectItem value="60">60</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Any special requirements or notes for the approval team..."
+                          className="min-h-[80px]"
+                          data-testid="input-notes"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={createMutation.isPending}
+                  data-testid="button-submit-request"
+                >
+                  {createMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  Submit Request
+                </Button>
+              </form>
+            </Form>
           </CardContent>
         </Card>
 
