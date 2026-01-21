@@ -455,6 +455,45 @@ export default function TrainingManagement() {
     },
   });
 
+  // State for force regen results
+  const [forceRegenResult, setForceRegenResult] = useState<{
+    totalTrainingsScanned: number;
+    totalWithManual: number;
+    regeneratedCount: number;
+    skippedCount: number;
+    failedCount: number;
+    failures: { trainingId: string; title: string; reason: string }[];
+    results: { trainingId: string; title: string; status: string; durationMs: number; lessonCount?: number; studyQuestionCount?: number; assessmentQuestionCount?: number }[];
+    totalDurationMs: number;
+    dbProof?: {
+      before: { trainingsWithoutLessons: number; totalQuizQuestions: number };
+      after: { trainingsWithoutLessons: number; totalQuizQuestions: number };
+      sampleTrainings: any[];
+    };
+  } | null>(null);
+
+  // Force regenerate all training content
+  const forceRegenMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/force-regenerate-trainings", { force: true });
+    },
+    onSuccess: (data: any) => {
+      setForceRegenResult(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/training/modules?includeAll=true"] });
+      toast({ 
+        title: "Force Regeneration Complete", 
+        description: `${data.regeneratedCount || 0} trainings regenerated, ${data.failedCount || 0} failed.` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Force Regeneration Failed", 
+        description: error?.message || "Failed to force regenerate trainings. Admin access required.", 
+        variant: "destructive" 
+      });
+    },
+  });
+
   const closeDialog = () => {
     setDialogOpen(false);
     setEditingTraining(null);
@@ -1168,7 +1207,7 @@ export default function TrainingManagement() {
               <div className="flex flex-wrap gap-3">
                 <Button
                   onClick={() => runBulkActionMutation.mutate()}
-                  disabled={runBulkActionMutation.isPending || linkManualsMutation.isPending || analyzeManualsMutation.isPending}
+                  disabled={runBulkActionMutation.isPending || linkManualsMutation.isPending || analyzeManualsMutation.isPending || forceRegenMutation.isPending}
                   data-testid="button-bulk-link-generate"
                 >
                   {runBulkActionMutation.isPending ? (
@@ -1181,7 +1220,7 @@ export default function TrainingManagement() {
                 <Button
                   variant="outline"
                   onClick={() => linkManualsMutation.mutate()}
-                  disabled={runBulkActionMutation.isPending || linkManualsMutation.isPending}
+                  disabled={runBulkActionMutation.isPending || linkManualsMutation.isPending || forceRegenMutation.isPending}
                   data-testid="button-link-manuals"
                 >
                   {linkManualsMutation.isPending ? (
@@ -1194,7 +1233,7 @@ export default function TrainingManagement() {
                 <Button
                   variant="outline"
                   onClick={() => analyzeManualsMutation.mutate()}
-                  disabled={runBulkActionMutation.isPending || analyzeManualsMutation.isPending}
+                  disabled={runBulkActionMutation.isPending || analyzeManualsMutation.isPending || forceRegenMutation.isPending}
                   data-testid="button-generate-content"
                 >
                   {analyzeManualsMutation.isPending ? (
@@ -1205,6 +1244,128 @@ export default function TrainingManagement() {
                   Generate Content Only
                 </Button>
               </div>
+
+              {/* Force Regen Section */}
+              <div className="border-t pt-6">
+                <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                  Force Regeneration (Admin Only)
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Force regenerate ALL training content from linked manuals. This bypasses all "already processed" checks 
+                  and completely overwrites existing lessons, study questions, and quiz content. Use with caution.
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={() => forceRegenMutation.mutate()}
+                  disabled={forceRegenMutation.isPending || runBulkActionMutation.isPending}
+                  data-testid="button-force-regen-all"
+                >
+                  {forceRegenMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Zap className="w-4 h-4 mr-2" />
+                  )}
+                  {forceRegenMutation.isPending ? "Processing..." : "FORCE REGEN ALL (RUN NOW)"}
+                </Button>
+              </div>
+
+              {/* Force Regen Results */}
+              {forceRegenResult && (
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Zap className="w-4 h-4" />
+                    Force Regeneration Results
+                  </h3>
+                  
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="bg-background p-3 rounded text-center">
+                      <div className="text-2xl font-bold">{forceRegenResult.totalTrainingsScanned}</div>
+                      <div className="text-xs text-muted-foreground">Total Scanned</div>
+                    </div>
+                    <div className="bg-background p-3 rounded text-center">
+                      <div className="text-2xl font-bold">{forceRegenResult.totalWithManual}</div>
+                      <div className="text-xs text-muted-foreground">With Manual</div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded text-center">
+                      <div className="text-2xl font-bold text-green-600">{forceRegenResult.regeneratedCount}</div>
+                      <div className="text-xs text-muted-foreground">Regenerated</div>
+                    </div>
+                    <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded text-center">
+                      <div className="text-2xl font-bold text-amber-600">{forceRegenResult.skippedCount}</div>
+                      <div className="text-xs text-muted-foreground">Skipped</div>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded text-center">
+                      <div className="text-2xl font-bold text-red-600">{forceRegenResult.failedCount}</div>
+                      <div className="text-xs text-muted-foreground">Failed</div>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-muted-foreground">
+                    Total duration: {(forceRegenResult.totalDurationMs / 1000).toFixed(1)}s
+                  </div>
+
+                  {/* DB Proof */}
+                  {forceRegenResult.dbProof && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Database Proof:</p>
+                      <div className="bg-background p-3 rounded text-sm font-mono">
+                        <div>Before: {forceRegenResult.dbProof.before.trainingsWithoutLessons} trainings without lessons, {forceRegenResult.dbProof.before.totalQuizQuestions} quiz questions</div>
+                        <div>After: {forceRegenResult.dbProof.after.trainingsWithoutLessons} trainings without lessons, {forceRegenResult.dbProof.after.totalQuizQuestions} quiz questions</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detailed Results */}
+                  {forceRegenResult.results.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Detailed Results ({forceRegenResult.results.length} trainings):</p>
+                      <div className="grid gap-2 max-h-60 overflow-y-auto">
+                        {forceRegenResult.results.map((item, idx) => (
+                          <div key={idx} className={`flex items-center gap-2 text-sm p-2 rounded ${
+                            item.status === 'UPDATED' ? 'bg-green-50 dark:bg-green-900/20' :
+                            item.status === 'SKIPPED' ? 'bg-amber-50 dark:bg-amber-900/20' :
+                            'bg-red-50 dark:bg-red-900/20'
+                          }`}>
+                            {item.status === 'UPDATED' && <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />}
+                            {item.status === 'SKIPPED' && <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />}
+                            {item.status === 'FAILED' && <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />}
+                            <span className="font-medium flex-1">{item.title}</span>
+                            <Badge variant={item.status === 'UPDATED' ? 'default' : item.status === 'SKIPPED' ? 'secondary' : 'destructive'}>
+                              {item.status}
+                            </Badge>
+                            {item.lessonCount !== undefined && (
+                              <span className="text-xs text-muted-foreground">
+                                {item.studyQuestionCount} study Qs, {item.assessmentQuestionCount} quiz Qs
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground">{item.durationMs}ms</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Failures */}
+                  {forceRegenResult.failures.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-red-600">Failures ({forceRegenResult.failures.length}):</p>
+                      <div className="grid gap-2">
+                        {forceRegenResult.failures.map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-sm bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-medium">{item.title}</span>
+                              <p className="text-xs text-muted-foreground">{item.reason}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Link Results */}
               {bulkLinkResult && (

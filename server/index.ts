@@ -115,9 +115,47 @@ app.use((req, res, next) => {
         host,
         reusePort: true,
       },
-      () => {
+      async () => {
         log(`Server successfully started and listening on http://${host}:${port}`);
         console.log(`Server is ready to accept connections on port ${port}`);
+
+        // Auto-run force regeneration in DEV if env var is set
+        if (process.env.FORCE_REGEN_ON_STARTUP === 'true' && process.env.NODE_ENV !== 'production') {
+          // Check guard to prevent repeated runs
+          const { db } = await import('./db');
+          const { sql } = await import('drizzle-orm');
+          
+          try {
+            // Check if we've already run force regen in this session
+            const guardKey = 'FORCE_REGEN_STARTUP_COMPLETED';
+            const existingGuard = process.env[guardKey];
+            
+            if (existingGuard === 'true') {
+              log('[FORCE REGEN STARTUP] Already ran this session, skipping.');
+              return;
+            }
+            
+            log('[FORCE REGEN STARTUP] FORCE_REGEN_ON_STARTUP=true detected in DEV mode. Starting force regeneration...');
+            
+            // Set guard
+            process.env[guardKey] = 'true';
+            
+            const { forceRegenerateAllTrainings } = await import('./manualAnalysisService');
+            const report = await forceRegenerateAllTrainings();
+            
+            log(`[FORCE REGEN STARTUP] Completed: ${report.regeneratedCount} regenerated, ${report.skippedCount} skipped, ${report.failedCount} failed.`);
+            log(`[FORCE REGEN STARTUP] Duration: ${report.totalDurationMs}ms`);
+            
+            if (report.failures.length > 0) {
+              log(`[FORCE REGEN STARTUP] Failures:`);
+              for (const failure of report.failures) {
+                log(`  - ${failure.title}: ${failure.reason}`);
+              }
+            }
+          } catch (error) {
+            log(`[FORCE REGEN STARTUP] Error during force regeneration: ${error}`);
+          }
+        }
       },
     );
   } catch (error) {

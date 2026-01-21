@@ -1,0 +1,53 @@
+Objective: One-pass, zero-click (for me) FORCE regeneration of all training content from linked manuals, with auditable proof.
+
+Implement:
+1) Add a backend FORCE pipeline that bypasses all “already analyzed / already generated” checks.
+   - Add/extend an admin endpoint: POST /api/admin/force-regenerate-trainings
+   - Behavior:
+     a) Re-link trainings→manuals (safe no-op if already linked)
+     b) For EVERY training with a manualId:
+        - Re-extract manual text from PDF (support /assets/* and /attached_assets/*)
+        - Re-run analysis + deep training generation
+        - Overwrite training_modules.lessonSummary, lessons, studyQuestions, knowledgeCheckQuestions, estimatedMinutes, isDeepTraining as appropriate
+        - Rebuild assessment/quiz questions (delete+recreate or upsert) for that module
+     c) Ensure atomicity per module (each module either fully updated or recorded as failed)
+   - Must accept { force: true } and treat force=true as: ignore any “processed” flags and overwrite.
+
+2) Add a single UI action in Training Management > Bulk Actions:
+   - Button: “FORCE REGEN ALL (RUN NOW)”
+   - Calls POST /api/admin/force-regenerate-trainings with { force: true }
+   - Shows live progress + final summary.
+
+3) Auto-run once:
+   - After deploy/restart, if env var FORCE_REGEN_ON_STARTUP=true and NODE_ENV=development:
+     - Trigger the same force pipeline once
+     - Then immediately set an internal guard so it does not repeat unless env var is toggled again
+   - This is DEV-only. Production must never auto-run.
+
+Proof requirements (must output, not just claim):
+A) Return a JSON results report with:
+   - totalTrainingsScanned
+   - totalWithManual
+   - regeneratedCount
+   - skippedCount (should be 0 when force=true)
+   - failedCount
+   - failures[] with { trainingId, title, reason, stack? }
+   - timings per training
+
+B) Provide DB proof:
+   - Before/after counts:
+     SELECT COUNT(*) FROM training_modules WHERE (lessons IS NULL OR jsonb_array_length(lessons)=0);
+     SELECT COUNT(*) FROM quiz_questions;  (or training_assessments, whichever is used)
+   - Show 3 example trainings before/after:
+     - id, title, manual_id, jsonb_array_length(lessons), jsonb_array_length(study_questions), jsonb_array_length(knowledge_check_questions)
+
+C) Provide runtime proof:
+   - Server logs showing each training processed with status: STARTED / UPDATED / FAILED
+   - Confirm at least one module now has lessons > 0 and questions > 0.
+
+D) Files changed list + key diffs.
+
+Execute:
+- Implement the above
+- Run the force regeneration once (DEV)
+- Paste the full JSON report + SQL output + log excerpts in the response.

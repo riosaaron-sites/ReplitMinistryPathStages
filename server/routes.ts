@@ -2003,6 +2003,101 @@ export async function registerRoutes(
     }
   });
 
+  // Force regenerate ALL training content from linked manuals (admin only)
+  app.post('/api/admin/force-regenerate-trainings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      const adminRoles = ['system-admin', 'admin', 'owner'];
+      if (!user || !adminRoles.includes(user.role || '')) {
+        return res.status(403).json({ message: "Unauthorized - admin access required" });
+      }
+      
+      const { force = true } = req.body;
+      
+      console.log(`[FORCE REGEN API] Triggered by ${user.firstName} ${user.lastName} (${userId}), force=${force}`);
+      
+      // Get before counts for proof
+      const beforeCounts = {
+        trainingsWithoutLessons: 0,
+        totalQuizQuestions: 0,
+      };
+      
+      try {
+        const lessonsResult = await db.execute(sql`
+          SELECT COUNT(*) as count FROM training_modules 
+          WHERE lesson_summary IS NULL OR lesson_summary = ''
+        `);
+        beforeCounts.trainingsWithoutLessons = Number(lessonsResult.rows[0]?.count || 0);
+        
+        const quizResult = await db.execute(sql`SELECT COUNT(*) as count FROM training_assessments`);
+        beforeCounts.totalQuizQuestions = Number(quizResult.rows[0]?.count || 0);
+      } catch (e) {
+        console.log('[FORCE REGEN API] Could not get before counts:', e);
+      }
+      
+      // Run force regeneration
+      const { forceRegenerateAllTrainings } = await import('./manualAnalysisService');
+      const report = await forceRegenerateAllTrainings();
+      
+      // Get after counts for proof
+      const afterCounts = {
+        trainingsWithoutLessons: 0,
+        totalQuizQuestions: 0,
+      };
+      
+      try {
+        const lessonsResult = await db.execute(sql`
+          SELECT COUNT(*) as count FROM training_modules 
+          WHERE lesson_summary IS NULL OR lesson_summary = ''
+        `);
+        afterCounts.trainingsWithoutLessons = Number(lessonsResult.rows[0]?.count || 0);
+        
+        const quizResult = await db.execute(sql`SELECT COUNT(*) as count FROM training_assessments`);
+        afterCounts.totalQuizQuestions = Number(quizResult.rows[0]?.count || 0);
+      } catch (e) {
+        console.log('[FORCE REGEN API] Could not get after counts:', e);
+      }
+      
+      // Get sample trainings for proof
+      let sampleTrainings: any[] = [];
+      try {
+        const samples = await db.execute(sql`
+          SELECT 
+            id, 
+            title, 
+            manual_id,
+            CASE WHEN lesson_summary IS NULL THEN 0 ELSE LENGTH(lesson_summary) END as lesson_length,
+            CASE WHEN study_questions IS NULL THEN 0 ELSE jsonb_array_length(study_questions) END as study_question_count,
+            CASE WHEN knowledge_check_questions IS NULL THEN 0 ELSE jsonb_array_length(knowledge_check_questions) END as knowledge_check_count
+          FROM training_modules 
+          WHERE manual_id IS NOT NULL 
+          LIMIT 5
+        `);
+        sampleTrainings = samples.rows || [];
+      } catch (e) {
+        console.log('[FORCE REGEN API] Could not get sample trainings:', e);
+      }
+      
+      res.json({
+        ...report,
+        dbProof: {
+          before: beforeCounts,
+          after: afterCounts,
+          sampleTrainings,
+        },
+        triggeredBy: {
+          userId,
+          name: `${user.firstName} ${user.lastName}`,
+        },
+      });
+    } catch (error) {
+      console.error("Error in force regenerate trainings:", error);
+      return handleApiError(error, res);
+    }
+  });
+
   // Generate deep training for core manuals (Phase 2)
   app.post('/api/admin/generate-core-trainings', isAuthenticated, async (req: any, res) => {
     try {
