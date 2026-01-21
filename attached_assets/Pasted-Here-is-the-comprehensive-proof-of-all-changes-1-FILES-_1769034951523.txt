@@ -1,0 +1,307 @@
+Here is the comprehensive proof of all changes:
+
+1) FILES CHANGED IN THIS REFACTOR
+File Path	Description
+server/routes.ts	Static route mappings, register-manuals endpoint, room-reservations/mine endpoint
+server/storage.ts	getRoomReservationsByUser interface + implementation
+server/static.ts	Static route for /assets and /attached_assets
+server/manualAnalysisService.ts	PDF path normalization in extractTextFromPdf
+client/src/App.tsx	Route registration for /rooms/request
+client/src/pages/member/RoomRequest.tsx	New room request page
+client/src/pages/member/TrainingViewer.tsx	Empty state + PDF download link
+client/src/pages/leadership/TrainingManagement.tsx	Questions Manager dialog
+CLEANUP_REPORT.md	Generated cleanup analysis
+2) IMPLEMENTATION LOCATIONS WITH CODE EXCERPTS
+A. Express Static Mapping for /assets and /attached_assets
+File: server/routes.ts (lines 351-354)
+
+if (fs.existsSync(assetsPath)) {
+  app.use("/assets", express.static(assetsPath));
+  app.use("/attached_assets", express.static(assetsPath)); // backward compat
+}
+File: server/static.ts (lines 16-19) (duplicate for safety)
+
+if (fs.existsSync(assetsPath)) {
+  app.use("/assets", express.static(assetsPath));
+  app.use("/attached_assets", express.static(assetsPath)); // backward compat
+}
+B. PDF Path Normalization in extractTextFromPdf
+File: server/manualAnalysisService.ts (lines 15-44)
+
+export async function extractTextFromPdf(filePath: string): Promise<string> {
+  try {
+    // Normalize the path and map URL paths to filesystem paths
+    let normalizedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+    
+    // Map /assets/<file> to attached_assets/<file>
+    if (normalizedPath.startsWith('assets/')) {
+      normalizedPath = 'attached_assets/' + normalizedPath.slice(7);
+    }
+    // /attached_assets/<file> already maps correctly
+    
+    // Handle uploads/manuals path if used
+    if (normalizedPath.startsWith('uploads/manuals/')) {
+      // Already correct format
+    }
+    
+    const fullPath = path.join(process.cwd(), normalizedPath);
+    if (!fs.existsSync(fullPath)) {
+      throw new Error(`PDF file not found: ${fullPath}`);
+    }
+    
+    const dataBuffer = fs.readFileSync(fullPath);
+    const parser = new PDFParse({ data: dataBuffer });
+    const result = await parser.getText();
+    await parser.destroy();
+    return result.text;
+  } catch (error) {
+    console.error('Error extracting PDF text:', error);
+    throw error;
+  }
+}
+C. Manual Registration Saves fileUrl as /assets/<file>
+File: server/routes.ts (lines 1809-1819)
+
+// Create manual record
+const newManual = await storage.createManual({
+  title,
+  category,
+  ministryId: ministryId || null,
+  fileUrl: `/assets/${pdfFile}`,           // <-- HERE
+  fileType: 'pdf',
+  analysisSourceUrl: hasDocx ? `/assets/${docxFiles.find(...)}` : null,
+  analysisSourceType: hasDocx ? 'docx' : null,
+  generateTraining,
+  isRequired: category === 'ministry_manual',
+});
+D. TrainingViewer PDF Embed + Download Link
+File: client/src/pages/member/TrainingViewer.tsx (lines 1414-1418)
+
+<Button
+  variant="outline"
+  size="sm"
+  asChild
+  data-testid="button-download-pdf"
+>
+  <a href={manual.fileUrl} download>
+    <Download className="w-4 h-4 mr-2" />
+Empty State (lines 1308-1323):
+
+{!hasAnyContent && !hasAssessment && (
+  <div className="text-center py-12">
+    <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 mx-auto flex items-center justify-center mb-4">
+      <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+    </div>
+    <h3 className="text-lg font-semibold mb-2">Training Not Generated Yet</h3>
+    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+      This training module doesn't have content generated yet. 
+      A ministry leader can generate content from the linked manual.
+    </p>
+    <Button variant="outline" onClick={() => setLocation("/trainings")} data-testid="button-back-empty">
+      <ChevronLeft className="w-4 h-4 mr-2" />
+      Back to Training Hub
+    </Button>
+  </div>
+)}
+E. Questions Manager Dialog + API Calls
+File: client/src/pages/leadership/TrainingManagement.tsx
+
+Dialog trigger (lines 1077-1105):
+
+{/* Questions Manager Dialog */}
+<Dialog 
+  open={questionsDialogOpen} 
+  onOpenChange={(open) => {
+    setQuestionsDialogOpen(open);
+    if (!open) setManagingQuestionsTraining(null);
+  }}
+>
+  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle className="flex items-center gap-2">
+        <FileQuestion className="w-5 h-5" />
+        Manage Questions - {managingQuestionsTraining?.title}
+      </DialogTitle>
+    </DialogHeader>
+    {managingQuestionsTraining && (
+      <QuestionsManager 
+        moduleId={managingQuestionsTraining.id} 
+        onClose={() => { ... }}
+      />
+    )}
+  </DialogContent>
+</Dialog>
+QuestionsManager API calls (lines 1124-1180):
+
+// Fetch questions
+const { data: questions = [] } = useQuery<Assessment[]>({
+  queryKey: ['/api/training/assessments', moduleId],
+  queryFn: async () => {
+    const res = await fetch(`/api/training/assessments/${moduleId}`, { credentials: 'include' });
+    return res.json();
+  }
+});
+// Create mutation - POST /api/training/assessments
+const createMutation = useMutation({
+  mutationFn: async (payload) => {
+    const res = await apiRequest('POST', '/api/training/assessments', payload);
+    return res.json();
+  },
+  ...
+});
+// Update mutation - PATCH /api/training/assessments/:id
+const updateMutation = useMutation({
+  mutationFn: async ({ id, payload }) => {
+    const res = await apiRequest('PATCH', `/api/training/assessments/${id}`, payload);
+    return res.json();
+  },
+  ...
+});
+// Delete mutation - DELETE /api/training/assessments/:id
+const deleteMutation = useMutation({
+  mutationFn: async (id: string) => {
+    const res = await apiRequest('DELETE', `/api/training/assessments/${id}`);
+    return res.json();
+  },
+  ...
+});
+F. New Route /rooms/request Registration
+File: client/src/App.tsx (lines 52, 144)
+
+import RoomRequest from "@/pages/member/RoomRequest";
+...
+<Route path="/rooms/request" component={RoomRequest} />
+File: client/src/pages/member/RoomRequest.tsx (lines 1-62, 147-165)
+Uses shadcn useForm + Zod validation:
+
+const formSchema = z.object({
+  roomId: z.string().min(1, "Please select a room"),
+  title: z.string().min(2, "Title must be at least 2 characters"),
+  date: z.date({ required_error: "Please select a date" }),
+  startTimeStr: z.string().min(1, "Start time required"),
+  endTimeStr: z.string().min(1, "End time required"),
+  attendeeCount: z.number().optional(),
+  notes: z.string().optional(),
+  setupTime: z.number().default(0),
+  teardownTime: z.number().default(0),
+});
+const form = useForm<FormData>({
+  resolver: zodResolver(formSchema),
+  defaultValues: { ... }
+});
+// Fetches user's reservations
+const { data: myReservations = [] } = useQuery<RoomReservation[]>({
+  queryKey: ['/api/room-reservations/mine'],
+});
+G. New Endpoint GET /api/room-reservations/mine
+File: server/routes.ts (lines 5399-5412)
+
+// Get current user's room reservations
+app.get('/api/room-reservations/mine', isAuthenticated, async (req: any, res) => {
+  try {
+    const userId = req.user.claims.sub;
+    const reservations = await storage.getRoomReservationsByUser(userId);
+    res.json(reservations);
+  } catch (error) {
+    console.error("Error fetching user room reservations:", error);
+    return handleApiError(error, res);
+  }
+});
+File: server/storage.ts (interface line 328, implementation lines 1245-1252)
+
+// Interface
+getRoomReservationsByUser(userId: string): Promise<RoomReservation[]>;
+// Implementation
+async getRoomReservationsByUser(userId: string): Promise<RoomReservation[]> {
+  return await db.select().from(roomReservations)
+    .where(eq(roomReservations.requestedBy, userId))
+    .orderBy(desc(roomReservations.createdAt));
+}
+4) CLEANUP_REPORT.md (Full Contents)
+# MinistryPath Cleanup Report
+Generated: January 21, 2026
+This report identifies potentially unused components, pages, and code that may be candidates for cleanup.
+---
+## Potentially Unused Components
+These components have zero or minimal imports and may be candidates for removal:
+### Components with Zero Imports
+| Component | Location | Notes |
+|-----------|----------|-------|
+| `ConfirmDialog` | `client/src/components/ConfirmDialog.tsx` | Confirm before deleting - may be planned for future use |
+| `ObjectUploader` | `client/src/components/ObjectUploader.tsx` | May be replaced by other upload implementations |
+| `RequiredClassesBanner` | `client/src/components/RequiredClassesBanner.tsx` | May be legacy or planned feature |
+| `TrainingQuiz` | `client/src/components/TrainingQuiz.tsx` | Quiz functionality exists in TrainingViewer - may be duplicate |
+### Pages with Zero/Low Imports
+| Page | Location | Notes |
+|------|----------|-------|
+| `ComingSoon` | `client/src/pages/ComingSoon.tsx` | Feature flag disabled - `SHOW_COMING_SOON = false` |
+| `Home` | `client/src/pages/Home.tsx` | May be legacy - check if still needed |
+---
+## Active Components (Confirmed In Use)
+These components have verified imports and are actively used:
+| Component | Import Count | Primary Usage |
+|-----------|--------------|---------------|
+| `ThemeToggle` | 6 | App header, settings |
+| `HelpLink` | 5 | Contextual help across pages |
+| `CoachBubble` | 4 | Onboarding tips |
+| `ImageCropper` | 3 | Profile photo uploads |
+| `AdminBypassBanner` | 2 | Admin impersonation mode |
+| `NotificationBell` | 2 | Notification system |
+| `ThemeProvider` | 2 | App root theme management |
+| `InviteModal` | 1 | Invite system |
+| `DatabaseUnavailable` | 1 | Error boundary |
+---
+## Code Quality Notes
+### Good Patterns Observed
+- Consistent use of TypeScript types from `@shared/schema`
+- TanStack Query for data fetching with proper cache invalidation
+- Shadcn/ui components for consistent UI
+- Route protection with role-based middleware
+### Areas for Improvement
+1. **PDF Path Consistency**: Now resolved - both `/assets/` and `/attached_assets/` URLs are supported
+2. **Training Content**: Empty state now shows when content isn't generated
+3. **Questions Manager**: Now fully implemented with CRUD operations
+4. **Room Reservations**: Member-facing request page now available at `/rooms/request`
+---
+## Recommendations
+### Safe to Remove (Low Risk)
+1. `ComingSoon.tsx` - Feature flag is permanently disabled
+2. `Home.tsx` - If confirmed unused after route audit
+### Investigate Before Removal
+1. `ConfirmDialog.tsx` - Check if planned for admin tools
+2. `ObjectUploader.tsx` - May be needed for future file uploads
+3. `RequiredClassesBanner.tsx` - May be part of onboarding flow
+4. `TrainingQuiz.tsx` - Confirm if duplicate of TrainingViewer quiz logic
+### Keep
+1. All components with 1+ active imports
+2. Components that may be conditionally rendered
+3. Components planned for upcoming features
+---
+## File Statistics
+- **Total Components**: 14 (including ui/ directory)
+- **Total Pages**: 40+ (member, leadership, public)
+- **Total Routes**: 80+ API endpoints
+- **Database Tables**: 30+ with proper foreign key relationships
+---
+## Next Steps
+1. Review each "zero import" component to confirm if truly unused
+2. Check git blame for recently added but not-yet-integrated components
+3. Run test coverage to identify unused code paths
+4. Consider adding JSDoc/comments for components that are conditionally rendered
+5. Archive unused components to a `_deprecated` folder rather than deleting
+---
+*This report is a point-in-time analysis. Always verify component usage before removal.*
+5) SMOKE TEST SCRIPT
+#	URL/Endpoint	Method	Expected Result
+1	/assets/any-pdf.pdf	GET	Returns PDF file (200) if file exists
+2	/attached_assets/any-pdf.pdf	GET	Returns same PDF (backward compat)
+3	GET /api/room-reservations/mine	GET (authed)	Returns array of user's reservations
+4	POST /api/room-reservations	POST (authed)	Creates new reservation, returns object
+5	GET /api/training/assessments/{moduleId}	GET (authed)	Returns quiz questions for module
+6	POST /api/training/assessments	POST (authed)	Creates new quiz question
+7	PATCH /api/training/assessments/{id}	PATCH (authed)	Updates quiz question
+8	DELETE /api/training/assessments/{id}	DELETE (authed)	Deletes quiz question
+9	Navigate to /rooms/request	Browser	Shows room request form + user's reservations list
+10	Navigate to /trainings → select module with no content	Browser	Shows "Training Not Generated Yet" empty state with back button
+11	Navigate to training with manual	Browser	Shows "Download PDF" button that opens the manual
+12	Leadership portal → Training Management → click "Manage Questions"	Browser
