@@ -1,0 +1,64 @@
+I need a COMPLETE handoff bundle for a full codebase audit by ChatGPT. Do not take shortcuts. Create a folder named CHATGPT_HANDOFF in the project root that contains everything needed to diagnose all bugs in MinistryPath, especially:
+
+- Training modules missing PDFs
+- Training modules not showing presentations
+- Need to edit training module questions (question-by-question)
+- Calendar feature not working
+- Room request module not working
+- Any broken links, dead routes, missing API calls, missing DB tables, permission issues, or asset/path problems
+
+Hard rules:
+1) DO NOT include node_modules, .git, build outputs, caches.
+2) DO NOT include any real secrets. If .env exists, create a sanitized version named .env.example (mask keys).
+3) INCLUDE all PDFs and any presentation assets used by training modules.
+4) INCLUDE DB schema + migrations + seed data if present.
+
+Step A — Build the handoff folder structure:
+Create:
+CHATGPT_HANDOFF/
+  01_ROOT_CONFIG/
+  02_APP_SOURCE/
+  03_SERVER_API/
+  04_DATABASE/
+  05_ASSETS_TRAINING_PDFS_PRESENTATIONS/
+  06_LOGS_AND_REPORTS/
+  07_RUN_INSTRUCTIONS/
+
+Step B — Copy the right files into each:
+- 01_ROOT_CONFIG: package.json, lock file, tsconfig*, vite/next config, tailwind config, eslint/prettier config, any replit config, docker config if any.
+- 02_APP_SOURCE: src/ (or app/), public/, components/, pages/ etc. Include all front-end code.
+- 03_SERVER_API: server/ api/ routes/ backend code, middleware, auth, upload handlers, calendar and room request endpoints, anything related.
+- 04_DATABASE: prisma/ schema, migrations, seed scripts; OR any DB schema files; OR sqlite db file only if it contains no sensitive personal data. If it does, do not include it—create a sanitized seed instead.
+- 05_ASSETS_TRAINING_PDFS_PRESENTATIONS: every PDF and presentation file the app references (including uploads folders, static assets, storage buckets mapped locally, etc.). If training assets are stored in a folder like uploads/ or storage/ copy it in full. If assets are referenced by URL, generate a report listing each URL and where it’s stored/expected.
+- 07_RUN_INSTRUCTIONS: clear step-by-step instructions to run locally (install, env vars needed, DB migrate/seed, start commands), plus any admin/login info if it exists in code (without exposing secrets).
+
+Step C — Generate a “forensic report” file:
+Create: CHATGPT_HANDOFF/06_LOGS_AND_REPORTS/AUDIT_REPORT.md
+
+The report must include:
+1) Project stack overview: framework, routing, auth, DB, storage method.
+2) Training module system map:
+   - Where training modules are stored (DB tables/models or JSON)
+   - Where PDFs should be stored
+   - Where “presentations” should come from (PDF render? slides? embedded viewer?)
+   - Exact UI component and API routes involved
+3) Asset integrity scan:
+   - List every referenced training asset (PDF/presentation) and whether the file exists in the repo
+   - For missing assets: show which DB record/code references it
+4) Feature health checks:
+   - Calendar: which pages, components, API endpoints, DB tables, and integration points exist; what is broken/missing
+   - Room requests: same
+5) “Edit questions” capability:
+   - Determine if feature exists; where it should appear in UI; what permissions gate it
+   - If it’s missing, identify what needs to be built (UI + API + DB)
+6) List of all known runtime errors found by searching the code:
+   - grep for “TODO”, “FIXME”, console errors, thrown errors, disabled routes, dead links
+7) How to reproduce each known bug (steps)
+
+Step D — Create export zips in chunks:
+Create /exports and package CHATGPT_HANDOFF into multiple zip files under 150MB each named:
+handoff_part_001.zip, handoff_part_002.zip, etc.
+Exclude node_modules, .git, dist, build, .next, .cache.
+Print the size of each zip and the exact file paths.
+
+Then run the steps and tell me exactly where to download the zip parts in the file tree.
