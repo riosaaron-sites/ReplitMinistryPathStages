@@ -503,6 +503,76 @@ export async function registerRoutes(
   });
 
   // ==========================================================================
+  // ADMIN TESTING TOOLS (production-safe, applies only to current user)
+  // ==========================================================================
+
+  app.post('/api/admin/testing/reset-my-onboarding', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const previousState = user.onboardingState;
+      
+      await storage.updateUser(userId, {
+        onboardingState: 'WELCOME',
+        onboardingStatus: null,
+        onboardingCompletedAt: null,
+      });
+      
+      const updatedUser = await storage.getUser(userId);
+      
+      console.log(`[Admin Testing] Reset onboarding for ${user.email}: ${previousState} -> WELCOME`);
+      
+      res.json({ 
+        success: true, 
+        message: "Onboarding reset successfully",
+        previousState,
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error("Error resetting onboarding:", error);
+      return handleApiError(error, res);
+    }
+  });
+
+  app.post('/api/admin/testing/force-complete-my-onboarding', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const previousState = user.onboardingState;
+      
+      await storage.updateUser(userId, {
+        onboardingState: 'DONE',
+        onboardingStatus: 'completed',
+        onboardingCompletedAt: new Date(),
+      });
+      
+      const updatedUser = await storage.getUser(userId);
+      
+      console.log(`[Admin Testing] Force completed onboarding for ${user.email}: ${previousState} -> DONE`);
+      
+      res.json({ 
+        success: true, 
+        message: "Onboarding completed successfully",
+        previousState,
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error("Error force completing onboarding:", error);
+      return handleApiError(error, res);
+    }
+  });
+
+  // ==========================================================================
   // SECURE ADMIN BOOTSTRAP (replaces hardcoded ADMIN account)
   // ==========================================================================
   

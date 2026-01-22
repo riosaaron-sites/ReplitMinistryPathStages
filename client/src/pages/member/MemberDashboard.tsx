@@ -264,7 +264,7 @@ function getWhatsNextPriority(
 }
 
 export default function MemberDashboard() {
-  const { user, roleLabel, isAuthenticated, isAdmin, isDev, isDevOverrideActive } = useRole();
+  const { user, roleLabel, isAuthenticated, isAdmin } = useRole();
   
   const { data: userProgress, isLoading: progressLoading } = useQuery<UserProgress>({
     queryKey: ['/api/user-progress'],
@@ -1033,24 +1033,23 @@ export default function MemberDashboard() {
         </CardContent>
       </Card>
 
-      {/* DEV Tools - Only visible in development mode */}
-      <DevToolsPanel user={user} isAdmin={isAdmin} isDev={isDev} isDevOverrideActive={isDevOverrideActive} />
+      {/* DEV Tools - Only visible to admins */}
+      <DevToolsPanel user={user} isAdmin={isAdmin} />
     </div>
   );
 }
 
-function DevToolsPanel({ user, isAdmin, isDev, isDevOverrideActive }: { 
+function DevToolsPanel({ user, isAdmin }: { 
   user: any; 
   isAdmin: boolean; 
-  isDev: boolean;
-  isDevOverrideActive: boolean;
 }) {
   const [showDevTools, setShowDevTools] = useState(false);
   const { toast } = useToast();
   
   const resetOnboardingMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/admin/reset-onboarding");
+      const res = await apiRequest("POST", "/api/admin/testing/reset-my-onboarding");
+      return res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -1058,7 +1057,7 @@ function DevToolsPanel({ user, isAdmin, isDev, isDevOverrideActive }: {
       localStorage.removeItem("onboarding_state");
       toast({
         title: "Onboarding Reset",
-        description: `Previous state: ${data.previousState} → New state: ${data.newState}. Refresh to see onboarding.`,
+        description: `Previous state: ${data.previousState} → New state: ${data.user?.onboardingState}. Redirecting...`,
       });
       setTimeout(() => {
         window.location.href = "/onboarding";
@@ -1075,13 +1074,14 @@ function DevToolsPanel({ user, isAdmin, isDev, isDevOverrideActive }: {
 
   const forceCompleteOnboardingMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/admin/force-complete-onboarding");
+      const res = await apiRequest("POST", "/api/admin/testing/force-complete-my-onboarding");
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Onboarding Completed",
-        description: "Onboarding has been force-completed. Refresh to see dashboard.",
+        description: "Onboarding has been force-completed.",
       });
     },
     onError: () => {
@@ -1093,7 +1093,7 @@ function DevToolsPanel({ user, isAdmin, isDev, isDevOverrideActive }: {
     },
   });
 
-  if (!isDev) return null;
+  if (!isAdmin) return null;
 
   return (
     <Card className="border-dashed border-amber-500/50 bg-amber-500/5" data-testid="card-dev-tools">
@@ -1101,13 +1101,8 @@ function DevToolsPanel({ user, isAdmin, isDev, isDevOverrideActive }: {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bug className="h-4 w-4 text-amber-500" />
-            <CardTitle className="text-sm text-amber-600 dark:text-amber-400">DEV Tools</CardTitle>
-            {isDevOverrideActive && (
-              <Badge variant="default" className="text-xs bg-green-600">DEV Override Active</Badge>
-            )}
-            {!isDevOverrideActive && isAdmin && (
-              <Badge variant="outline" className="text-xs">Admin</Badge>
-            )}
+            <CardTitle className="text-sm text-amber-600 dark:text-amber-400">Admin Tools</CardTitle>
+            <Badge variant="outline" className="text-xs">{user?.role}</Badge>
           </div>
           <Button 
             variant="ghost" 
@@ -1127,8 +1122,6 @@ function DevToolsPanel({ user, isAdmin, isDev, isDevOverrideActive }: {
             <div><strong>Onboarding State:</strong> {user?.onboardingState || 'null'}</div>
             <div><strong>Onboarding Status:</strong> {user?.onboardingStatus || 'null'}</div>
             <div><strong>Role:</strong> {user?.role}</div>
-            <div><strong>isAdmin (computed):</strong> {isAdmin ? 'true' : 'false'}</div>
-            <div><strong>DEV Override:</strong> {isDevOverrideActive ? 'ACTIVE' : 'inactive'}</div>
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button
@@ -1169,6 +1162,14 @@ function DevToolsPanel({ user, isAdmin, isDev, isDevOverrideActive }: {
               data-testid="button-clear-cache"
             >
               Clear All Caches
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => window.location.href = "/admin/testing"}
+              data-testid="button-go-admin-testing"
+            >
+              Full Admin Testing Page
             </Button>
           </div>
         </CardContent>

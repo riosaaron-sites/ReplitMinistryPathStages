@@ -59,14 +59,14 @@ function updateUserSession(
   user.expires_at = user.claims?.exp;
 }
 
-// Admin email that gets automatic admin role
-const ADMIN_EMAIL = "Pastor@gardencitychurch.net";
+// Owner email that gets automatic owner role (highest admin access)
+const OWNER_EMAIL = "Pastor@gardencitychurch.net";
 
 async function upsertUser(
   claims: any,
 ) {
   const email = claims["email"];
-  const isAdminEmail = email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isOwnerEmail = email && email.toLowerCase() === OWNER_EMAIL.toLowerCase();
   
   // First, upsert the user with basic info
   await storage.upsertUser({
@@ -77,11 +77,12 @@ async function upsertUser(
     profileImageUrl: claims["profile_image_url"],
   });
   
-  // If this is the admin email and they don't have admin role yet, set it
-  if (isAdminEmail) {
+  // If this is the owner email and they don't have owner role yet, set it
+  if (isOwnerEmail) {
     const user = await storage.getUser(claims["sub"]);
-    if (user && user.role !== 'admin') {
-      await storage.updateUser(claims["sub"], { role: 'admin' });
+    if (user && user.role !== 'owner') {
+      await storage.updateUser(claims["sub"], { role: 'owner' });
+      console.log(`[auth] Set owner role for ${email}`);
     }
   }
 }
@@ -283,10 +284,7 @@ export const requireLeader: RequestHandler = async (req: any, res, next) => {
   }
 };
 
-const DEV_TEST_EMAIL = "Pastor@gardencitychurch.net";
-
 // Require the user to have admin-level access or above
-// In development mode, allows DEV_TEST_EMAIL to have admin access
 export const requireAdmin: RequestHandler = async (req: any, res, next) => {
   try {
     const userId = req.user?.claims?.sub;
@@ -299,10 +297,7 @@ export const requireAdmin: RequestHandler = async (req: any, res, next) => {
       return res.status(403).json({ message: "Admin access required" });
     }
     
-    const isDev = process.env.NODE_ENV !== 'production';
-    const isDevOverride = isDev && user.email?.toLowerCase() === DEV_TEST_EMAIL.toLowerCase();
-    
-    if (!isAdmin(user.role) && !isDevOverride) {
+    if (!isAdmin(user.role)) {
       return res.status(403).json({ message: "Admin access required" });
     }
     

@@ -42,6 +42,7 @@ import InternPortal from "@/pages/leadership/InternPortal";
 import MyTeam from "@/pages/leadership/MyTeam";
 import InviteManagement from "@/pages/leadership/InviteManagement";
 import AdminPanel from "@/pages/leadership/AdminPanel";
+import AdminTesting from "@/pages/admin/AdminTesting";
 import Workboards from "@/pages/leadership/Workboards";
 import PastoralCare from "@/pages/leadership/PastoralCare";
 import InviteAccept from "@/pages/InviteAccept";
@@ -168,6 +169,7 @@ function AuthenticatedRouter() {
           <Route path="/join" component={OnboardingHub} />
           <Route path="/profile/setup" component={ProfileWizard} />
           <Route path="/calendar" component={MinistryCalendar} />
+          <Route path="/admin/testing" component={AdminTesting} />
           <Route component={NotFound} />
         </Switch>
       </MemberLayout>
