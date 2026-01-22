@@ -466,6 +466,42 @@ export async function registerRoutes(
     }
   });
 
+  // Development-only: Reset onboarding status for testing
+  app.post('/api/admin/reset-onboarding', isAuthenticated, async (req: any, res) => {
+    try {
+      // Only allow in development mode or for admin users
+      const isDev = process.env.NODE_ENV === 'development';
+      const user = await storage.getUser(req.user.claims.sub);
+      const isAdmin = user?.role && ['owner', 'admin', 'system-admin'].includes(user.role);
+      
+      if (!isDev && !isAdmin) {
+        return res.status(403).json({ message: "Only available in development mode or for admin users" });
+      }
+      
+      const userId = req.user.claims.sub;
+      const previousState = user?.onboardingState;
+      
+      // Reset to WELCOME state (beginning of onboarding)
+      await storage.updateUser(userId, {
+        onboardingState: 'WELCOME',
+        onboardingStatus: null,
+        onboardingCompletedAt: null,
+      });
+      
+      console.log(`[DEV] Reset onboarding for user ${userId}: ${previousState} -> WELCOME`);
+      
+      res.json({ 
+        success: true, 
+        message: "Onboarding reset for testing",
+        previousState,
+        newState: 'WELCOME'
+      });
+    } catch (error) {
+      console.error("Error resetting onboarding:", error);
+      return handleApiError(error, res);
+    }
+  });
+
   // ==========================================================================
   // SECURE ADMIN BOOTSTRAP (replaces hardcoded ADMIN account)
   // ==========================================================================

@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRole } from "@/hooks/useRole";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
   ChevronRight,
   ArrowRight,
@@ -23,6 +26,9 @@ import {
   Music,
   Play,
   Award,
+  Bug,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import type { SurveyResults, MinistrySelection, RoleAssignment, Ministry, BiblicalLiteracyResult } from "@shared/schema";
 import { BIBLICAL_LITERACY_LEVELS } from "@/lib/giftDescriptions";
@@ -258,7 +264,7 @@ function getWhatsNextPriority(
 }
 
 export default function MemberDashboard() {
-  const { user, roleLabel, isAuthenticated } = useRole();
+  const { user, roleLabel, isAuthenticated, isAdmin } = useRole();
   
   const { data: userProgress, isLoading: progressLoading } = useQuery<UserProgress>({
     queryKey: ['/api/user-progress'],
@@ -1026,6 +1032,135 @@ export default function MemberDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* DEV Tools - Only visible to admins in development */}
+      <DevToolsPanel user={user} isAdmin={isAdmin} />
     </div>
+  );
+}
+
+function DevToolsPanel({ user, isAdmin }: { user: any; isAdmin: boolean }) {
+  const [showDevTools, setShowDevTools] = useState(false);
+  const { toast } = useToast();
+  const isDev = import.meta.env.DEV || window.location.hostname.includes('replit');
+  
+  const resetOnboardingMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/reset-onboarding");
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      sessionStorage.removeItem("onboarding_completed");
+      localStorage.removeItem("onboarding_state");
+      toast({
+        title: "Onboarding Reset",
+        description: `Previous state: ${data.previousState} → New state: ${data.newState}. Refresh to see onboarding.`,
+      });
+      setTimeout(() => {
+        window.location.href = "/onboarding";
+      }, 1500);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reset onboarding status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const forceCompleteOnboardingMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/force-complete-onboarding");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Onboarding Completed",
+        description: "Onboarding has been force-completed. Refresh to see dashboard.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to force-complete onboarding.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (!isDev && !isAdmin) return null;
+
+  return (
+    <Card className="border-dashed border-amber-500/50 bg-amber-500/5" data-testid="card-dev-tools">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bug className="h-4 w-4 text-amber-500" />
+            <CardTitle className="text-sm text-amber-600 dark:text-amber-400">DEV Tools</CardTitle>
+            <Badge variant="outline" className="text-xs">Admin Only</Badge>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setShowDevTools(!showDevTools)}
+            data-testid="button-toggle-dev-tools"
+          >
+            {showDevTools ? 'Hide' : 'Show'}
+          </Button>
+        </div>
+      </CardHeader>
+      {showDevTools && (
+        <CardContent className="space-y-4">
+          <div className="text-xs font-mono bg-muted p-2 rounded space-y-1">
+            <div><strong>User ID:</strong> {user?.id}</div>
+            <div><strong>Onboarding State:</strong> {user?.onboardingState || 'null'}</div>
+            <div><strong>Onboarding Status:</strong> {user?.onboardingStatus || 'null'}</div>
+            <div><strong>Role:</strong> {user?.role}</div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => resetOnboardingMutation.mutate()}
+              disabled={resetOnboardingMutation.isPending}
+              data-testid="button-reset-onboarding"
+            >
+              {resetOnboardingMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Reset My Onboarding
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => forceCompleteOnboardingMutation.mutate()}
+              disabled={forceCompleteOnboardingMutation.isPending}
+              data-testid="button-force-complete-onboarding"
+            >
+              {forceCompleteOnboardingMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
+              Force Complete Onboarding
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                queryClient.invalidateQueries();
+                toast({ title: "Cache Cleared", description: "All React Query caches have been invalidated." });
+              }}
+              data-testid="button-clear-cache"
+            >
+              Clear All Caches
+            </Button>
+          </div>
+        </CardContent>
+      )}
+    </Card>
   );
 }

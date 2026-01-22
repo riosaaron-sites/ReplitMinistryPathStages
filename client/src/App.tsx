@@ -77,23 +77,30 @@ function RedirectToMyPath() {
 }
 
 function AuthenticatedRouter() {
-  const { canAccessLeadershipPortal, user } = useRole();
+  const { canAccessLeadershipPortal, user, isLoading } = useRole();
   const [location, setLocation] = useLocation();
   
   const isLeadershipRoute = location.startsWith('/leadership');
   const isOnboardingRoute = location.startsWith('/onboarding');
   
-  // Redirect to onboarding if user hasn't completed it (unless already on onboarding route)
+  // Force refetch user data on route changes to ensure fresh onboarding state
   useEffect(() => {
-    if (!user) return;
+    queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+  }, [location]);
+  
+  // Redirect to onboarding if user hasn't completed it (unless already on onboarding route)
+  // Wait for loading to complete to avoid redirecting based on stale data
+  useEffect(() => {
+    if (!user || isLoading) return;
     
     const onboardingState = user.onboardingState || 'PROFILE';
     const needsOnboarding = onboardingState !== 'DONE';
     
+    // Only redirect if we have fresh data and user truly needs onboarding
     if (needsOnboarding && !isOnboardingRoute) {
       setLocation("/onboarding");
     }
-  }, [user, isOnboardingRoute, setLocation]);
+  }, [user, isLoading, isOnboardingRoute, setLocation]);
   
   if (isLeadershipRoute && canAccessLeadershipPortal) {
     return (
