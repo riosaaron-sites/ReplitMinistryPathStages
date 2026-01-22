@@ -69,7 +69,8 @@ async function upsertUser(
   const isOwnerEmail = email && email.toLowerCase() === OWNER_EMAIL.toLowerCase();
   
   // First, upsert the user with basic info
-  await storage.upsertUser({
+  // This will update existing user by email (case-insensitive) or create new
+  const upsertedUser = await storage.upsertUser({
     id: claims["sub"],
     email: email,
     firstName: claims["first_name"],
@@ -78,13 +79,13 @@ async function upsertUser(
   });
   
   // If this is the owner email and they don't have owner role yet, set it
-  if (isOwnerEmail) {
-    const user = await storage.getUser(claims["sub"]);
-    if (user && user.role !== 'owner') {
-      await storage.updateUser(claims["sub"], { role: 'owner' });
-      console.log(`[auth] Set owner role for ${email}`);
-    }
+  // Use the returned user from upsert (which has the correct ID) instead of claims["sub"]
+  if (isOwnerEmail && upsertedUser && upsertedUser.role !== 'owner') {
+    await storage.updateUser(upsertedUser.id, { role: 'owner' });
+    console.log(`[auth] Set owner role for ${email}`);
   }
+  
+  return upsertedUser;
 }
 
 export async function setupAuth(app: Express) {
@@ -265,12 +266,17 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 // Require the user to have leader-level access or above
 export const requireLeader: RequestHandler = async (req: any, res, next) => {
   try {
-    const userId = req.user?.claims?.sub;
-    if (!userId) {
+    const claims = req.user?.claims;
+    if (!claims?.sub) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const user = await storage.getUser(userId);
+    // Look up by email first (case-insensitive) to handle Replit OIDC sub mismatches
+    let user = claims.email ? await storage.getUserByEmail(claims.email) : null;
+    if (!user) {
+      user = await storage.getUser(claims.sub);
+    }
+    
     if (!user || !isLeader(user.role)) {
       return res.status(403).json({ message: "Leader access required" });
     }
@@ -287,12 +293,17 @@ export const requireLeader: RequestHandler = async (req: any, res, next) => {
 // Require the user to have admin-level access or above
 export const requireAdmin: RequestHandler = async (req: any, res, next) => {
   try {
-    const userId = req.user?.claims?.sub;
-    if (!userId) {
+    const claims = req.user?.claims;
+    if (!claims?.sub) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const user = await storage.getUser(userId);
+    // Look up by email first (case-insensitive) to handle Replit OIDC sub mismatches
+    let user = claims.email ? await storage.getUserByEmail(claims.email) : null;
+    if (!user) {
+      user = await storage.getUser(claims.sub);
+    }
+    
     if (!user) {
       return res.status(403).json({ message: "Admin access required" });
     }
@@ -312,12 +323,17 @@ export const requireAdmin: RequestHandler = async (req: any, res, next) => {
 // Require the user to have pastoral-level access
 export const requirePastor: RequestHandler = async (req: any, res, next) => {
   try {
-    const userId = req.user?.claims?.sub;
-    if (!userId) {
+    const claims = req.user?.claims;
+    if (!claims?.sub) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const user = await storage.getUser(userId);
+    // Look up by email first (case-insensitive) to handle Replit OIDC sub mismatches
+    let user = claims.email ? await storage.getUserByEmail(claims.email) : null;
+    if (!user) {
+      user = await storage.getUser(claims.sub);
+    }
+    
     if (!user || !isPastor(user.role)) {
       return res.status(403).json({ message: "Pastoral access required" });
     }
@@ -326,7 +342,6 @@ export const requirePastor: RequestHandler = async (req: any, res, next) => {
     next();
   } catch (error) {
     console.error("requirePastor error:", error);
-    res.status(500).json({ message: "Internal server error" });
   }
 };
 

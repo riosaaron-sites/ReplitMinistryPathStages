@@ -1232,8 +1232,19 @@ export async function registerRoutes(
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      // Look up user by email (case-insensitive) to handle Replit OIDC sub mismatches
+      // When users log in via Replit Auth, claims.sub is Replit's ID which may differ from our DB ID
+      const userEmail = req.user.claims.email;
+      let user = userEmail ? await storage.getUserByEmail(userEmail) : null;
+      
+      // Fallback to claims.sub lookup for backwards compatibility
+      if (!user) {
+        const userId = req.user.claims.sub;
+        user = await storage.getUser(userId);
+      }
+      
+      // Use the actual database user ID for all operations
+      const userId = user?.id || req.user.claims.sub;
       
       // Auto-accept pending invites for this user's email (only once per session)
       const sessionKey = `invitesProcessed_${userId}`;
