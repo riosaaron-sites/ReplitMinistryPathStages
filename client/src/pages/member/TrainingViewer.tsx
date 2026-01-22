@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -10,6 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   BookOpen,
   CheckCircle,
@@ -31,6 +38,8 @@ import {
   Clock,
   Download,
   ExternalLink,
+  Bug,
+  List,
 } from "lucide-react";
 import { CoachBubble } from "@/components/CoachBubble";
 
@@ -129,7 +138,13 @@ interface UserTrainingProgress {
   rejectionFeedback?: string;
 }
 
-type TrainingStep = 'lesson' | 'study' | 'knowledge-check' | 'assessment' | 'results';
+interface User {
+  id: string;
+  role?: string;
+  username?: string;
+}
+
+type TrainingStep = 'lesson' | 'study' | 'knowledge-check' | 'assessment' | 'results' | 'submit';
 
 interface Ministry {
   id: string;
@@ -149,6 +164,12 @@ export default function TrainingViewer() {
   const [quizScore, setQuizScore] = useState(0);
   const [reflectionNotes, setReflectionNotes] = useState<Record<number, string>>({});
   const [isRevisitMode, setIsRevisitMode] = useState(false);
+  const [visitedLessons, setVisitedLessons] = useState<Set<number>>(new Set([0]));
+  const [showDebug, setShowDebug] = useState(false);
+
+  const { data: currentUser } = useQuery<User>({
+    queryKey: ["/api/auth/user"],
+  });
 
   const { data: module, isLoading: moduleLoading } = useQuery<TrainingModule>({
     queryKey: [`/api/training/modules/${moduleId}`],
@@ -159,51 +180,44 @@ export default function TrainingViewer() {
     queryKey: ["/api/training/progress"],
   });
 
-  // Fetch all modules to find next training in sequence
   const { data: allModules = [] } = useQuery<TrainingModule[]>({
     queryKey: ["/api/training/modules"],
   });
 
-  // Fetch ministries to display ministry name
   const { data: ministries = [] } = useQuery<Ministry[]>({
     queryKey: ["/api/ministries"],
   });
 
-  // Fetch the linked manual if module has one
   const { data: manual } = useQuery<Manual>({
     queryKey: ["/api/manuals", module?.manualId],
     enabled: !!module?.manualId,
   });
 
-  // Get ministry name for current module
+  const isAdminOrLeader = currentUser?.role && ['owner', 'admin', 'system-admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(currentUser.role);
+
   const getMinistryName = (ministryId?: string): string | null => {
     if (!ministryId) return null;
     const ministry = ministries.find(m => m.id === ministryId);
     return ministry?.name || null;
   };
 
-  // Find the next training in sequence (by sortOrder within same ministry or general trainings)
   const findNextTraining = (): TrainingModule | null => {
     if (!module) return null;
     
-    // Get trainings in the same ministry (or general trainings if no ministry)
     const relevantModules = allModules.filter(m => {
       if (module.ministryId) {
         return m.ministryId === module.ministryId;
       }
-      return !m.ministryId; // General trainings
+      return !m.ministryId;
     });
     
-    // Sort by sortOrder
     const sortedModules = [...relevantModules].sort((a, b) => 
       (a.sortOrder || 0) - (b.sortOrder || 0)
     );
     
-    // Find current module index and get next one
     const currentIndex = sortedModules.findIndex(m => m.id === module.id);
     if (currentIndex >= 0 && currentIndex < sortedModules.length - 1) {
       const nextModule = sortedModules[currentIndex + 1];
-      // Check if user hasn't already completed the next module
       const nextProgress = progress?.find(p => p.moduleId === nextModule.id);
       if (!nextProgress || (nextProgress.status !== 'completed' && nextProgress.status !== 'approved')) {
         return nextModule;
@@ -229,10 +243,8 @@ export default function TrainingViewer() {
   const isSubmitted = currentProgress?.status === 'submitted';
   const isRejected = currentProgress?.status === 'rejected';
   
-  // Parse lessons from the module data, handling potential type variations
-  const parsedLessons: DeepLesson[] = (() => {
+  const parsedLessons: DeepLesson[] = useMemo(() => {
     if (!module?.lessons) return [];
-    // Handle case where lessons might be a string (defensive)
     if (typeof module.lessons === 'string') {
       try {
         const parsed = JSON.parse(module.lessons);
@@ -241,36 +253,36 @@ export default function TrainingViewer() {
         return [];
       }
     }
-    // Handle case where it's already an array
     if (Array.isArray(module.lessons)) {
       return module.lessons;
     }
     return [];
-  })();
+  }, [module?.lessons]);
   
-  // Infer deep training from presence of parsed lessons (flag may not be strictly boolean)
-  const isDeepTraining = parsedLessons.length > 0;
+  const hasDeepLessons = parsedLessons.length > 0;
   const lessons = parsedLessons;
   
-  // Safe lesson index: ensure we always have a valid index when lessons exist
-  const safeLessonIndex =
-    typeof currentLessonIndex === "number" &&
-    currentLessonIndex >= 0 &&
-    currentLessonIndex < lessons.length
-      ? currentLessonIndex
-      : 0;
+  const safeLessonIndex = useMemo(() => {
+    if (typeof currentLessonIndex === "number" && currentLessonIndex >= 0 && currentLessonIndex < lessons.length) {
+      return currentLessonIndex;
+    }
+    return 0;
+  }, [currentLessonIndex, lessons.length]);
   
   const currentLesson = lessons.length > 0 ? lessons[safeLessonIndex] : null;
   
-  const hasLesson = !!(module?.lessonSummary || (module?.contentSections && module.contentSections.length > 0) || isDeepTraining);
+  const hasLegacyLesson = !!(module?.lessonSummary || (module?.contentSections && module.contentSections.length > 0));
   const hasStudyQuestions = !!(module?.studyQuestions && module.studyQuestions.length > 0);
   const hasKnowledgeCheck = !!(module?.knowledgeCheckQuestions && module.knowledgeCheckQuestions.length > 0);
   const hasIntensiveAssessment = !!(module?.intensiveAssessmentQuestions && module.intensiveAssessmentQuestions.length > 0);
   const assessments = module?.assessments || [];
-  const hasAssessment = assessments.length > 0 || hasIntensiveAssessment;
+  const hasAssessment = assessments.length > 0 || hasIntensiveAssessment || hasKnowledgeCheck;
   const hasManual = !!(manual && manual.fileUrl);
   const hasVideo = !!module?.videoUrl;
-  const hasAnyContent = hasLesson || hasManual || hasVideo;
+
+  const allLessonsVisited = lessons.length === 0 || visitedLessons.size >= lessons.length;
+  const quizAttempted = Object.keys(answers).length > 0 || quizScore > 0;
+  const canSubmit = hasDeepLessons ? (allLessonsVisited && (!hasAssessment || quizAttempted)) : true;
 
   useEffect(() => {
     setCurrentStep('lesson');
@@ -280,13 +292,10 @@ export default function TrainingViewer() {
     setQuizScore(0);
     setReflectionNotes({});
     setIsRevisitMode(false);
+    setVisitedLessons(new Set([0]));
   }, [moduleId]);
 
-  // Don't auto-set revisit mode - let user choose from splash screen
-  // This prevents blocking progress updates for partial completions
-
   useEffect(() => {
-    // Only initialize progress if not completed (allow retake from splash)
     if (moduleId && !currentProgress) {
       updateProgress.mutate({
         moduleId,
@@ -296,99 +305,68 @@ export default function TrainingViewer() {
     }
   }, [moduleId, currentProgress]);
 
-  // Get ordered list of enabled steps for this training type
-  const getEnabledSteps = (): TrainingStep[] => {
-    if (isDeepTraining) {
-      const steps: TrainingStep[] = ['lesson'];
-      if (hasKnowledgeCheck) steps.push('knowledge-check');
-      if (hasIntensiveAssessment) steps.push('assessment');
-      return steps;
+  useEffect(() => {
+    if (lessons.length > 0 && currentLessonIndex >= 0) {
+      setVisitedLessons(prev => {
+        const arr = Array.from(prev);
+        arr.push(currentLessonIndex);
+        return new Set(arr);
+      });
     }
-    const steps: TrainingStep[] = ['lesson'];
-    if (hasStudyQuestions) steps.push('study');
-    if (hasAssessment) steps.push('assessment');
-    return steps;
-  };
+  }, [currentLessonIndex, lessons.length]);
 
-  // Calculate progress based on current/next position
-  const calculateProgressForState = (step: TrainingStep, lessonIdx: number, questionIdx: number): number => {
-    if (isDeepTraining) {
-      // Deep training milestones: lessons (0-60%), knowledge-check (60-80%), assessment (80-100%)
+  const calculateProgress = (): number => {
+    if (hasDeepLessons) {
       const totalLessons = lessons.length || 1;
+      const quizWeight = hasAssessment ? 20 : 0;
+      const lessonsWeight = 100 - quizWeight;
       
-      if (step === 'lesson') {
-        // Each lesson is a portion of 60% (0-60 range)
-        return Math.round(((lessonIdx + 1) / totalLessons) * 60);
+      if (currentStep === 'lesson') {
+        return Math.round(((safeLessonIndex + 1) / totalLessons) * lessonsWeight);
       }
-      if (step === 'knowledge-check') {
-        // Knowledge check: 60% base + progress within 60-80% range (20% span)
-        const kcTotal = module?.knowledgeCheckQuestions?.length || 1;
-        return 60 + Math.round(((questionIdx + 1) / kcTotal) * 20);
+      if (currentStep === 'study') {
+        return Math.round(lessonsWeight + 5);
       }
-      if (step === 'assessment') {
-        // Assessment: 80% base + progress within 80-100% range (20% span)
-        const iaTotal = module?.intensiveAssessmentQuestions?.length || 1;
-        return 80 + Math.round(((questionIdx + 1) / iaTotal) * 20);
+      if (currentStep === 'knowledge-check' || currentStep === 'assessment') {
+        const questions = currentStep === 'knowledge-check' 
+          ? module?.knowledgeCheckQuestions?.length || 1
+          : (hasIntensiveAssessment ? module?.intensiveAssessmentQuestions?.length : assessments.length) || 1;
+        return Math.round(lessonsWeight + ((currentQuestion + 1) / questions) * quizWeight);
       }
-      if (step === 'results') return 100;
+      if (currentStep === 'results' || currentStep === 'submit') return 100;
       return 0;
     }
-
-    // Legacy training: use step position in enabled steps list
-    const enabledSteps = getEnabledSteps();
-    const stepIndex = enabledSteps.indexOf(step);
-    const totalSteps = enabledSteps.length;
-    
-    if (step === 'results') return 100;
-    
-    if (step === 'assessment' && assessments.length > 0) {
-      // Assessment step: base progress + quiz progress
-      const baseProgress = (stepIndex / totalSteps) * 100;
-      const quizProgress = ((questionIdx + 1) / assessments.length) * (100 / totalSteps);
-      return Math.round(baseProgress + quizProgress);
-    }
-    
-    // Step completion: (step position + 1) / total steps
-    return Math.round(((stepIndex + 1) / totalSteps) * 100);
-  };
-
-  // Calculate display progress for current state
-  const calculateProgress = (): number => {
-    return calculateProgressForState(currentStep, currentLessonIndex, currentQuestion);
+    return currentStep === 'lesson' ? 50 : currentStep === 'results' ? 100 : 75;
   };
 
   const handleNextLesson = () => {
-    let nextStep: TrainingStep = 'lesson';
-    let nextLessonIndex = currentLessonIndex;
-    
     if (currentLessonIndex < lessons.length - 1) {
-      nextLessonIndex = currentLessonIndex + 1;
-      setCurrentLessonIndex(nextLessonIndex);
+      const nextIndex = currentLessonIndex + 1;
+      setCurrentLessonIndex(nextIndex);
+      
+      if (!isRevisitMode) {
+        const totalLessons = lessons.length;
+        const progressPct = Math.round(((nextIndex + 1) / totalLessons) * (hasAssessment ? 80 : 100));
+        updateProgress.mutate({
+          moduleId: moduleId!,
+          status: 'in-progress',
+          progressPercent: progressPct,
+        });
+      }
     } else {
-      if (hasKnowledgeCheck) {
-        nextStep = 'knowledge-check';
+      if (hasStudyQuestions) {
+        setCurrentStep('study');
+      } else if (hasKnowledgeCheck) {
         setCurrentStep('knowledge-check');
         setCurrentQuestion(0);
         setAnswers({});
-      } else if (hasIntensiveAssessment) {
-        nextStep = 'assessment';
+      } else if (hasIntensiveAssessment || assessments.length > 0) {
         setCurrentStep('assessment');
         setCurrentQuestion(0);
         setAnswers({});
       } else {
-        handleComplete();
-        return;
+        setCurrentStep('submit');
       }
-    }
-    
-    if (!isRevisitMode) {
-      // Calculate progress for the next state (use index 0 for new phases)
-      const progress = calculateProgressForState(nextStep, nextLessonIndex, 0);
-      updateProgress.mutate({
-        moduleId: moduleId!,
-        status: 'in-progress',
-        progressPercent: progress,
-      });
     }
   };
 
@@ -398,101 +376,58 @@ export default function TrainingViewer() {
     }
   };
 
+  const handleLessonSelect = (lessonIndex: string) => {
+    const index = parseInt(lessonIndex, 10);
+    if (!isNaN(index) && index >= 0 && index < lessons.length) {
+      setCurrentLessonIndex(index);
+    }
+  };
+
   const handleNextStep = () => {
-    let nextStep: TrainingStep = currentStep;
-    
-    if (currentStep === 'lesson') {
+    if (currentStep === 'lesson' && !hasDeepLessons) {
       if (hasStudyQuestions) {
-        nextStep = 'study';
         setCurrentStep('study');
       } else if (hasKnowledgeCheck) {
-        nextStep = 'knowledge-check';
         setCurrentStep('knowledge-check');
         setCurrentQuestion(0);
       } else if (hasAssessment) {
-        nextStep = 'assessment';
         setCurrentStep('assessment');
         setCurrentQuestion(0);
       } else {
-        // For legacy trainings without assessment, submit for review
-        if (!isRevisitMode) {
-          updateProgress.mutate({
-            moduleId: moduleId!,
-            status: 'completed',
-            progressPercent: 100,
-          });
-          toast({
-            title: "Training Submitted!",
-            description: "Your training has been submitted for leader review.",
-          });
-        }
-        setLocation("/trainings");
-        return;
+        handleSubmitTraining();
       }
     } else if (currentStep === 'study') {
       if (hasKnowledgeCheck) {
-        nextStep = 'knowledge-check';
         setCurrentStep('knowledge-check');
         setCurrentQuestion(0);
-      } else if (hasAssessment) {
-        nextStep = 'assessment';
+      } else if (hasIntensiveAssessment || assessments.length > 0) {
         setCurrentStep('assessment');
         setCurrentQuestion(0);
       } else {
-        if (!isRevisitMode) {
-          updateProgress.mutate({
-            moduleId: moduleId!,
-            status: 'completed',
-            progressPercent: 100,
-          });
-          toast({
-            title: "Training Submitted!",
-            description: "Your training has been submitted for leader review.",
-          });
-        }
-        setLocation("/trainings");
-        return;
+        setCurrentStep('submit');
       }
     } else if (currentStep === 'knowledge-check') {
       if (hasIntensiveAssessment) {
-        nextStep = 'assessment';
         setCurrentStep('assessment');
         setCurrentQuestion(0);
         setAnswers({});
       } else {
-        if (!isRevisitMode) {
-          updateProgress.mutate({
-            moduleId: moduleId!,
-            status: 'completed',
-            progressPercent: 100,
-          });
-          toast({
-            title: "Training Submitted!",
-            description: "Your training has been submitted for leader review.",
-          });
-        }
-        setLocation("/trainings");
-        return;
+        setCurrentStep('submit');
       }
-    }
-    
-    if (!isRevisitMode) {
-      const progress = calculateProgressForState(nextStep, currentLessonIndex, 0);
-      updateProgress.mutate({
-        moduleId: moduleId!,
-        status: 'in-progress',
-        progressPercent: progress,
-      });
     }
   };
 
   const handlePrevStep = () => {
     if (currentStep === 'study') {
       setCurrentStep('lesson');
-      if (isDeepTraining) setCurrentLessonIndex(lessons.length - 1);
+      if (hasDeepLessons) setCurrentLessonIndex(lessons.length - 1);
     } else if (currentStep === 'knowledge-check') {
-      setCurrentStep('lesson');
-      if (isDeepTraining) setCurrentLessonIndex(lessons.length - 1);
+      if (hasStudyQuestions) {
+        setCurrentStep('study');
+      } else {
+        setCurrentStep('lesson');
+        if (hasDeepLessons) setCurrentLessonIndex(lessons.length - 1);
+      }
     } else if (currentStep === 'assessment') {
       if (hasKnowledgeCheck) {
         setCurrentStep('knowledge-check');
@@ -501,7 +436,16 @@ export default function TrainingViewer() {
         setCurrentStep('study');
       } else {
         setCurrentStep('lesson');
-        if (isDeepTraining) setCurrentLessonIndex(lessons.length - 1);
+        if (hasDeepLessons) setCurrentLessonIndex(lessons.length - 1);
+      }
+    } else if (currentStep === 'submit') {
+      if (hasAssessment) {
+        setCurrentStep('results');
+      } else if (hasStudyQuestions) {
+        setCurrentStep('study');
+      } else {
+        setCurrentStep('lesson');
+        if (hasDeepLessons) setCurrentLessonIndex(lessons.length - 1);
       }
     }
   };
@@ -560,42 +504,17 @@ export default function TrainingViewer() {
     }
     
     setCurrentStep('results');
-
-    const finalScore = hasIntensiveAssessment 
-      ? (totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0)
-      : (questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0);
-
-    if (finalScore >= 70 && !isRevisitMode) {
-      updateProgress.mutate({
-        moduleId: moduleId!,
-        status: 'completed',
-        progressPercent: 100,
-        assessmentScore: finalScore,
-      });
-      
-      // All trainings require approval by default
-      toast({
-        title: "Training Submitted!",
-        description: `You scored ${finalScore}%! Your training has been submitted for leader review.`,
-      });
-    } else if (!isRevisitMode) {
-      toast({
-        title: "Keep Learning",
-        description: `You scored ${finalScore}%. Review the material and try again (70% needed to pass).`,
-        variant: "destructive",
-      });
-    }
   };
 
-  const handleComplete = () => {
+  const handleSubmitTraining = () => {
     if (!isRevisitMode) {
       updateProgress.mutate({
         moduleId: moduleId!,
         status: 'completed',
         progressPercent: 100,
+        assessmentScore: quizScore || undefined,
       });
       
-      // All trainings require approval by default
       toast({
         title: "Training Submitted!",
         description: "Your training has been submitted for leader review. You'll be notified once approved.",
@@ -617,6 +536,7 @@ export default function TrainingViewer() {
     setCurrentQuestion(0);
     setAnswers({});
     setQuizScore(0);
+    setVisitedLessons(new Set([0]));
   };
 
   if (moduleLoading) {
@@ -645,12 +565,108 @@ export default function TrainingViewer() {
     );
   }
 
+  const DebugPanel = () => {
+    if (!isAdminOrLeader) return null;
+    
+    return (
+      <div className="mt-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowDebug(!showDebug)}
+          className="text-muted-foreground text-xs"
+          data-testid="button-toggle-debug"
+        >
+          <Bug className="w-3 h-3 mr-1" />
+          {showDebug ? 'Hide Debug' : 'Show Debug'}
+        </Button>
+        {showDebug && (
+          <div className="mt-2 p-3 bg-muted/50 rounded-lg text-xs font-mono space-y-1 border" data-testid="debug-panel">
+            <div><strong>moduleId:</strong> {moduleId}</div>
+            <div><strong>manualId:</strong> {module?.manualId || 'null'}</div>
+            <div><strong>lessons.length:</strong> {lessons.length}</div>
+            <div><strong>hasDeepLessons:</strong> {hasDeepLessons.toString()}</div>
+            <div><strong>studyQuestions:</strong> {module?.studyQuestions?.length || 0}</div>
+            <div><strong>knowledgeCheckQuestions:</strong> {module?.knowledgeCheckQuestions?.length || 0}</div>
+            <div><strong>assessments:</strong> {assessments.length}</div>
+            <div><strong>currentStep:</strong> {currentStep}</div>
+            <div><strong>currentLessonIndex:</strong> {safeLessonIndex}</div>
+            <div><strong>visitedLessons:</strong> {Array.from(visitedLessons).join(', ')}</div>
+            <div><strong>allLessonsVisited:</strong> {allLessonsVisited.toString()}</div>
+            <div><strong>canSubmit:</strong> {canSubmit.toString()}</div>
+            <div><strong>isRevisitMode:</strong> {isRevisitMode.toString()}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const ManualAccessButtons = () => {
+    if (!hasManual) return null;
+    
+    return (
+      <div className="flex gap-2 flex-wrap" data-testid="manual-buttons">
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          data-testid="button-view-manual"
+        >
+          <a href={manual!.fileUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="w-4 h-4 mr-2" />
+            View Manual PDF
+          </a>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          data-testid="button-download-manual"
+        >
+          <a href={manual!.fileUrl} download>
+            <Download className="w-4 h-4 mr-2" />
+            Download PDF
+          </a>
+        </Button>
+      </div>
+    );
+  };
+
+  const LessonNavigation = () => {
+    if (!hasDeepLessons || lessons.length <= 1) return null;
+    
+    return (
+      <div className="flex items-center gap-3 flex-wrap" data-testid="lesson-navigation">
+        <Select value={safeLessonIndex.toString()} onValueChange={handleLessonSelect}>
+          <SelectTrigger className="w-[200px]" data-testid="lesson-select">
+            <SelectValue placeholder="Select lesson" />
+          </SelectTrigger>
+          <SelectContent>
+            {lessons.map((lesson, idx) => (
+              <SelectItem key={lesson.id || idx} value={idx.toString()} data-testid={`lesson-option-${idx}`}>
+                <span className="flex items-center gap-2">
+                  {visitedLessons.has(idx) && <CheckCircle className="w-3 h-3 text-green-500" />}
+                  Lesson {idx + 1}: {lesson.title?.substring(0, 25)}...
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground" data-testid="lesson-counter">
+          Lesson {safeLessonIndex + 1} of {lessons.length}
+        </span>
+      </div>
+    );
+  };
+
   const StepIndicator = () => {
-    const steps = isDeepTraining 
+    const steps = hasDeepLessons 
       ? [
           { id: 'lesson', label: `Lessons (${safeLessonIndex + 1}/${lessons.length})`, icon: BookOpen },
+          ...(hasStudyQuestions ? [{ id: 'study', label: 'Reflect', icon: HelpCircle }] : []),
           ...(hasKnowledgeCheck ? [{ id: 'knowledge-check', label: 'Check', icon: HelpCircle }] : []),
-          ...(hasIntensiveAssessment ? [{ id: 'assessment', label: 'Assessment', icon: ClipboardCheck }] : []),
+          ...(hasIntensiveAssessment || assessments.length > 0 ? [{ id: 'assessment', label: 'Quiz', icon: ClipboardCheck }] : []),
+          { id: 'submit', label: 'Submit', icon: CheckCircle },
         ]
       : [
           { id: 'lesson', label: 'Lesson', icon: BookOpen },
@@ -659,10 +675,10 @@ export default function TrainingViewer() {
         ];
 
     return (
-      <div className="flex items-center justify-center gap-2 mb-4">
+      <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
         {steps.map((step, index) => {
           const Icon = step.icon;
-          const isActive = step.id === currentStep;
+          const isActive = step.id === currentStep || (step.id === 'submit' && currentStep === 'results');
           const isPast = steps.findIndex(s => s.id === currentStep) > index;
           const isResults = currentStep === 'results';
           
@@ -676,13 +692,9 @@ export default function TrainingViewer() {
                   isActive ? 'bg-primary text-primary-foreground' :
                   isPast || isResults ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
                 }`}>
-                  {isPast || isResults ? (
-                    <CheckCircle className="w-5 h-5" />
-                  ) : (
-                    <Icon className="w-5 h-5" />
-                  )}
+                  <Icon className="w-5 h-5" />
                 </div>
-                <span className={`text-xs ${isActive ? 'font-medium text-primary' : 'text-muted-foreground'}`}>
+                <span className={`text-xs ${isActive ? 'font-medium' : 'text-muted-foreground'}`}>
                   {step.label}
                 </span>
               </div>
@@ -732,21 +744,13 @@ export default function TrainingViewer() {
                   ? `You scored ${currentProgress.assessmentScore}% on the assessment`
                   : 'You have finished this training'}
               </p>
-              <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">
-                Your training completion has been submitted for{ministryName ? ` ${ministryName}` : ''} leader review. 
-                You'll receive a notification once approved.
-                {nextTraining && (
-                  <span className="block mt-2 font-medium text-primary">
-                    You can continue to the next training while waiting!
-                  </span>
-                )}
-              </p>
               {currentProgress?.submittedAt && (
                 <p className="text-sm text-muted-foreground mt-2">
                   Submitted on {new Date(currentProgress.submittedAt).toLocaleDateString()}
                 </p>
               )}
             </div>
+            <ManualAccessButtons />
           </CardContent>
           <CardFooter className="flex gap-3 justify-center flex-wrap">
             {nextTraining && (
@@ -762,11 +766,9 @@ export default function TrainingViewer() {
               <Eye className="w-4 h-4 mr-2" />
               Review Training
             </Button>
-            <Button variant="outline" onClick={() => setLocation("/trainings")} data-testid="button-back-hub-submitted">
-              Back to Training Hub
-            </Button>
           </CardFooter>
         </Card>
+        <DebugPanel />
       </div>
     );
   }
@@ -779,21 +781,12 @@ export default function TrainingViewer() {
           Back to Training Hub
         </Button>
 
-        <CoachBubble
-          id="training-rejected"
-          title="Needs Follow-Up"
-          message="Review the notes and resubmit when ready."
-        />
-
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-red-500" />
               <CardTitle>{module.title}</CardTitle>
             </div>
-            <CardDescription>
-              Needs revision
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="text-center py-8">
@@ -807,21 +800,17 @@ export default function TrainingViewer() {
                   <p className="text-sm text-red-700 dark:text-red-300 mt-1">{currentProgress.rejectionFeedback}</p>
                 </div>
               )}
-              <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">
-                Please review the training material and resubmit. Your leader will be notified when you complete it again.
-              </p>
             </div>
+            <ManualAccessButtons />
           </CardContent>
           <CardFooter className="flex gap-3 justify-center">
             <Button onClick={handleStartRevisit} data-testid="button-retry-rejected">
               <RefreshCw className="w-4 h-4 mr-2" />
               Retake Training
             </Button>
-            <Button variant="outline" onClick={() => setLocation("/trainings")} data-testid="button-back-hub-rejected">
-              Back to Training Hub
-            </Button>
           </CardFooter>
         </Card>
+        <DebugPanel />
       </div>
     );
   }
@@ -840,9 +829,6 @@ export default function TrainingViewer() {
               <GraduationCap className="w-5 h-5 text-primary" />
               <CardTitle>{module.title}</CardTitle>
             </div>
-            <CardDescription>
-              You've {currentProgress?.status === 'approved' ? 'been approved for' : 'completed'} this training
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="text-center py-8">
@@ -857,17 +843,8 @@ export default function TrainingViewer() {
                   ? `You scored ${currentProgress.assessmentScore}% on the assessment`
                   : 'You have successfully completed this training'}
               </p>
-              {currentProgress?.approvedAt && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Approved on {new Date(currentProgress.approvedAt).toLocaleDateString()}
-                </p>
-              )}
-              {currentProgress?.completedAt && !currentProgress?.approvedAt && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Completed on {new Date(currentProgress.completedAt).toLocaleDateString()}
-                </p>
-              )}
             </div>
+            <ManualAccessButtons />
           </CardContent>
           <CardFooter className="flex gap-3 justify-center">
             <Button variant="outline" onClick={handleStartRevisit} data-testid="button-revisit">
@@ -885,6 +862,7 @@ export default function TrainingViewer() {
             </Button>
           </CardFooter>
         </Card>
+        <DebugPanel />
       </div>
     );
   }
@@ -895,9 +873,9 @@ export default function TrainingViewer() {
     
     return (
       <div className="space-y-4">
-        <Button variant="ghost" onClick={() => setLocation("/trainings")} data-testid="button-back-training">
+        <Button variant="ghost" onClick={handlePrevStep} data-testid="button-back-content">
           <ChevronLeft className="w-4 h-4 mr-2" />
-          Back to Training Hub
+          Back
         </Button>
 
         <Card>
@@ -921,15 +899,8 @@ export default function TrainingViewer() {
               </p>
               <Progress value={quizScore} className="h-3 w-64 mx-auto mt-4" />
               <p className="text-sm text-muted-foreground mt-2">
-                {passed 
-                  ? (module?.requiresApproval !== false 
-                    ? "Submitted for leader review" 
-                    : "You've passed this training!") 
-                  : "70% required to pass"}
+                {passed ? "Quiz passed! Continue to submit for leader review." : "70% required to pass"}
               </p>
-              {isRevisitMode && (
-                <Badge variant="secondary" className="mt-2">Review Mode</Badge>
-              )}
             </div>
 
             <div className="space-y-3">
@@ -941,20 +912,12 @@ export default function TrainingViewer() {
                                     (q.options && q.options.indexOf(userAnswer) === q.options.indexOf(q.correctAnswer));
                   return (
                     <div key={q.id} className={`p-3 rounded-lg border ${isCorrect ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'}`}>
-                      {q.scenario && (
-                        <p className="text-sm text-muted-foreground mb-2 italic">{q.scenario}</p>
-                      )}
                       <p className="font-medium text-sm">{index + 1}. {q.question}</p>
                       <p className="text-sm mt-1">
                         Your answer: {userAnswer} {isCorrect ? <CheckCircle className="w-4 h-4 inline text-green-600" /> : <AlertCircle className="w-4 h-4 inline text-red-600" />}
                       </p>
                       {!isCorrect && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Correct: {q.correctAnswer}
-                        </p>
-                      )}
-                      {q.explanation && (
-                        <p className="text-xs text-muted-foreground mt-2 italic">{q.explanation}</p>
+                        <p className="text-sm text-muted-foreground mt-1">Correct: {q.correctAnswer}</p>
                       )}
                     </div>
                   );
@@ -970,12 +933,7 @@ export default function TrainingViewer() {
                         Your answer: {assessment.options[userAnswer]} {isCorrect ? <CheckCircle className="w-4 h-4 inline text-green-600" /> : <AlertCircle className="w-4 h-4 inline text-red-600" />}
                       </p>
                       {!isCorrect && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Correct: {assessment.options[assessment.correctAnswer]}
-                        </p>
-                      )}
-                      {assessment.explanation && (
-                        <p className="text-xs text-muted-foreground mt-2 italic">{assessment.explanation}</p>
+                        <p className="text-sm text-muted-foreground mt-1">Correct: {assessment.options[assessment.correctAnswer]}</p>
                       )}
                     </div>
                   );
@@ -983,23 +941,91 @@ export default function TrainingViewer() {
               )}
             </div>
           </CardContent>
-          <CardFooter className="flex gap-3 justify-center">
-            <Button 
-              variant={passed ? "outline" : "default"}
-              onClick={handleRetryQuiz} 
-              data-testid="button-retry-quiz"
-            >
-              {passed ? "Retake Quiz" : "Try Again"}
-            </Button>
-            <Button 
-              variant={passed ? "default" : "outline"} 
-              onClick={() => setLocation("/trainings")}
-              data-testid="button-back-to-hub"
-            >
+          <CardFooter className="flex gap-3 justify-center flex-wrap">
+            {!passed && (
+              <Button onClick={handleRetryQuiz} data-testid="button-retry-quiz">
+                Try Again
+              </Button>
+            )}
+            {passed && (
+              <Button onClick={() => setCurrentStep('submit')} data-testid="button-continue-submit">
+                Continue to Submit
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setLocation("/trainings")} data-testid="button-back-to-hub">
               Back to Training Hub
             </Button>
           </CardFooter>
         </Card>
+        <DebugPanel />
+      </div>
+    );
+  }
+
+  if (currentStep === 'submit') {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" onClick={handlePrevStep} data-testid="button-back-results">
+          <ChevronLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <StepIndicator />
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-primary" />
+              Ready to Submit
+            </CardTitle>
+            <CardDescription>
+              Submit your training completion for leader review
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="text-center py-8">
+              <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center bg-primary/10">
+                <GraduationCap className="w-10 h-10 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold mt-4">Training Complete!</h2>
+              <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                You've completed all the lessons{hasAssessment ? ' and passed the quiz' : ''}. 
+                Submit now to request leader approval.
+              </p>
+              {quizScore > 0 && (
+                <Badge variant="secondary" className="mt-3">Quiz Score: {quizScore}%</Badge>
+              )}
+            </div>
+            
+            <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+              <h4 className="font-medium">Completion Summary:</h4>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>{lessons.length > 0 ? `${lessons.length} lessons completed` : 'Lesson content reviewed'}</span>
+                </div>
+                {hasAssessment && quizScore >= 70 && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Quiz passed ({quizScore}%)</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <ManualAccessButtons />
+          </CardContent>
+          <CardFooter className="flex gap-3 justify-center">
+            <Button onClick={handleSubmitTraining} disabled={!canSubmit} data-testid="button-submit-training">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Submit for Leader Review
+            </Button>
+            <Button variant="outline" onClick={() => setLocation("/trainings")} data-testid="button-cancel-submit">
+              Cancel
+            </Button>
+          </CardFooter>
+        </Card>
+        <DebugPanel />
       </div>
     );
   }
@@ -1035,9 +1061,6 @@ export default function TrainingViewer() {
               <span className="text-sm text-muted-foreground">{module.title}</span>
             </div>
             <Progress value={(currentQuestion / questions.length) * 100} className="h-2 mt-3" />
-            {isRevisitMode && (
-              <Badge variant="outline" className="w-fit">Review Mode</Badge>
-            )}
           </CardHeader>
           <CardContent className="space-y-6">
             {intensiveQ?.scenario && (
@@ -1055,7 +1078,7 @@ export default function TrainingViewer() {
               </h2>
               <RadioGroup
                 value={answers[currentQuestion] || ""}
-                onValueChange={(value) => handleAnswerSelect(value)}
+                onValueChange={handleAnswerSelect}
                 className="space-y-3"
               >
                 {(intensiveQ?.options || legacyQ?.options || kcQ?.options || []).map((option, index) => (
@@ -1093,11 +1116,12 @@ export default function TrainingViewer() {
               disabled={answers[currentQuestion] === undefined}
               data-testid="button-next-question"
             >
-              {currentQuestion === questions.length - 1 ? "Submit" : "Next"}
+              {currentQuestion === questions.length - 1 ? "Submit Quiz" : "Next"}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </CardFooter>
         </Card>
+        <DebugPanel />
       </div>
     );
   }
@@ -1121,9 +1145,6 @@ export default function TrainingViewer() {
             <CardDescription>
               Take a moment to think about what you've learned
             </CardDescription>
-            {isRevisitMode && (
-              <Badge variant="outline" className="w-fit">Review Mode</Badge>
-            )}
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
@@ -1148,11 +1169,7 @@ export default function TrainingViewer() {
               ))}
             </div>
             
-            <div className="bg-primary/5 p-4 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                These questions are for personal reflection. Take time to consider each one before moving on.
-              </p>
-            </div>
+            <ManualAccessButtons />
           </CardContent>
           <CardFooter className="flex justify-between gap-2 flex-wrap">
             <Button variant="outline" onClick={handlePrevStep} data-testid="button-back">
@@ -1160,31 +1177,32 @@ export default function TrainingViewer() {
               Back to Lesson
             </Button>
             <Button onClick={handleNextStep} data-testid="button-continue">
-              {hasKnowledgeCheck ? "Knowledge Check" : hasAssessment ? "Start Quiz" : "Submit for Review"}
+              {hasKnowledgeCheck ? "Knowledge Check" : hasAssessment ? "Start Quiz" : "Continue to Submit"}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </CardFooter>
         </Card>
+        <DebugPanel />
       </div>
     );
   }
 
-  // Deep training view: render when isDeepTraining is true and lessons exist
-  // safeLessonIndex guarantees lesson is valid when lessons.length > 0
-  if (isDeepTraining && lessons.length > 0) {
-    // Derive non-null lesson inside this block - safeLessonIndex is always valid
-    const lesson = lessons[safeLessonIndex];
+  if (hasDeepLessons && lessons.length > 0 && currentLesson) {
+    const lesson = currentLesson;
     
     return (
       <div className="space-y-4">
-        <Button 
-          variant="ghost" 
-          onClick={safeLessonIndex === 0 ? () => setLocation("/trainings") : handlePrevLesson} 
-          data-testid="button-back"
-        >
-          <ChevronLeft className="w-4 h-4 mr-2" />
-          {safeLessonIndex === 0 ? 'Back to Training Hub' : 'Previous Lesson'}
-        </Button>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <Button 
+            variant="ghost" 
+            onClick={safeLessonIndex === 0 ? () => setLocation("/trainings") : handlePrevLesson} 
+            data-testid="button-back"
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            {safeLessonIndex === 0 ? 'Back to Training Hub' : 'Previous Lesson'}
+          </Button>
+          <LessonNavigation />
+        </div>
 
         <Card>
           <CardHeader>
@@ -1204,58 +1222,57 @@ export default function TrainingViewer() {
           <CardContent className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b">
               <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
-                {lesson.lessonNumber}
+                {lesson.lessonNumber || safeLessonIndex + 1}
               </div>
               <div>
-                <h2 className="text-xl font-bold">{lesson.title}</h2>
-                <p className="text-sm text-muted-foreground">
+                <h2 className="text-xl font-bold" data-testid="lesson-title">{lesson.title}</h2>
+                <p className="text-sm text-muted-foreground" data-testid="lesson-progress">
                   Lesson {safeLessonIndex + 1} of {lessons.length}
                 </p>
               </div>
             </div>
 
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              {lesson.teachingContent.split('\n').map((paragraph, i) => (
+            <div className="prose prose-sm dark:prose-invert max-w-none" data-testid="lesson-content">
+              {lesson.teachingContent?.split('\n').map((paragraph, i) => (
                 paragraph.trim() && <p key={i} className="mb-4">{paragraph}</p>
               ))}
             </div>
 
-            <div className="bg-primary/5 p-4 rounded-lg border border-primary/20">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-primary" />
-                Why This Matters
-              </h4>
-              <p className="text-sm">{lesson.whyThisMatters}</p>
-            </div>
+            {lesson.whyThisMatters && (
+              <div className="bg-primary/5 p-4 rounded-lg">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-primary" />
+                  Why This Matters
+                </h3>
+                <p className="text-sm">{lesson.whyThisMatters}</p>
+              </div>
+            )}
 
             {lesson.scriptureReferences && lesson.scriptureReferences.length > 0 && (
               <div className="bg-muted/50 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
                   <BookOpen className="w-4 h-4" />
                   Scripture References
-                </h4>
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   {lesson.scriptureReferences.map((ref, i) => (
-                    <Badge key={i} variant="secondary">{ref}</Badge>
+                    <Badge key={i} variant="outline">{ref}</Badge>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                Reflect
-              </h4>
-              <p className="text-sm italic">{lesson.reflectionPrompt}</p>
-              <Textarea 
-                placeholder="Write your thoughts here (optional)..."
-                className="mt-3"
-                value={reflectionNotes[safeLessonIndex] || ''}
-                onChange={(e) => setReflectionNotes({ ...reflectionNotes, [safeLessonIndex]: e.target.value })}
-                data-testid="input-reflection"
-              />
-            </div>
+            {lesson.reflectionPrompt && (
+              <div className="bg-muted p-4 rounded-lg">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Reflection
+                </h3>
+                <p className="text-sm italic">{lesson.reflectionPrompt}</p>
+              </div>
+            )}
+
+            <ManualAccessButtons />
           </CardContent>
           <CardFooter className="flex justify-between gap-2 flex-wrap">
             <Button
@@ -1269,12 +1286,13 @@ export default function TrainingViewer() {
             </Button>
             <Button onClick={handleNextLesson} data-testid="button-next-lesson">
               {safeLessonIndex === lessons.length - 1 
-                ? (hasKnowledgeCheck ? "Knowledge Check" : hasIntensiveAssessment ? "Assessment" : "Submit for Review")
-                : "Next Lesson"}
+                ? (hasStudyQuestions ? 'Continue to Reflection' : hasAssessment ? 'Start Quiz' : 'Continue to Submit')
+                : 'Next Lesson'}
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           </CardFooter>
         </Card>
+        <DebugPanel />
       </div>
     );
   }
@@ -1305,7 +1323,7 @@ export default function TrainingViewer() {
           <Progress value={calculateProgress()} className="h-2 mt-3" />
         </CardHeader>
         <CardContent className="space-y-6">
-          {!hasAnyContent && !hasAssessment && (
+          {!lessonContent && !hasManual && !hasVideo && sections.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 mx-auto flex items-center justify-center mb-4">
                 <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
@@ -1315,167 +1333,117 @@ export default function TrainingViewer() {
                 This training module doesn't have content generated yet. 
                 A ministry leader can generate content from the linked manual.
               </p>
-              <Button variant="outline" onClick={() => setLocation("/trainings")} data-testid="button-back-empty">
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Back to Training Hub
-              </Button>
             </div>
-          )}
-
-          {hasAnyContent && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <BookOpen className="w-5 h-5" />
-                Lesson Overview
-              </h2>
-              
-              {lessonContent ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  {lessonContent.split('\n').map((paragraph, i) => (
-                    paragraph.trim() && <p key={i} className="mb-3">{paragraph}</p>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  {module.description || "This training module will help you learn important concepts for your ministry role."}
-                </p>
-              )}
-            </div>
-          )}
-
-          {module.videoUrl && (
-            <div className="space-y-3">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Video className="w-4 h-4 text-primary" />
-                Training Video
-              </h3>
-              <div className="aspect-video w-full rounded-lg overflow-hidden border bg-muted">
-                {module.videoUrl.includes('youtube.com') || module.videoUrl.includes('youtu.be') ? (
-                  <iframe
-                    src={module.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'www.youtube.com/embed/')}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    title="Training video"
-                    data-testid="video-iframe-youtube"
-                  />
-                ) : module.videoUrl.includes('vimeo.com') ? (
-                  <iframe
-                    src={module.videoUrl.replace('vimeo.com/', 'player.vimeo.com/video/')}
-                    className="w-full h-full"
-                    allow="autoplay; fullscreen; picture-in-picture"
-                    allowFullScreen
-                    title="Training video"
-                    data-testid="video-iframe-vimeo"
-                  />
-                ) : (
-                  <video
-                    src={module.videoUrl}
-                    controls
-                    className="w-full h-full"
-                    data-testid="video-player"
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {manual && manual.fileUrl && (
-            <div className="space-y-3">
-              <h3 className="font-semibold flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
-                Training Manual
-              </h3>
-              <div className="border rounded-lg overflow-hidden">
-                <div className="aspect-[4/5] w-full bg-muted">
-                  <iframe
-                    src={manual.fileUrl}
-                    className="w-full h-full"
-                    title={`${manual.title} PDF viewer`}
-                    data-testid="pdf-iframe"
-                  />
-                </div>
-                <div className="p-3 border-t bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-sm text-muted-foreground">{manual.title}</span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      data-testid="button-open-pdf"
-                    >
-                      <a href={manual.fileUrl} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Open in New Tab
-                      </a>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      data-testid="button-download-pdf"
-                    >
-                      <a href={manual.fileUrl} download>
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {sections.length > 0 && (
-            <div className="space-y-4">
-              {sections.map((section, index) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <h3 className="font-semibold mb-2 flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    {section.title}
-                  </h3>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5" />
+                  Lesson Overview
+                </h2>
+                
+                {lessonContent ? (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
-                    {section.content.split('\n').map((paragraph, i) => (
-                      paragraph.trim() && <p key={i} className="mb-2">{paragraph}</p>
+                    {lessonContent.split('\n').map((paragraph, i) => (
+                      paragraph.trim() && <p key={i} className="mb-3">{paragraph}</p>
                     ))}
                   </div>
-                  {section.keyPoints && section.keyPoints.length > 0 && (
-                    <div className="bg-primary/5 p-3 rounded-lg mt-3">
-                      <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-primary" />
-                        Key Points
-                      </h4>
-                      <ul className="space-y-1">
-                        {section.keyPoints.map((point, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm">
-                            <Circle className="w-2 h-2 mt-1.5 text-primary fill-primary" />
-                            <span>{point}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                ) : (
+                  <p className="text-muted-foreground">
+                    {module.description || "This training module will help you learn important concepts for your ministry role."}
+                  </p>
+                )}
+              </div>
 
-          {hasAnyContent && (
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                {hasStudyQuestions 
-                  ? "When you're ready, continue to reflection questions to think about what you've learned."
-                  : hasKnowledgeCheck
-                    ? "When you're ready, continue to the knowledge check."
-                    : hasAssessment 
-                      ? "When you're ready, continue to the quiz to test your understanding."
-                      : "When you're ready, submit this training for leader review."
-                }
-              </p>
-            </div>
+              {module.videoUrl && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Video className="w-4 h-4 text-primary" />
+                    Training Video
+                  </h3>
+                  <div className="aspect-video w-full rounded-lg overflow-hidden border bg-muted">
+                    {module.videoUrl.includes('youtube.com') || module.videoUrl.includes('youtu.be') ? (
+                      <iframe
+                        src={module.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'www.youtube.com/embed/')}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="Training video"
+                        data-testid="video-iframe-youtube"
+                      />
+                    ) : module.videoUrl.includes('vimeo.com') ? (
+                      <iframe
+                        src={module.videoUrl.replace('vimeo.com/', 'player.vimeo.com/video/')}
+                        className="w-full h-full"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                        title="Training video"
+                        data-testid="video-iframe-vimeo"
+                      />
+                    ) : (
+                      <video
+                        src={module.videoUrl}
+                        controls
+                        className="w-full h-full"
+                        data-testid="video-player"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {sections.length > 0 && (
+                <div className="space-y-4">
+                  {sections.map((section, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <h3 className="font-semibold mb-2 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        {section.title}
+                      </h3>
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        {section.content.split('\n').map((paragraph, i) => (
+                          paragraph.trim() && <p key={i} className="mb-2">{paragraph}</p>
+                        ))}
+                      </div>
+                      {section.keyPoints && section.keyPoints.length > 0 && (
+                        <div className="bg-primary/5 p-3 rounded-lg mt-3">
+                          <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-primary" />
+                            Key Points
+                          </h4>
+                          <ul className="space-y-1">
+                            {section.keyPoints.map((point, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <Circle className="w-2 h-2 mt-1.5 text-primary fill-primary" />
+                                <span>{point}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <ManualAccessButtons />
+
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  {hasStudyQuestions 
+                    ? "When you're ready, continue to reflection questions to think about what you've learned."
+                    : hasKnowledgeCheck
+                      ? "When you're ready, continue to the knowledge check."
+                      : hasAssessment 
+                        ? "When you're ready, continue to the quiz to test your understanding."
+                        : "When you're ready, submit this training for leader review."
+                  }
+                </p>
+              </div>
+            </>
           )}
         </CardContent>
-        {hasAnyContent && (
+        {(lessonContent || hasManual || hasVideo || sections.length > 0) && (
           <CardFooter className="flex justify-end">
             <Button onClick={handleNextStep} data-testid="button-next-step">
               {hasStudyQuestions ? "Continue to Reflection" : hasKnowledgeCheck ? "Knowledge Check" : hasAssessment ? "Start Quiz" : "Submit for Review"}
@@ -1484,6 +1452,7 @@ export default function TrainingViewer() {
           </CardFooter>
         )}
       </Card>
+      <DebugPanel />
     </div>
   );
 }
