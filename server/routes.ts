@@ -1235,16 +1235,29 @@ export async function registerRoutes(
       // Look up user by email (case-insensitive) to handle Replit OIDC sub mismatches
       // When users log in via Replit Auth, claims.sub is Replit's ID which may differ from our DB ID
       const userEmail = req.user.claims.email;
+      console.log(`[auth/user] Looking up user by email: ${userEmail}, claims.sub: ${req.user.claims.sub}`);
       let user = userEmail ? await storage.getUserByEmail(userEmail) : null;
+      console.log(`[auth/user] User by email lookup result: ${user ? `found id=${user.id}, role=${user.role}` : 'not found'}`);
       
       // Fallback to claims.sub lookup for backwards compatibility
       if (!user) {
-        const userId = req.user.claims.sub;
-        user = await storage.getUser(userId);
+        const claimsSub = req.user.claims.sub;
+        user = await storage.getUser(claimsSub);
+        console.log(`[auth/user] Fallback lookup by claims.sub: ${user ? `found id=${user.id}, role=${user.role}` : 'not found'}`);
+      }
+      
+      // Owner email enforcement: ensure pastor@gardencitychurch.net always has owner role
+      const OWNER_EMAIL = "pastor@gardencitychurch.net";
+      if (user && userEmail && userEmail.toLowerCase() === OWNER_EMAIL.toLowerCase() && user.role !== 'owner') {
+        console.log(`[auth/user] Enforcing owner role for ${userEmail} (was: ${user.role})`);
+        await storage.updateUser(user.id, { role: 'owner' });
+        user.role = 'owner';
       }
       
       // Use the actual database user ID for all operations
       const userId = user?.id || req.user.claims.sub;
+      console.log(`[auth/user] Final userId for operations: ${userId}, user role: ${user?.role || 'unknown'}`);
+      
       
       // Auto-accept pending invites for this user's email (only once per session)
       const sessionKey = `invitesProcessed_${userId}`;

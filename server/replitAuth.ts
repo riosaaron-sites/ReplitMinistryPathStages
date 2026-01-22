@@ -78,11 +78,17 @@ async function upsertUser(
     profileImageUrl: claims["profile_image_url"],
   });
   
-  // If this is the owner email and they don't have owner role yet, set it
-  // Use the returned user from upsert (which has the correct ID) instead of claims["sub"]
-  if (isOwnerEmail && upsertedUser && upsertedUser.role !== 'owner') {
-    await storage.updateUser(upsertedUser.id, { role: 'owner' });
-    console.log(`[auth] Set owner role for ${email}`);
+  // If this is the owner email, ALWAYS ensure owner role is set
+  // This fixes the case where the role was previously set to something else
+  if (isOwnerEmail && upsertedUser) {
+    if (upsertedUser.role !== 'owner') {
+      await storage.updateUser(upsertedUser.id, { role: 'owner' });
+      console.log(`[auth] Updated role to owner for ${email} (was: ${upsertedUser.role})`);
+      // Update the local object to reflect the change
+      upsertedUser.role = 'owner';
+    } else {
+      console.log(`[auth] Owner role already set for ${email}`);
+    }
   }
   
   return upsertedUser;
