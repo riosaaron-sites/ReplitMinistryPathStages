@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useRole } from "@/hooks/useRole";
+import { Badge } from "@/components/ui/badge";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useMinistryContext } from "@/contexts/MinistryContext";
 import { cn } from "@/lib/utils";
@@ -58,7 +59,7 @@ const memberNavItems = [
 export function MemberLayout({ children }: MemberLayoutProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, roleLabel, canAccessLeadershipPortal } = useRole();
+  const { user, roleLabel, canAccessLeadershipPortal, isDev, isDevOverrideActive, role } = useRole();
   const { 
     selectedMinistryId, 
     setSelectedMinistryId, 
@@ -90,6 +91,15 @@ export function MemberLayout({ children }: MemberLayoutProps) {
                 <span className="font-semibold text-lg hidden sm:inline">MinistryPath</span>
               </div>
             </Link>
+            {isDev && (
+              <div className="hidden lg:flex items-center gap-2 ml-4 px-2 py-1 rounded bg-amber-600/20 border border-amber-500/30" data-testid="dev-indicator">
+                <span className="text-xs font-mono text-amber-200">{user?.email}</span>
+                <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-200">{role}</Badge>
+                {isDevOverrideActive && (
+                  <Badge className="text-xs bg-green-600 text-white">DEV Override</Badge>
+                )}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center gap-2">

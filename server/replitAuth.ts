@@ -283,7 +283,10 @@ export const requireLeader: RequestHandler = async (req: any, res, next) => {
   }
 };
 
+const DEV_TEST_EMAIL = "Pastor@gardencitychurch.net";
+
 // Require the user to have admin-level access or above
+// In development mode, allows DEV_TEST_EMAIL to have admin access
 export const requireAdmin: RequestHandler = async (req: any, res, next) => {
   try {
     const userId = req.user?.claims?.sub;
@@ -292,7 +295,14 @@ export const requireAdmin: RequestHandler = async (req: any, res, next) => {
     }
     
     const user = await storage.getUser(userId);
-    if (!user || !isAdmin(user.role)) {
+    if (!user) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    
+    const isDev = process.env.NODE_ENV !== 'production';
+    const isDevOverride = isDev && user.email?.toLowerCase() === DEV_TEST_EMAIL.toLowerCase();
+    
+    if (!isAdmin(user.role) && !isDevOverride) {
       return res.status(403).json({ message: "Admin access required" });
     }
     

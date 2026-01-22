@@ -264,7 +264,7 @@ function getWhatsNextPriority(
 }
 
 export default function MemberDashboard() {
-  const { user, roleLabel, isAuthenticated, isAdmin } = useRole();
+  const { user, roleLabel, isAuthenticated, isAdmin, isDev, isDevOverrideActive } = useRole();
   
   const { data: userProgress, isLoading: progressLoading } = useQuery<UserProgress>({
     queryKey: ['/api/user-progress'],
@@ -1033,16 +1033,20 @@ export default function MemberDashboard() {
         </CardContent>
       </Card>
 
-      {/* DEV Tools - Only visible to admins in development */}
-      <DevToolsPanel user={user} isAdmin={isAdmin} />
+      {/* DEV Tools - Only visible in development mode */}
+      <DevToolsPanel user={user} isAdmin={isAdmin} isDev={isDev} isDevOverrideActive={isDevOverrideActive} />
     </div>
   );
 }
 
-function DevToolsPanel({ user, isAdmin }: { user: any; isAdmin: boolean }) {
+function DevToolsPanel({ user, isAdmin, isDev, isDevOverrideActive }: { 
+  user: any; 
+  isAdmin: boolean; 
+  isDev: boolean;
+  isDevOverrideActive: boolean;
+}) {
   const [showDevTools, setShowDevTools] = useState(false);
   const { toast } = useToast();
-  const isDev = import.meta.env.DEV || window.location.hostname.includes('replit');
   
   const resetOnboardingMutation = useMutation({
     mutationFn: async () => {
@@ -1089,7 +1093,7 @@ function DevToolsPanel({ user, isAdmin }: { user: any; isAdmin: boolean }) {
     },
   });
 
-  if (!isDev && !isAdmin) return null;
+  if (!isDev) return null;
 
   return (
     <Card className="border-dashed border-amber-500/50 bg-amber-500/5" data-testid="card-dev-tools">
@@ -1098,7 +1102,12 @@ function DevToolsPanel({ user, isAdmin }: { user: any; isAdmin: boolean }) {
           <div className="flex items-center gap-2">
             <Bug className="h-4 w-4 text-amber-500" />
             <CardTitle className="text-sm text-amber-600 dark:text-amber-400">DEV Tools</CardTitle>
-            <Badge variant="outline" className="text-xs">Admin Only</Badge>
+            {isDevOverrideActive && (
+              <Badge variant="default" className="text-xs bg-green-600">DEV Override Active</Badge>
+            )}
+            {!isDevOverrideActive && isAdmin && (
+              <Badge variant="outline" className="text-xs">Admin</Badge>
+            )}
           </div>
           <Button 
             variant="ghost" 
@@ -1114,9 +1123,12 @@ function DevToolsPanel({ user, isAdmin }: { user: any; isAdmin: boolean }) {
         <CardContent className="space-y-4">
           <div className="text-xs font-mono bg-muted p-2 rounded space-y-1">
             <div><strong>User ID:</strong> {user?.id}</div>
+            <div><strong>Email:</strong> {user?.email || 'null'}</div>
             <div><strong>Onboarding State:</strong> {user?.onboardingState || 'null'}</div>
             <div><strong>Onboarding Status:</strong> {user?.onboardingStatus || 'null'}</div>
             <div><strong>Role:</strong> {user?.role}</div>
+            <div><strong>isAdmin (computed):</strong> {isAdmin ? 'true' : 'false'}</div>
+            <div><strong>DEV Override:</strong> {isDevOverrideActive ? 'ACTIVE' : 'inactive'}</div>
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button

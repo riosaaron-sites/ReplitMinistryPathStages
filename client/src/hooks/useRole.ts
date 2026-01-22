@@ -8,12 +8,17 @@ import {
   ROLE_LABELS 
 } from "@shared/schema";
 
+const DEV_TEST_EMAIL = "Pastor@gardencitychurch.net";
+
 export function useRole() {
   const { user, isAuthenticated, isLoading } = useAuth();
   
   const role = (user?.role as UserRole) || 'member';
   
-  const isAdmin = ADMIN_ROLES.includes(role);
+  const isDev = import.meta.env.DEV || window.location.hostname.includes('replit');
+  const isDevOverrideActive = isDev && user?.email?.toLowerCase() === DEV_TEST_EMAIL.toLowerCase();
+  
+  const isAdmin = ADMIN_ROLES.includes(role) || isDevOverrideActive;
   const isLeader = LEADERSHIP_ROLES.includes(role);
   const isPastoralRole = PASTORAL_ROLES.includes(role);
   const requiresDoctrineAck = ROLES_REQUIRING_DOCTRINE_ACK.includes(role);
@@ -80,5 +85,7 @@ export function useRole() {
     user,
     isAuthenticated,
     isLoading,
+    isDev,
+    isDevOverrideActive,
   };
 }
