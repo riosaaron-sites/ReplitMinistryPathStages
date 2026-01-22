@@ -434,7 +434,7 @@ export async function registerRoutes(
   });
 
   // Development-only: Force complete onboarding for testing
-  app.post('/api/admin/force-complete-onboarding', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/force-complete-onboarding', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       // Only allow in development mode or with admin bypass
       const isDev = process.env.NODE_ENV === 'development';
@@ -467,7 +467,7 @@ export async function registerRoutes(
   });
 
   // Development-only: Reset onboarding status for testing
-  app.post('/api/admin/reset-onboarding', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/reset-onboarding', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       // Only allow in development mode or for admin users
       const isDev = process.env.NODE_ENV === 'development';
