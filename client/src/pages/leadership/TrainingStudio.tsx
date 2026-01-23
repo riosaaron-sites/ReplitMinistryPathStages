@@ -311,14 +311,18 @@ export default function TrainingStudio() {
               <CardContent className="space-y-6">
                 <div>
                   <Label>Select Existing Manual</Label>
-                  <Select value={selectedManualId} onValueChange={setSelectedManualId}>
+                  <Select value={selectedManualId} onValueChange={(value) => {
+                    if (value) {
+                      setSelectedManualId(value);
+                    }
+                  }}>
                     <SelectTrigger className="mt-2" data-testid="select-manual">
                       <SelectValue placeholder="Choose a manual..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {manuals.map((manual) => (
+                      {manuals.filter(m => m && m.id).map((manual) => (
                         <SelectItem key={manual.id} value={manual.id}>
-                          {manual.title} ({manual.category})
+                          {manual.title || 'Untitled'} ({manual.category || 'Uncategorized'})
                         </SelectItem>
                       ))}
                     </SelectContent>
