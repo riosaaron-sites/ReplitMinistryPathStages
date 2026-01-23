@@ -2588,11 +2588,16 @@ export async function registerRoutes(
     }
   });
 
-  // Update user role (admin only for admin changes, leadership for other changes)
+  // Update user role (admin only - system-wide restriction)
   app.patch('/api/users/:userId/role', isAuthenticated, async (req: any, res) => {
     try {
       const requestingUserId = req.user.claims.sub;
       const requestingUser = await storage.getUser(requestingUserId);
+      
+      // Only admins can change roles - system-wide restriction
+      if (!requestingUser || !isAdmin(requestingUser.role)) {
+        return res.status(403).json({ message: "Only administrators can change user roles" });
+      }
       
       const { userId } = req.params;
       const { role: newRole } = req.body;
@@ -2600,27 +2605,6 @@ export async function registerRoutes(
       
       if (!targetUser) {
         return res.status(404).json({ message: "User not found" });
-      }
-      
-      const adminRoles = ['system-admin', 'admin'];
-      const isRequestingUserAdmin = adminRoles.includes(requestingUser?.role || '');
-      const isTargetUserAdmin = adminRoles.includes(targetUser.role || '');
-      const isGrantingAdmin = adminRoles.includes(newRole);
-      
-      // Only admins can grant admin role
-      if (isGrantingAdmin && !isRequestingUserAdmin) {
-        return res.status(403).json({ message: "Only administrators can grant admin access" });
-      }
-      
-      // Only admins can modify other admins
-      if (isTargetUserAdmin && !isRequestingUserAdmin) {
-        return res.status(403).json({ message: "Only administrators can modify other administrators" });
-      }
-      
-      // Leadership roles can update non-admin users
-      const leadershipRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
-      if (!requestingUser || !leadershipRoles.includes(requestingUser.role || '')) {
-        return res.status(403).json({ message: "Unauthorized" });
       }
       
       await storage.updateUserRole(userId, newRole);

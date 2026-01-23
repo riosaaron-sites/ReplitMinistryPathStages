@@ -98,19 +98,6 @@ export default function PeopleRoles() {
     queryKey: ["/api/role-assignments"],
   });
 
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: UserRole }) => {
-      return apiRequest("PATCH", `/api/users/${userId}/role`, { role });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "Role Updated", description: "User role has been updated successfully." });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update user role.", variant: "destructive" });
-    },
-  });
-
   const assignMinistryMutation = useMutation({
     mutationFn: async (data: { userId: string; ministryId: string; roleName?: string }) => {
       return apiRequest("POST", "/api/role-assignments", data);
@@ -404,19 +391,9 @@ export default function PeopleRoles() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Select
-                        value={user.role || 'member'}
-                        onValueChange={(role) => updateRoleMutation.mutate({ userId: user.id, role: role as UserRole })}
-                      >
-                        <SelectTrigger className="w-40" data-testid={`select-role-${user.id}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {USER_ROLES.map(role => (
-                            <SelectItem key={role} value={role}>{formatRoleName(role)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Badge variant="outline" className="text-xs">
+                        {formatRoleName(user.role || 'member')}
+                      </Badge>
                       
                       <Dialog open={assignDialogOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
                         setAssignDialogOpen(open);

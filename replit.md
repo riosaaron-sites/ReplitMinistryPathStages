@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
 - **Health Indicators**: Automated health scoring for team members (onboarding, training, serve rate, questions) with pastoral vocabulary statuses.
 - **Ministry Expectations**: JSONB storage for ministry-specific expectations displayed to members.
 - **Leader Oversight**: Sections for "Who I Report To" (members), "My Team" (leaders), and "Pastoral Care" (pastoral roles).
-- **User Roles**: 7-tier role hierarchy: owner (100) > admin (90) > pastor (80) > leader (60) > member (40) > intern (30) > attendee (10).
+- **User Roles**: 7-tier role hierarchy: owner (100) > admin (90) > pastor (80) > leader (60) > member (40) > intern (30) > attendee (10). Role changes are admin-only and only visible in Admin Panel.
 - **Role Permission Groups**: Defined groups (OWNER_ROLES, ADMIN_ROLES, PASTORAL_ROLES, LEADERSHIP_ROLES) for access control, distinguishing administrative from pastoral authority.
 - **Pastoral Questions**: Dedicated access for pastoral roles to follow up on "I Have Questions" from onboarding.
 - **Ministry Join Requests**: Reviewable by leadership roles based on survey recommendations or interest.
