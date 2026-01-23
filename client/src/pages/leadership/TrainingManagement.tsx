@@ -50,6 +50,8 @@ const formSchema = insertTrainingModuleSchema.extend({
   slug: z.string().min(2, "Slug must be at least 2 characters"),
   description: z.string().optional(),
   audience: z.enum(['all', 'leader', 'ministry']).optional().default('all'),
+  isOnboardingRequired: z.boolean().optional().default(false),
+  positionId: z.string().nullable().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -59,6 +61,7 @@ function TrainingCard({
   onEdit,
   onManageQuestions,
   onDelete,
+  onSettings,
   enrolledCount,
   completedCount,
   ministry,
@@ -67,6 +70,7 @@ function TrainingCard({
   onEdit: () => void;
   onManageQuestions: () => void;
   onDelete: () => void;
+  onSettings: () => void;
   enrolledCount: number;
   completedCount: number;
   ministry?: Ministry;
@@ -102,10 +106,16 @@ function TrainingCard({
               {training.isRequired && (
                 <Badge variant="default" className="text-xs">Required{ministry ? ` for ${ministry.name}` : ""}</Badge>
               )}
+              {(training as any).isOnboardingRequired && (
+                <Badge variant="destructive" className="text-xs">Onboarding Required</Badge>
+              )}
             </div>
             <CardDescription className="mt-1">{ministry?.name || "General"}</CardDescription>
           </div>
           <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={onSettings} data-testid={`button-settings-training-${training.id}`}>
+              <Settings2 className="w-4 h-4" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={onManageQuestions} data-testid={`button-manage-questions-${training.id}`}>
               <FileQuestion className="w-4 h-4" />
             </Button>
@@ -282,6 +292,8 @@ export default function TrainingManagement() {
 
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectFeedback, setRejectFeedback] = useState("");
+  const [settingsTraining, setSettingsTraining] = useState<TrainingModule | null>(null);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   const approveMutation = useMutation({
     mutationFn: async (progressId: string) => {
@@ -1166,6 +1178,10 @@ export default function TrainingManagement() {
                         setQuestionsDialogOpen(true);
                       }}
                       onDelete={() => setDeleteConfirmId(training.id)}
+                      onSettings={() => {
+                        setSettingsTraining(training);
+                        setSettingsDialogOpen(true);
+                      }}
                       enrolledCount={getEnrolledCount(training.id)}
                       completedCount={getCompletedCount(training.id)}
                       ministry={getMinistryById(training.ministryId)}
@@ -1483,6 +1499,143 @@ export default function TrainingManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Training Settings Dialog */}
+      <Dialog open={settingsDialogOpen} onOpenChange={(open) => {
+        setSettingsDialogOpen(open);
+        if (!open) setSettingsTraining(null);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Training Assignment Settings</DialogTitle>
+            <DialogDescription>
+              Configure who is required to complete this training
+            </DialogDescription>
+          </DialogHeader>
+          {settingsTraining && (
+            <div className="space-y-6 py-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="onboardingRequired" className="text-base">Onboarding Required</Label>
+                    <p className="text-sm text-muted-foreground">
+                      All new users must complete this training
+                    </p>
+                  </div>
+                  <Switch
+                    id="onboardingRequired"
+                    checked={(settingsTraining as any).isOnboardingRequired || false}
+                    onCheckedChange={(checked) => {
+                      updateMutation.mutate({
+                        id: settingsTraining.id,
+                        data: { isOnboardingRequired: checked } as any,
+                      });
+                      setSettingsTraining({
+                        ...settingsTraining,
+                        isOnboardingRequired: checked,
+                      } as any);
+                    }}
+                    data-testid="switch-onboarding-required"
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="ministryRequired" className="text-base">Ministry Required</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Required for members of selected ministry
+                    </p>
+                  </div>
+                  <Switch
+                    id="ministryRequired"
+                    checked={settingsTraining.isRequired || false}
+                    onCheckedChange={(checked) => {
+                      updateMutation.mutate({
+                        id: settingsTraining.id,
+                        data: { isRequired: checked },
+                      });
+                      setSettingsTraining({
+                        ...settingsTraining,
+                        isRequired: checked,
+                      });
+                    }}
+                    data-testid="switch-ministry-required"
+                  />
+                </div>
+              </div>
+
+              {settingsTraining.isRequired && (
+                <div className="space-y-2">
+                  <Label>Assign to Ministry</Label>
+                  <Select
+                    value={settingsTraining.ministryId || "none"}
+                    onValueChange={(value) => {
+                      const ministryId = value === "none" ? null : value;
+                      updateMutation.mutate({
+                        id: settingsTraining.id,
+                        data: { ministryId } as any,
+                      });
+                      setSettingsTraining({
+                        ...settingsTraining,
+                        ministryId,
+                      } as any);
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-training-ministry">
+                      <SelectValue placeholder="Select ministry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">All Ministries (General)</SelectItem>
+                      {ministries?.map((ministry) => (
+                        <SelectItem key={ministry.id} value={ministry.id}>
+                          {ministry.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Assign to Position (Optional)</Label>
+                <Select
+                  value={(settingsTraining as any).positionId || "none"}
+                  onValueChange={(value) => {
+                    const positionId = value === "none" ? null : value;
+                    updateMutation.mutate({
+                      id: settingsTraining.id,
+                      data: { positionId } as any,
+                    });
+                    setSettingsTraining({
+                      ...settingsTraining,
+                      positionId,
+                    } as any);
+                  }}
+                >
+                  <SelectTrigger data-testid="select-training-position">
+                    <SelectValue placeholder="Select position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">All Positions</SelectItem>
+                    <SelectItem value="volunteer">Volunteer</SelectItem>
+                    <SelectItem value="team-lead">Team Lead</SelectItem>
+                    <SelectItem value="director">Director</SelectItem>
+                    <SelectItem value="pastor">Pastor</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  If selected, only users in this position will be required to complete this training
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsDialogOpen(false)} data-testid="button-close-settings">
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
