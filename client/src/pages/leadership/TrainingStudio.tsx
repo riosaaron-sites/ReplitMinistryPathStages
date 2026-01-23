@@ -40,7 +40,7 @@ import {
   Trash2,
   Video,
 } from "lucide-react";
-import type { TrainingModule, Ministry, TrainingModuleStatus, DeepLesson } from "@shared/schema";
+import type { TrainingModule, Ministry, TrainingModuleStatus, DeepLesson, LessonQuestion } from "@shared/schema";
 
 interface Manual {
   id: string;
@@ -860,6 +860,142 @@ export default function TrainingStudio() {
                                         placeholder="Reflection prompt for this lesson..."
                                         rows={2}
                                       />
+                                    </div>
+                                    
+                                    <Separator className="my-4" />
+                                    
+                                    <div className="space-y-2">
+                                      <Label className="text-sm flex items-center gap-2">
+                                        <Video className="w-4 h-4" />
+                                        Lesson Video (Optional)
+                                      </Label>
+                                      <Input
+                                        value={lesson.videoUrl || ""}
+                                        onChange={(e) => {
+                                          const updated = [...editedContent.lessons];
+                                          updated[idx] = { ...updated[idx], videoUrl: e.target.value };
+                                          setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                        }}
+                                        placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+                                        data-testid={`input-lesson-video-${idx}`}
+                                      />
+                                    </div>
+
+                                    <Separator className="my-4" />
+
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <Label className="text-sm flex items-center gap-2">
+                                          <List className="w-4 h-4" />
+                                          Multiple Choice Questions (Optional)
+                                        </Label>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            const updated = [...editedContent.lessons];
+                                            const newQuestion: LessonQuestion = {
+                                              id: crypto.randomUUID(),
+                                              question: "",
+                                              options: ["", "", "", ""],
+                                              correctIndex: 0,
+                                            };
+                                            updated[idx] = {
+                                              ...updated[idx],
+                                              questions: [...(updated[idx].questions || []), newQuestion],
+                                            };
+                                            setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                          }}
+                                          data-testid={`button-add-question-${idx}`}
+                                        >
+                                          <Plus className="w-4 h-4 mr-1" />
+                                          Add Question
+                                        </Button>
+                                      </div>
+                                      
+                                      {(lesson.questions || []).length === 0 ? (
+                                        <p className="text-sm text-muted-foreground italic">No questions added yet</p>
+                                      ) : (
+                                        <div className="space-y-4">
+                                          {(lesson.questions || []).map((q, qIdx) => (
+                                            <Card key={q.id} className="bg-muted/30">
+                                              <CardContent className="pt-4 space-y-3">
+                                                <div className="flex items-start justify-between gap-2">
+                                                  <div className="flex-1 space-y-2">
+                                                    <Label className="text-xs text-muted-foreground">Question {qIdx + 1}</Label>
+                                                    <Textarea
+                                                      value={q.question}
+                                                      onChange={(e) => {
+                                                        const updated = [...editedContent.lessons];
+                                                        const questions = [...(updated[idx].questions || [])];
+                                                        questions[qIdx] = { ...questions[qIdx], question: e.target.value };
+                                                        updated[idx] = { ...updated[idx], questions };
+                                                        setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                                      }}
+                                                      placeholder="Enter question..."
+                                                      rows={2}
+                                                      data-testid={`input-question-${idx}-${qIdx}`}
+                                                    />
+                                                  </div>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                      const updated = [...editedContent.lessons];
+                                                      const questions = (updated[idx].questions || []).filter((_, i) => i !== qIdx);
+                                                      updated[idx] = { ...updated[idx], questions };
+                                                      setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                                    }}
+                                                    className="text-destructive hover:text-destructive"
+                                                    data-testid={`button-delete-question-${idx}-${qIdx}`}
+                                                  >
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </Button>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-2 gap-2">
+                                                  {q.options.map((opt, optIdx) => (
+                                                    <div key={optIdx} className="flex items-center gap-2">
+                                                      <input
+                                                        type="radio"
+                                                        name={`correct-${q.id}`}
+                                                        checked={q.correctIndex === optIdx}
+                                                        onChange={() => {
+                                                          const updated = [...editedContent.lessons];
+                                                          const questions = [...(updated[idx].questions || [])];
+                                                          questions[qIdx] = { ...questions[qIdx], correctIndex: optIdx };
+                                                          updated[idx] = { ...updated[idx], questions };
+                                                          setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                                        }}
+                                                        className="h-4 w-4"
+                                                        data-testid={`radio-correct-${idx}-${qIdx}-${optIdx}`}
+                                                      />
+                                                      <Input
+                                                        value={opt}
+                                                        onChange={(e) => {
+                                                          const updated = [...editedContent.lessons];
+                                                          const questions = [...(updated[idx].questions || [])];
+                                                          const newOptions = [...questions[qIdx].options];
+                                                          newOptions[optIdx] = e.target.value;
+                                                          questions[qIdx] = { ...questions[qIdx], options: newOptions };
+                                                          updated[idx] = { ...updated[idx], questions };
+                                                          setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                                        }}
+                                                        placeholder={`Option ${optIdx + 1}`}
+                                                        className={q.correctIndex === optIdx ? "border-green-500 bg-green-50 dark:bg-green-900/20" : ""}
+                                                        data-testid={`input-option-${idx}-${qIdx}-${optIdx}`}
+                                                      />
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">
+                                                  Select the radio button next to the correct answer
+                                                </p>
+                                              </CardContent>
+                                            </Card>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   </CardContent>
                                 </Card>

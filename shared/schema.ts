@@ -1370,6 +1370,14 @@ export interface TrainingSection {
   scriptureReferences?: string[];
 }
 
+// Lesson Question for multiple choice
+export interface LessonQuestion {
+  id: string;
+  question: string;
+  options: string[];  // Array of answer choices
+  correctIndex: number;  // Index of the correct answer (0-based)
+}
+
 // Deep Training Lesson Structure (Phase 2)
 export interface DeepLesson {
   id: string;
@@ -1379,6 +1387,8 @@ export interface DeepLesson {
   whyThisMatters: string;   // Why this matters in serving/church culture
   reflectionPrompt: string; // Short reflection prompt for this lesson
   scriptureReferences?: string[]; // Only if present in manual or clearly required
+  videoUrl?: string;  // Optional video URL for this lesson
+  questions?: LessonQuestion[];  // Optional multiple choice questions
 }
 
 // Knowledge Check Question (light assessment)
