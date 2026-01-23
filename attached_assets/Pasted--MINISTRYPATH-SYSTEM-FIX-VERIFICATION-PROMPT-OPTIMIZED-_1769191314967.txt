@@ -1,0 +1,199 @@
+✅ MINISTRYPATH — SYSTEM FIX & VERIFICATION PROMPT (OPTIMIZED)
+
+Copy / Paste exactly into Replit AI
+
+You are working on the MinistryPath application.
+
+CRITICAL RULES
+
+Do NOT refactor architecture
+
+Do NOT rename major models
+
+Do NOT optimize unrelated code
+
+Make only minimal, targeted, verifiable changes
+
+Preserve existing data and security
+
+We have previously identified issues with:
+
+Incorrect React Query queryKey formats for single-ID fetches
+
+Route mismatches causing 404s
+
+Blank pages caused by malformed fetch URLs
+
+Do not ignore that context.
+
+STEP 1 — SYSTEM INTEGRITY (NO FEATURE WORK)
+
+Search the codebase for any single-item fetch where the backend route is /api/x/:id but the frontend uses:
+
+queryKey: ['/api/x', id]
+
+
+Fix ALL such cases to:
+
+queryKey: [`/api/x/${id}`]
+
+
+Fix all navigation links that point to non-existent routes (ex: /leadership/manuals vs /manuals).
+
+Ensure the gear/settings icon works for all roles:
+
+Always functional
+
+If user is admin+, include “Admin Mode” option
+
+“Admin Mode” navigates to /leadership/admin
+
+Verify no dead buttons remain.
+
+STEP 2 — TRAINING SYSTEM (TRUST & CONSISTENCY)
+
+Lesson Reflections
+
+Use multiline (paragraph) input
+
+Enforce minimum 10 words
+
+Validate on client AND server
+
+Training Count Mismatch
+
+Fix mismatch where dashboard shows “required/completed” but Training Hub list does not match
+
+Create a single source of truth for required trainings:
+
+Endpoint example: /api/training/modules/required
+
+Returns LIVE modules required for that user (onboardingRequired, ministry membership, position)
+
+Use this same endpoint for:
+
+Dashboard counts
+
+Training Hub list
+
+Training Approvals
+
+“Submissions Awaiting Approval” must be clickable
+
+Reviewer can see:
+
+Training content
+
+User reflections
+
+Quiz answers
+
+Approve / Reject works
+
+After approval:
+
+Training marked complete
+
+In-app notification sent
+
+Email “Congrats on completion” sent ONLY after approval
+
+Publish Propagation
+
+When a training goes LIVE:
+
+It becomes available system-wide to intended users
+
+Intended users receive in-app notification
+
+STEP 3 — ADMIN & ROLE BEHAVIOR
+
+If a user role is admin+ and they join a ministry:
+
+Membership auto-approved
+
+Required trainings for that ministry trigger immediately
+
+Applies even if ministry has no leader
+
+Pastors and Leaders have identical access.
+
+Admin access remains distinct (system configuration, cleanup).
+
+STEP 4 — LEADERSHIP UX (MINIMAL, HIGH-IMPACT)
+
+Training Management page:
+
+Add clear structure:
+
+Tabs or filters: LIVE / DRAFT / SUBMISSIONS / ARCHIVED
+
+Default = LIVE
+
+Search enabled
+
+Reduce visual overload without changing functionality
+
+STEP 5 — OPERATIONS (MUST WORK)
+
+Attendance
+
+Fix loading failure
+
+Allow configurable services and fields
+
+Archive services/fields instead of deleting
+
+Preserve historical reporting
+
+Use churchmetrics.com as conceptual model (not code)
+
+Request Center
+
+Support request types: Supplies, Announcements, Resources, Volunteers
+
+Each request type routes to a designated role/person
+
+If no assignee exists, route to Admin queue
+
+Workflow: Submitted → Assigned → Completed
+
+Pastoral Care
+
+Convert into workflow-based follow-up system:
+
+Call / Text / Letter / Visit
+
+Track accountability and completion
+
+Configurable steps
+
+STEP 6 — ENGAGEMENT (NON-BREAKING)
+
+Add daily encouragement / scripture capability
+
+Safe implementation (manual or permitted feed)
+
+Display on dashboard
+
+No dependency that can break the app
+
+OUTPUT REQUIREMENTS
+
+Provide:
+
+List of files changed
+
+What was wrong + what was fixed (brief)
+
+New endpoints added (if any)
+
+Step-by-step verification checklist for:
+
+Member
+
+Leader
+
+Admin
+
+Confirmation no broken links or security regressions were introduced
