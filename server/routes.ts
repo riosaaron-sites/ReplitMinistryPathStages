@@ -4530,8 +4530,21 @@ export async function registerRoutes(
       });
 
       const validated = schema.parse(req.body);
-      console.log("Updating training module:", id, "with data:", JSON.stringify(validated));
-      const training = await storage.updateTrainingModule(id, validated);
+      
+      // Convert string dates to Date objects for timestamp fields
+      const updateData: any = { ...validated };
+      if (validated.lastGeneratedAt) {
+        updateData.lastGeneratedAt = new Date(validated.lastGeneratedAt);
+      }
+      if (validated.lastEditedAt) {
+        updateData.lastEditedAt = new Date(validated.lastEditedAt);
+      }
+      if (validated.publishedAt) {
+        updateData.publishedAt = new Date(validated.publishedAt);
+      }
+      
+      console.log("Updating training module:", id, "with data:", JSON.stringify(updateData));
+      const training = await storage.updateTrainingModule(id, updateData);
       console.log("Training module updated successfully:", training.id);
       res.json(training);
     } catch (error: any) {
