@@ -395,15 +395,15 @@ export default function TrainingStudio() {
                   <div className="space-y-2">
                     <Label>Ministry</Label>
                     <Select 
-                      value={metadata.ministryId || selectedManual?.ministryId || ""} 
-                      onValueChange={(v) => setMetadata(prev => ({ ...prev, ministryId: v }))}
+                      value={metadata.ministryId || selectedManual?.ministryId || "general"} 
+                      onValueChange={(v) => setMetadata(prev => ({ ...prev, ministryId: v === "general" ? "" : v }))}
                     >
                       <SelectTrigger data-testid="select-ministry">
                         <SelectValue placeholder="Select ministry..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">General (All Members)</SelectItem>
-                        {ministries.map((ministry) => (
+                        <SelectItem value="general">General (All Members)</SelectItem>
+                        {ministries.filter(m => m && m.id).map((ministry) => (
                           <SelectItem key={ministry.id} value={ministry.id}>
                             {ministry.name}
                           </SelectItem>
