@@ -42,6 +42,7 @@ import {
   List,
 } from "lucide-react";
 import { CoachBubble } from "@/components/CoachBubble";
+import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
 
 interface DeepLesson {
   id: string;
@@ -1233,9 +1234,7 @@ export default function TrainingViewer() {
             </div>
 
             <div className="prose prose-sm dark:prose-invert max-w-none" data-testid="lesson-content">
-              {lesson.teachingContent?.split('\n').map((paragraph, i) => (
-                paragraph.trim() && <p key={i} className="mb-4">{paragraph}</p>
-              ))}
+              <MarkdownRenderer content={lesson.teachingContent || ''} />
             </div>
 
             {lesson.whyThisMatters && (
@@ -1343,11 +1342,7 @@ export default function TrainingViewer() {
                 </h2>
                 
                 {lessonContent ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    {lessonContent.split('\n').map((paragraph, i) => (
-                      paragraph.trim() && <p key={i} className="mb-3">{paragraph}</p>
-                    ))}
-                  </div>
+                  <MarkdownRenderer content={lessonContent} />
                 ) : (
                   <p className="text-muted-foreground">
                     {module.description || "This training module will help you learn important concepts for your ministry role."}

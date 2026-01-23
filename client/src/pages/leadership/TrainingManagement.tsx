@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Pencil, BookOpen, Search, Users, CheckCircle, Clock, AlertCircle, Trash2, HelpCircle, FileQuestion, ThumbsUp, ThumbsDown, ClipboardList, Zap, Link2, Settings2, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Pencil, BookOpen, Search, Users, CheckCircle, Clock, AlertCircle, Trash2, HelpCircle, FileQuestion, ThumbsUp, ThumbsDown, ClipboardList, Zap, Link2, Settings2, RefreshCw, FileEdit, FileText, Archive, Eye } from "lucide-react";
 import { HelpLink } from "@/components/HelpLink";
 import type { TrainingModule, UserTrainingProgress, User, Ministry } from "@shared/schema";
 import { insertTrainingModuleSchema, DISCIPLESHIP_STEPS } from "@shared/schema";
@@ -72,6 +72,15 @@ function TrainingCard({
   ministry?: Ministry;
 }) {
   const completionRate = enrolledCount > 0 ? Math.round((completedCount / enrolledCount) * 100) : 0;
+  
+  const moduleStatus = (training as any).moduleStatus || 'draft';
+  const statusConfig: Record<string, { variant: "default" | "secondary" | "outline" | "destructive", label: string, icon: any }> = {
+    draft: { variant: "secondary", label: "Draft", icon: FileEdit },
+    live: { variant: "default", label: "Live", icon: Eye },
+    archived: { variant: "outline", label: "Archived", icon: Archive },
+  };
+  const status = statusConfig[moduleStatus] || statusConfig.draft;
+  const StatusIcon = status.icon;
 
   return (
     <Card className="hover-elevate" data-testid={`card-training-${training.id}`}>
@@ -80,8 +89,15 @@ function TrainingCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <CardTitle className="text-lg">{training.title}</CardTitle>
-              {!training.isPublished && (
-                <Badge variant="secondary" className="text-xs">Draft</Badge>
+              <Badge variant={status.variant} className="text-xs">
+                <StatusIcon className="w-3 h-3 mr-1" />
+                {status.label}
+              </Badge>
+              {(training as any).manualId && (
+                <Badge variant="outline" className="text-xs">
+                  <Link2 className="w-3 h-3 mr-1" />
+                  Manual Linked
+                </Badge>
               )}
               {training.isRequired && (
                 <Badge variant="default" className="text-xs">Required{ministry ? ` for ${ministry.name}` : ""}</Badge>

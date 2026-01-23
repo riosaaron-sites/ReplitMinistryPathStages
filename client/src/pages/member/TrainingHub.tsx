@@ -131,7 +131,12 @@ export default function TrainingHub() {
   // - audience='all': visible to everyone
   // - audience='leader': visible only to leaders/pastors
   // - audience='ministry': visible only to members of that specific ministry
+  // Also filter to only show LIVE modules (draft/archived are hidden from members)
   const myRelevantModules = modules.filter(m => {
+    // Only show LIVE modules to members (draft and archived are hidden)
+    const moduleStatus = (m as any).moduleStatus || 'draft';
+    if (moduleStatus !== 'live') return false;
+    
     const audience = m.audience || 'all';
     
     // If audience is 'leader', only show to leaders/pastors
