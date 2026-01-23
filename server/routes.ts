@@ -4253,7 +4253,7 @@ export async function registerRoutes(
   app.get('/api/training/modules', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { ministryId, includeAll } = req.query;
+      const { ministryId, includeAll, status } = req.query;
       
       // Get user info to determine role-based requirements
       const user = await storage.getUser(userId);
@@ -4276,6 +4276,12 @@ export async function registerRoutes(
       // When includeAll is true (admin view), also include inactive modules
       const includeInactive = includeAll === 'true';
       let modules = await storage.getTrainingModules(ministryId as string | undefined, includeInactive);
+      
+      // Filter by moduleStatus if specified (for Training Studio)
+      if (status && typeof status === 'string') {
+        const statusFilter = status.toLowerCase();
+        modules = modules.filter(m => (m.moduleStatus || 'draft') === statusFilter);
+      }
       
       // If not includeAll, filter to user's relevant trainings
       if (includeAll !== 'true') {
@@ -4473,8 +4479,12 @@ export async function registerRoutes(
         title: z.string().min(1).optional(),
         slug: z.string().min(1).optional(),
         description: z.string().nullable().optional(),
+        lessonSummary: z.string().nullable().optional(),
+        lessons: z.any().optional(),
+        reflectionPrompt: z.string().nullable().optional(),
         ministryId: z.string().nullable().optional(),
         manualId: z.string().nullable().optional(),
+        manualTitle: z.string().nullable().optional(),
         videoUrl: z.string().nullable().optional(),
         estimatedMinutes: z.number().optional(),
         xpReward: z.number().optional(),
@@ -4485,6 +4495,11 @@ export async function registerRoutes(
         isActive: z.boolean().optional(),
         isPublished: z.boolean().optional(),
         audience: z.enum(['all', 'leader', 'ministry']).optional(),
+        moduleStatus: z.enum(['draft', 'live', 'archived']).optional(),
+        lastGeneratedAt: z.string().nullable().optional(),
+        lastEditedAt: z.string().nullable().optional(),
+        lastEditedBy: z.string().nullable().optional(),
+        publishedAt: z.string().nullable().optional(),
       });
 
       const validated = schema.parse(req.body);

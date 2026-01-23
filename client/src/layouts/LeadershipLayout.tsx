@@ -18,7 +18,8 @@ import {
   Shield,
   ClipboardList,
   Heart,
-  HelpCircle
+  HelpCircle,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -37,6 +38,7 @@ const leadershipNavItems = [
   { path: "/leadership", label: "Dashboard", icon: LayoutDashboard },
   { path: "/leadership/people", label: "People & Roles", icon: Users },
   { path: "/leadership/ministries", label: "Ministries", icon: Building2 },
+  { path: "/leadership/training-studio", label: "Training Studio", icon: Sparkles },
   { path: "/leadership/trainings", label: "Training", icon: GraduationCap },
   { path: "/leadership/requests", label: "Requests", icon: Inbox },
   { path: "/leadership/rooms", label: "Rooms & Calendar", icon: Calendar },

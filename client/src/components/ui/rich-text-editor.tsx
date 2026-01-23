@@ -67,7 +67,7 @@ export function RichTextEditor({
   useEffect(() => {
     if (editor && content !== htmlToMarkdown(editor.getHTML())) {
       const html = markdownToHtml(content || '');
-      editor.commands.setContent(html, false);
+      editor.commands.setContent(html, { emitUpdate: false });
     }
   }, [content, editor]);
 
