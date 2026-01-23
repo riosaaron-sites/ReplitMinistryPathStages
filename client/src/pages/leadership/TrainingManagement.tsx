@@ -21,9 +21,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Pencil, BookOpen, Search, Users, CheckCircle, Clock, AlertCircle, Trash2, HelpCircle, FileQuestion, ThumbsUp, ThumbsDown, ClipboardList, Zap, Link2, Settings2, RefreshCw, FileEdit, FileText, Archive, Eye } from "lucide-react";
 import { HelpLink } from "@/components/HelpLink";
-import type { TrainingModule, UserTrainingProgress, User, Ministry } from "@shared/schema";
+import type { TrainingModule as BaseTrainingModule, UserTrainingProgress, User, Ministry } from "@shared/schema";
 import { insertTrainingModuleSchema, DISCIPLESHIP_STEPS } from "@shared/schema";
 import { z } from "zod";
+
+// Extended TrainingModule type with moduleStatus explicitly typed
+// (moduleStatus is in the database schema but TypeScript inference may not pick it up correctly)
+type TrainingModule = BaseTrainingModule & {
+  moduleStatus: 'draft' | 'live' | 'archived' | null;
+  manualId?: string | null;
+  isOnboardingRequired?: boolean;
+};
 
 // Assessment interface matching GET /api/training/assessments/:moduleId response
 interface Assessment {
@@ -56,6 +64,13 @@ const formSchema = insertTrainingModuleSchema.extend({
 
 type FormData = z.infer<typeof formSchema>;
 
+// Helper function to safely get moduleStatus with proper typing
+const getModuleStatus = (training: TrainingModule): 'draft' | 'live' | 'archived' => {
+  const status = training.moduleStatus;
+  if (status === 'live' || status === 'archived') return status;
+  return 'draft'; // Default for null/undefined
+};
+
 function TrainingCard({
   training,
   onEdit,
@@ -77,7 +92,7 @@ function TrainingCard({
 }) {
   const completionRate = enrolledCount > 0 ? Math.round((completedCount / enrolledCount) * 100) : 0;
   
-  const moduleStatus = (training as any).moduleStatus || 'draft';
+  const moduleStatus = getModuleStatus(training);
   const statusConfig: Record<string, { variant: "default" | "secondary" | "outline" | "destructive", label: string, icon: any }> = {
     draft: { variant: "secondary", label: "Draft", icon: FileEdit },
     live: { variant: "default", label: "Live", icon: Eye },
@@ -97,7 +112,7 @@ function TrainingCard({
                 <StatusIcon className="w-3 h-3 mr-1" />
                 {status.label}
               </Badge>
-              {(training as any).manualId && (
+              {training.manualId && (
                 <Badge variant="outline" className="text-xs">
                   <Link2 className="w-3 h-3 mr-1" />
                   Manual Linked
@@ -106,7 +121,7 @@ function TrainingCard({
               {training.isRequired && (
                 <Badge variant="default" className="text-xs">Required{ministry ? ` for ${ministry.name}` : ""}</Badge>
               )}
-              {(training as any).isOnboardingRequired && (
+              {training.isOnboardingRequired && (
                 <Badge variant="destructive" className="text-xs">Onboarding Required</Badge>
               )}
             </div>
@@ -211,7 +226,7 @@ export default function TrainingManagement() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [ministryFilter, setMinistryFilter] = useState<string>("all");
-  const [publishFilter, setPublishFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTraining, setEditingTraining] = useState<TrainingModule | null>(null);
   const [questionsDialogOpen, setQuestionsDialogOpen] = useState(false);
@@ -267,6 +282,8 @@ export default function TrainingManagement() {
     status: string;
     submittedAt?: string;
     assessmentScore?: number;
+    finalReflection?: string;
+    lessonReflections?: Record<string, string>;
     user: {
       id: string;
       firstName: string;
@@ -279,12 +296,16 @@ export default function TrainingManagement() {
       title: string;
       description?: string;
       ministryId?: string;
+      lessons?: any[];
     } | null;
     ministry: {
       id: string;
       name: string;
     } | null;
   }
+  
+  // Extended type for viewing full submission details
+  type SubmissionWithDetails = TrainingSubmission;
 
   const { data: submissions = [], refetch: refetchSubmissions } = useQuery<TrainingSubmission[]>({
     queryKey: ["/api/training/submissions"],
@@ -292,6 +313,7 @@ export default function TrainingManagement() {
 
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectFeedback, setRejectFeedback] = useState("");
+  const [viewingSubmission, setViewingSubmission] = useState<SubmissionWithDetails | null>(null);
   const [settingsTraining, setSettingsTraining] = useState<TrainingModule | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
@@ -594,14 +616,20 @@ export default function TrainingManagement() {
     );
   }
 
+  // Calculate module counts by status (using helper defined at module level)
+  const statusCounts = {
+    live: (trainings || []).filter(t => getModuleStatus(t) === 'live').length,
+    draft: (trainings || []).filter(t => getModuleStatus(t) === 'draft').length,
+    archived: (trainings || []).filter(t => getModuleStatus(t) === 'archived').length,
+  };
+
   const filteredTrainings = (trainings || []).filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.description?.toLowerCase() || '').includes(searchQuery.toLowerCase());
     const matchesMinistry = ministryFilter === "all" || t.ministryId === ministryFilter || (!t.ministryId && ministryFilter === "general");
-    const matchesPublish = publishFilter === "all" || 
-      (publishFilter === "published" && t.isPublished) ||
-      (publishFilter === "unpublished" && !t.isPublished);
-    return matchesSearch && matchesMinistry && matchesPublish;
+    const moduleStatus = getModuleStatus(t);
+    const matchesStatus = statusFilter === "all" || moduleStatus === statusFilter;
+    return matchesSearch && matchesMinistry && matchesStatus;
   });
 
   const getEnrolledCount = (trainingId: string) => 
@@ -616,7 +644,9 @@ export default function TrainingManagement() {
 
   const stats = {
     total: trainings?.length || 0,
-    active: trainings?.filter(t => t.isPublished).length || 0,
+    live: statusCounts.live,
+    draft: statusCounts.draft,
+    archived: statusCounts.archived,
     inProgress: (allProgress || []).filter(p => p.status === 'in_progress').length,
     completed: (allProgress || []).filter(p => p.status === 'completed').length,
   };
@@ -1079,6 +1109,15 @@ export default function TrainingManagement() {
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"
+                                  variant="ghost"
+                                  onClick={() => setViewingSubmission(submission)}
+                                  data-testid={`button-view-details-${submission.id}`}
+                                >
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View Details
+                                </Button>
+                                <Button
+                                  size="sm"
                                   variant="default"
                                   disabled={approveMutation.isPending}
                                   onClick={() => approveMutation.mutate(submission.id)}
@@ -1089,7 +1128,7 @@ export default function TrainingManagement() {
                                   ) : (
                                     <ThumbsUp className="w-4 h-4 mr-1" />
                                   )}
-                                  Affirm Readiness
+                                  Approve
                                 </Button>
                                 <Button
                                   size="sm"
@@ -1144,14 +1183,15 @@ export default function TrainingManagement() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Select value={publishFilter} onValueChange={setPublishFilter}>
-                    <SelectTrigger className="w-full sm:w-40" data-testid="select-publish-filter">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-44" data-testid="select-status-filter">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                      <SelectItem value="unpublished">Unpublished</SelectItem>
+                      <SelectItem value="all">All Status ({stats.total})</SelectItem>
+                      <SelectItem value="live">Live ({statusCounts.live})</SelectItem>
+                      <SelectItem value="draft">Draft ({statusCounts.draft})</SelectItem>
+                      <SelectItem value="archived">Archived ({statusCounts.archived})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1162,7 +1202,7 @@ export default function TrainingManagement() {
                 <div className="text-center py-12 text-muted-foreground">
                   <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No training modules found.</p>
-                  <Button variant="ghost" onClick={() => { setSearchQuery(""); setMinistryFilter("all"); setPublishFilter("all"); }}>
+                  <Button variant="ghost" onClick={() => { setSearchQuery(""); setMinistryFilter("all"); setStatusFilter("all"); }}>
                     Clear filters
                   </Button>
                 </div>
@@ -1687,6 +1727,138 @@ export default function TrainingManagement() {
               }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Submission Details Dialog */}
+      <Dialog open={!!viewingSubmission} onOpenChange={(open) => !open && setViewingSubmission(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              Training Submission Review
+            </DialogTitle>
+            <DialogDescription>
+              Review {viewingSubmission?.user.firstName}'s training submission before approval
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingSubmission && (
+            <div className="space-y-6 py-4">
+              {/* Submitter Info */}
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <Avatar className="w-12 h-12">
+                  <AvatarImage src={viewingSubmission.user.profileImageUrl || undefined} />
+                  <AvatarFallback>
+                    {viewingSubmission.user.firstName?.[0]}{viewingSubmission.user.lastName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">
+                    {viewingSubmission.user.firstName} {viewingSubmission.user.lastName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{viewingSubmission.user.email}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {viewingSubmission.ministry && (
+                      <Badge variant="outline">{viewingSubmission.ministry.name}</Badge>
+                    )}
+                    {viewingSubmission.assessmentScore !== undefined && (
+                      <Badge variant="secondary">Quiz Score: {viewingSubmission.assessmentScore}%</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Training Module Info */}
+              <div className="space-y-2">
+                <h4 className="font-medium flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Training: {viewingSubmission.module?.title || "Unknown Training"}
+                </h4>
+                {viewingSubmission.module?.description && (
+                  <p className="text-sm text-muted-foreground">{viewingSubmission.module.description}</p>
+                )}
+              </div>
+
+              {/* Final Reflection */}
+              <div className="space-y-2">
+                <h4 className="font-medium flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4" />
+                  Final Reflection
+                </h4>
+                {viewingSubmission.finalReflection ? (
+                  <div className="p-3 bg-muted/30 rounded-lg border">
+                    <p className="text-sm whitespace-pre-wrap">{viewingSubmission.finalReflection}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No reflection submitted</p>
+                )}
+              </div>
+
+              {/* Lesson Reflections (if any) */}
+              {viewingSubmission.lessonReflections && Object.keys(viewingSubmission.lessonReflections).length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Lesson Reflections</h4>
+                  <div className="space-y-3">
+                    {Object.entries(viewingSubmission.lessonReflections).map(([lessonId, reflection], index) => (
+                      <div key={lessonId} className="p-3 bg-muted/30 rounded-lg border">
+                        <p className="text-xs text-muted-foreground mb-1">Lesson {index + 1}</p>
+                        <p className="text-sm whitespace-pre-wrap">{reflection as string}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Submission Date */}
+              {viewingSubmission.submittedAt && (
+                <p className="text-sm text-muted-foreground">
+                  Submitted on {new Date(viewingSubmission.submittedAt).toLocaleDateString()} at{' '}
+                  {new Date(viewingSubmission.submittedAt).toLocaleTimeString()}
+                </p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setViewingSubmission(null)}
+              data-testid="button-close-submission-details"
+            >
+              Close
+            </Button>
+            {viewingSubmission && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRejectingId(viewingSubmission.id);
+                    setViewingSubmission(null);
+                  }}
+                  data-testid="button-reject-from-details"
+                >
+                  <ThumbsDown className="w-4 h-4 mr-1" />
+                  Needs Follow-Up
+                </Button>
+                <Button
+                  onClick={() => {
+                    approveMutation.mutate(viewingSubmission.id);
+                    setViewingSubmission(null);
+                  }}
+                  disabled={approveMutation.isPending}
+                  data-testid="button-approve-from-details"
+                >
+                  {approveMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  ) : (
+                    <ThumbsUp className="w-4 h-4 mr-1" />
+                  )}
+                  Approve
+                </Button>
+              </>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -164,6 +164,7 @@ export default function TrainingViewer() {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [quizScore, setQuizScore] = useState(0);
   const [reflectionNotes, setReflectionNotes] = useState<Record<number, string>>({});
+  const [finalReflection, setFinalReflection] = useState('');
   const [isRevisitMode, setIsRevisitMode] = useState(false);
   const [visitedLessons, setVisitedLessons] = useState<Set<number>>(new Set([0]));
   const [showDebug, setShowDebug] = useState(false);
@@ -230,7 +231,7 @@ export default function TrainingViewer() {
   const nextTraining = findNextTraining();
 
   const updateProgress = useMutation({
-    mutationFn: async (data: { moduleId: string; status: string; progressPercent?: number; assessmentScore?: number }) => {
+    mutationFn: async (data: { moduleId: string; status: string; progressPercent?: number; assessmentScore?: number; finalReflection?: string }) => {
       return apiRequest("POST", "/api/training/progress", data);
     },
     onSuccess: () => {
@@ -283,7 +284,15 @@ export default function TrainingViewer() {
 
   const allLessonsVisited = lessons.length === 0 || visitedLessons.size >= lessons.length;
   const quizAttempted = Object.keys(answers).length > 0 || quizScore > 0;
-  const canSubmit = hasDeepLessons ? (allLessonsVisited && (!hasAssessment || quizAttempted)) : true;
+  
+  // Reflection word count validation (minimum 10 words)
+  const getWordCount = (text: string) => text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  const reflectionWordCount = getWordCount(finalReflection);
+  const isReflectionValid = reflectionWordCount >= 10;
+  
+  const canSubmit = hasDeepLessons 
+    ? (allLessonsVisited && (!hasAssessment || quizAttempted) && isReflectionValid) 
+    : isReflectionValid;
 
   useEffect(() => {
     setCurrentStep('lesson');
@@ -514,6 +523,7 @@ export default function TrainingViewer() {
         status: 'completed',
         progressPercent: 100,
         assessmentScore: quizScore || undefined,
+        finalReflection: finalReflection.trim(),
       });
       
       toast({
@@ -1012,6 +1022,31 @@ export default function TrainingViewer() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Final Reflection - Required for submission */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h4 className="font-medium flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  Final Reflection
+                </h4>
+                <span className={`text-xs ${isReflectionValid ? 'text-muted-foreground' : 'text-destructive'}`}>
+                  {reflectionWordCount}/10 words minimum
+                </span>
+              </div>
+              <Textarea
+                placeholder="Share what you learned from this training. How will you apply these lessons in your ministry? What stood out to you most? (Minimum 10 words)"
+                value={finalReflection}
+                onChange={(e) => setFinalReflection(e.target.value)}
+                className="min-h-[120px] resize-y"
+                data-testid="textarea-final-reflection"
+              />
+              {!isReflectionValid && finalReflection.length > 0 && (
+                <p className="text-xs text-destructive">
+                  Please write at least 10 words to share your thoughts on this training.
+                </p>
+              )}
             </div>
 
             <ManualAccessButtons />

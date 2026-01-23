@@ -4362,6 +4362,102 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================================================
+  // REQUIRED TRAININGS ENDPOINT - Single source of truth for user's required trainings
+  // Used by Dashboard and TrainingHub for consistent counts and lists
+  // ==========================================================================
+  app.get('/api/training/modules/required', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const userRole = user.role || 'member';
+      
+      // Get user's ministry memberships
+      const ministrySelections = await storage.getUserMinistrySelections(userId);
+      const userMinistryIds = ministrySelections
+        .filter(s => s.isActive === true)
+        .map(s => s.ministryId);
+      
+      const roleAssignments = await storage.getUserRoleAssignments(userId);
+      const assignedMinistryIds = roleAssignments
+        .filter(ra => ra.ministryId)
+        .map(ra => ra.ministryId as string);
+      
+      const allUserMinistryIds = Array.from(new Set([...userMinistryIds, ...assignedMinistryIds]));
+      
+      // Get all LIVE training modules
+      let modules = await storage.getTrainingModules(undefined, false);
+      modules = modules.filter(m => (m.moduleStatus || 'draft') === 'live');
+      
+      // Define role requirements
+      const CORE_DREAM_TEAM_SLUGS = ['about-us-mission', 'discipleship-pathway', 'facilities-care'];
+      const LEADER_SLUGS = ['recruitment-101', 'language-of-leader', 'ministry-leaders-training'];
+      const LEADER_ROLES = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const isLeader = LEADER_ROLES.includes(userRole);
+      
+      // Filter to only required trainings for this user
+      const requiredModules = modules.filter(module => {
+        // Core trainings required for all
+        if (CORE_DREAM_TEAM_SLUGS.includes(module.slug)) return true;
+        
+        // Leadership trainings for leaders
+        if (LEADER_SLUGS.includes(module.slug) && isLeader) return true;
+        
+        // Modules marked as onboarding required
+        if (module.isOnboardingRequired) return true;
+        
+        // Ministry-specific trainings for user's ministries
+        if (module.ministryId && allUserMinistryIds.includes(module.ministryId)) return true;
+        
+        // Position-specific trainings (if user has matching position)
+        // Note: positionId matching would require user.positionId field
+        
+        return false;
+      });
+      
+      // Get user's training progress
+      const userProgress = await storage.getUserTrainingProgress(userId);
+      const progressMap = new Map(userProgress.map(p => [p.moduleId, p]));
+      
+      // Build response with progress status
+      const result = requiredModules.map(module => {
+        const progress = progressMap.get(module.id);
+        return {
+          ...module,
+          isRequired: true,
+          userProgress: progress ? {
+            id: progress.id,
+            status: progress.status,
+            lessonsCompleted: progress.lessonsCompleted || [],
+            submittedAt: progress.submittedAt,
+            approvedAt: progress.approvedAt,
+            completedAt: progress.completedAt,
+          } : null,
+          isComplete: progress?.status === 'completed' || progress?.status === 'approved',
+        };
+      });
+      
+      // Return summary along with modules
+      res.json({
+        modules: result,
+        summary: {
+          total: result.length,
+          completed: result.filter(r => r.isComplete).length,
+          inProgress: result.filter(r => r.userProgress?.status === 'in-progress').length,
+          submitted: result.filter(r => r.userProgress?.status === 'submitted').length,
+          notStarted: result.filter(r => !r.userProgress || r.userProgress.status === 'not-started').length,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching required trainings:", error);
+      return handleApiError(error, res);
+    }
+  });
+
   app.get('/api/training/modules/:id', isAuthenticated, async (req: any, res) => {
     try {
       const module = await storage.getTrainingModule(req.params.id);
@@ -4544,8 +4640,64 @@ export async function registerRoutes(
       }
       
       console.log("Updating training module:", id, "with data:", JSON.stringify(updateData));
+      
+      // Check if we're publishing (changing status from draft/archived to live)
+      const isPublishing = validated.moduleStatus === 'live' && 
+        (existing as any).moduleStatus !== 'live';
+      
       const training = await storage.updateTrainingModule(id, updateData);
       console.log("Training module updated successfully:", training.id);
+      
+      // Send notifications when training goes LIVE
+      if (isPublishing) {
+        try {
+          console.log(`[Notification] Training "${training.title}" published - sending notifications`);
+          
+          // Determine target users based on training audience
+          const audience = (training as any).audience || 'all';
+          const ministryId = training.ministryId;
+          let targetUserIds: string[] = [];
+          
+          if (audience === 'ministry' && ministryId) {
+            // Ministry-specific training: notify all members of that ministry
+            const memberships = await storage.getMinistryMemberships(ministryId);
+            targetUserIds = memberships.map(m => m.userId);
+          } else if (audience === 'leader') {
+            // Leader-only training: notify all leaders
+            const allUsers = await storage.getAllUsers();
+            const leaderRoles = ['owner', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+            targetUserIds = allUsers
+              .filter(u => u.role && leaderRoles.includes(u.role))
+              .map(u => u.id);
+          } else {
+            // General training for 'all': notify all active users
+            const allUsers = await storage.getAllUsers();
+            targetUserIds = allUsers
+              .filter(u => u.status === 'active' || !u.status)
+              .map(u => u.id);
+          }
+          
+          // Send notification to each target user (limit to prevent overload)
+          const notifyLimit = Math.min(targetUserIds.length, 100); // Cap at 100 notifications
+          for (let i = 0; i < notifyLimit; i++) {
+            const userId = targetUserIds[i];
+            await storage.createNotification({
+              userId,
+              type: 'training_published',
+              title: 'New Training Available',
+              message: `A new training "${training.title}" is now available for you to complete.`,
+              relatedType: 'training',
+              relatedId: training.id,
+            });
+          }
+          
+          console.log(`[Notification] Sent ${notifyLimit} notifications for training "${training.title}"`);
+        } catch (notifError) {
+          console.error('[Notification] Error sending training publish notifications:', notifError);
+          // Don't fail the request if notifications fail
+        }
+      }
+      
       res.json(training);
     } catch (error: any) {
       console.error("Error updating training module:", error?.message || error);
@@ -4713,9 +4865,22 @@ export async function registerRoutes(
         progressPercent: z.number().optional(),
         currentSection: z.number().optional(),
         assessmentScore: z.number().optional(),
+        finalReflection: z.string().optional(),
       });
 
       const validated = progressSchema.parse(req.body);
+      
+      // Validate finalReflection word count (minimum 10 words) when completing training
+      if (validated.status && ['completed', 'submitted'].includes(validated.status)) {
+        if (validated.finalReflection) {
+          const wordCount = validated.finalReflection.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
+          if (wordCount < 10) {
+            return res.status(400).json({ 
+              message: `Reflection must be at least 10 words. You've written ${wordCount} words.` 
+            });
+          }
+        }
+      }
       const normalizedStatus = validated.status;
       
       // *** TRAINING HARDENING: Server-side enforcement of approval workflow ***
@@ -4793,6 +4958,7 @@ export async function registerRoutes(
         progressPercent: validated.progressPercent,
         currentSection: validated.currentSection,
         assessmentScore: validated.assessmentScore,
+        finalReflection: validated.finalReflection,
       };
       
       if (submittedAt) {
@@ -8988,11 +9154,43 @@ export async function registerRoutes(
   app.post('/api/ministry-join-requests', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const request = await storage.createMinistryJoinRequest({
-        ...req.body,
-        userId,
-      });
-      res.status(201).json(request);
+      const user = await storage.getUser(userId);
+      
+      // Auto-approve for admin+ roles using proper role helpers
+      // isAdmin covers: owner, system-admin, admin, lead-pastor
+      const shouldAutoApprove = user && isAdmin(user.role);
+      
+      if (shouldAutoApprove) {
+        // Create request with auto-approved status
+        const request = await storage.createMinistryJoinRequest({
+          ...req.body,
+          userId,
+          status: 'approved',
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+        });
+        
+        // Automatically add them to the ministry membership
+        const ministryId = req.body.ministryId;
+        if (ministryId) {
+          try {
+            await storage.addMinistryMember(userId, ministryId, req.body.roleInMinistry || 'member');
+            console.log(`[Ministry] Auto-approved admin/owner ${user.firstName} to join ministry ${ministryId}`);
+          } catch (memberError) {
+            console.error('[Ministry] Error adding auto-approved member:', memberError);
+            // Don't fail the request if membership creation fails (may already be a member)
+          }
+        }
+        
+        res.status(201).json({ ...request, autoApproved: true });
+      } else {
+        // Regular flow - create pending request
+        const request = await storage.createMinistryJoinRequest({
+          ...req.body,
+          userId,
+        });
+        res.status(201).json(request);
+      }
     } catch (error) {
       console.error("Error creating ministry join request:", error);
       return handleApiError(error, res);
