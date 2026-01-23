@@ -1,0 +1,146 @@
+🧭 MASTER SYSTEM SNAPSHOT PROMPT (COPY / PASTE)
+
+I need a complete, accurate snapshot of the CURRENT state of this entire application so an external senior engineer can evaluate what works, what does not, and what can be consolidated, removed, or refined.
+
+Do NOT fix anything. Do NOT refactor. Do NOT optimize. Do NOT suggest improvements.
+
+Your task is to describe and expose the system exactly as it exists today.
+
+Think of this as creating a technical map + inventory, not doing surgery.
+
+1. HIGH-LEVEL APP MAP
+
+Provide a clear overview of:
+
+What this app is designed to do (current reality, not intention)
+
+Primary user roles (Member, Leader, Admin, etc.)
+
+Main functional areas (Manuals, Training, Training Studio, Member Training Hub, Leadership tools, etc.)
+
+2. BACKEND: API CONTRACT (SOURCE OF TRUTH)
+
+Output the full contents of:
+
+server/routes.ts
+
+Then list:
+
+All API endpoints
+
+What each endpoint returns
+
+Which endpoints are protected and how
+
+Do not summarize the file — include it in full.
+
+3. DATA MODELS & STORAGE
+
+Output the entire contents of:
+
+shared/schema.ts
+
+Then clearly list:
+
+All main entities (Manuals, Training Modules, Users, etc.)
+
+Required vs optional fields
+
+Status/state fields (DRAFT, LIVE, etc.)
+
+4. FRONTEND PAGE INVENTORY
+
+List all pages and routes in the app, including:
+
+Route path
+
+Page file
+
+Intended user role
+
+Explicitly call out:
+
+Legacy pages
+
+Newer pages (e.g., Training Studio)
+
+Pages that overlap in purpose
+
+5. CORE USER FLOWS (AS IMPLEMENTED)
+
+Describe, step-by-step, how the app CURRENTLY handles:
+
+a) Manual creation and upload
+b) Training generation from manuals
+c) Training creation via Training Studio
+d) Draft → Review → Publish flow
+e) Member viewing and completing training
+
+Describe what actually happens in code, not what is supposed to happen.
+
+6. DATA FETCHING & STATE MANAGEMENT
+
+Identify:
+
+How data is fetched (React Query, fetch, etc.)
+
+Where single-item fetches happen (by ID)
+
+Where list fetches happen
+
+How status filtering is enforced (client vs server)
+
+Include relevant code snippets where clarity is needed.
+
+7. RICH TEXT & MARKDOWN HANDLING
+
+Explain:
+
+How content is authored (TipTap, raw markdown, etc.)
+
+How it is stored (format in DB)
+
+How it is rendered for members
+
+Identify any transformations between these stages.
+
+8. AUTH & PERMISSIONS
+
+Describe:
+
+How authentication works
+
+How roles are determined
+
+How access to drafts vs live content is enforced
+
+9. KNOWN INSTABILITY POINTS
+
+List:
+
+Pages that have recently blanked, crashed, or 404’d
+
+Areas with defensive guards or error boundaries added
+
+Parts of the app that are fragile or under active change
+
+10. REDUNDANCY & OVERLAP (FACTUAL ONLY)
+
+Identify:
+
+Duplicate features
+
+Multiple ways to do the same task
+
+Legacy vs current systems that coexist
+
+Do NOT recommend removal — just identify.
+
+11. FINAL OUTPUT FORMAT
+
+Organize your response into clearly labeled sections matching the numbers above.
+Include full files where requested.
+
+Do not explain decisions. Do not justify design. Do not improve anything.
+
+This output will be reviewed externally to determine next steps.
