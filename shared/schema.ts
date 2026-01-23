@@ -1335,6 +1335,7 @@ export const trainingModules = pgTable("training_modules", {
   pathStep: varchar("path_step"),  // Links to discipleship path: 'learn', 'love', or 'lead'
   audience: varchar("audience").default('all'),  // who is required to take this training
   videoUrl: varchar("video_url"),  // Optional video URL for video-ready trainings
+  videoRequired: boolean("video_required").default(false),  // If true, video must be watched before proceeding
   isRequired: boolean("is_required").default(false),
   isPublished: boolean("is_published").default(false),  // Legacy: use moduleStatus instead
   isActive: boolean("is_active").default(true),
