@@ -108,6 +108,8 @@ export default function TrainingStudio() {
     lessonSummary: "",
     lessons: [] as DeepLesson[],
     reflectionPrompt: "",
+    videoUrl: "",
+    videoRequired: false,
   });
 
   const { data: ministries = [] } = useQuery<Ministry[]>({
@@ -134,6 +136,8 @@ export default function TrainingStudio() {
         lessonSummary: selectedTraining.lessonSummary || "",
         lessons: (selectedTraining.lessons as DeepLesson[]) || [],
         reflectionPrompt: selectedTraining.reflectionPrompt || "",
+        videoUrl: selectedTraining.videoUrl || "",
+        videoRequired: selectedTraining.videoRequired || false,
       });
     }
   }, [selectedTraining]);
@@ -307,6 +311,8 @@ export default function TrainingStudio() {
       lessonSummary: editedContent.lessonSummary,
       lessons: editedContent.lessons as any,
       reflectionPrompt: editedContent.reflectionPrompt,
+      videoUrl: editedContent.videoUrl || null,
+      videoRequired: editedContent.videoRequired,
     });
   };
 
@@ -871,7 +877,7 @@ export default function TrainingStudio() {
                               Training Video
                             </CardTitle>
                             <CardDescription>
-                              Add a video for members to watch before or during the training
+                              Add a video for members to watch before or during the training. Changes are saved when you click "Save Changes".
                             </CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-4">
@@ -879,12 +885,8 @@ export default function TrainingStudio() {
                               <Label htmlFor="editVideoUrl">Video URL (YouTube or Vimeo)</Label>
                               <Input
                                 id="editVideoUrl"
-                                value={selectedTraining?.videoUrl || ""}
-                                onChange={(e) => {
-                                  if (selectedTrainingId) {
-                                    saveContentMutation.mutate({ videoUrl: e.target.value || null } as any);
-                                  }
-                                }}
+                                value={editedContent.videoUrl}
+                                onChange={(e) => setEditedContent(prev => ({ ...prev, videoUrl: e.target.value }))}
                                 placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
                                 data-testid="input-edit-video-url"
                               />
@@ -896,12 +898,8 @@ export default function TrainingStudio() {
                               <input
                                 type="checkbox"
                                 id="editVideoRequired"
-                                checked={selectedTraining?.videoRequired || false}
-                                onChange={(e) => {
-                                  if (selectedTrainingId) {
-                                    saveContentMutation.mutate({ videoRequired: e.target.checked } as any);
-                                  }
-                                }}
+                                checked={editedContent.videoRequired}
+                                onChange={(e) => setEditedContent(prev => ({ ...prev, videoRequired: e.target.checked }))}
                                 className="h-4 w-4 rounded border-gray-300"
                                 data-testid="checkbox-edit-video-required"
                               />
@@ -909,13 +907,13 @@ export default function TrainingStudio() {
                                 Members must watch this video before proceeding (video cannot be skipped)
                               </Label>
                             </div>
-                            {selectedTraining?.videoUrl && (
+                            {editedContent.videoUrl && (
                               <Alert>
                                 <Video className="h-4 w-4" />
                                 <AlertTitle>Video Preview</AlertTitle>
                                 <AlertDescription>
                                   <a 
-                                    href={selectedTraining.videoUrl} 
+                                    href={editedContent.videoUrl} 
                                     target="_blank" 
                                     rel="noopener noreferrer" 
                                     className="text-primary underline"
