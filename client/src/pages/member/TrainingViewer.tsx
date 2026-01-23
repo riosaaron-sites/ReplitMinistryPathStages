@@ -1233,7 +1233,7 @@ export default function TrainingViewer() {
               </div>
             </div>
 
-            <div className="prose prose-sm dark:prose-invert max-w-none" data-testid="lesson-content">
+            <div data-testid="lesson-content">
               <MarkdownRenderer content={lesson.teachingContent || ''} />
             </div>
 

@@ -114,22 +114,11 @@ export default function TrainingStudio() {
   });
 
   const { data: draftTrainings = [] } = useQuery<TrainingModule[]>({
-    queryKey: ["/api/training-modules", "drafts"],
-    queryFn: async () => {
-      const res = await fetch("/api/training-modules?status=draft");
-      if (!res.ok) throw new Error("Failed to fetch draft trainings");
-      return res.json();
-    },
+    queryKey: ["/api/training/modules", { status: "draft", includeAll: "true" }],
   });
 
   const { data: selectedTraining, refetch: refetchTraining } = useQuery<TrainingModule>({
-    queryKey: ["/api/training-modules", selectedTrainingId],
-    queryFn: async () => {
-      if (!selectedTrainingId) return null;
-      const res = await fetch(`/api/training-modules/${selectedTrainingId}`);
-      if (!res.ok) throw new Error("Failed to fetch training");
-      return res.json();
-    },
+    queryKey: ["/api/training/modules", selectedTrainingId],
     enabled: !!selectedTrainingId,
   });
 
@@ -151,7 +140,7 @@ export default function TrainingStudio() {
     },
     onSuccess: async (data) => {
       toast({ title: "Training Generated", description: "AI has generated training content as a draft." });
-      await queryClient.invalidateQueries({ queryKey: ["/api/training-modules"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/training/modules"] });
       if (data.trainingModuleId) {
         setSelectedTrainingId(data.trainingModuleId);
         setCurrentStep(4);
@@ -164,7 +153,7 @@ export default function TrainingStudio() {
 
   const saveContentMutation = useMutation({
     mutationFn: async (updates: Partial<TrainingModule>) => {
-      const res = await apiRequest("PATCH", `/api/training-modules/${selectedTrainingId}`, {
+      const res = await apiRequest("PATCH", `/api/training/modules/${selectedTrainingId}`, {
         ...updates,
         lastEditedAt: new Date().toISOString(),
       });
@@ -181,7 +170,7 @@ export default function TrainingStudio() {
 
   const publishMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("PATCH", `/api/training-modules/${selectedTrainingId}`, {
+      const res = await apiRequest("PATCH", `/api/training/modules/${selectedTrainingId}`, {
         moduleStatus: "live",
         isPublished: true,
         publishedAt: new Date().toISOString(),
@@ -190,7 +179,7 @@ export default function TrainingStudio() {
     },
     onSuccess: async () => {
       toast({ title: "Published!", description: "Training is now live and visible to members." });
-      await queryClient.invalidateQueries({ queryKey: ["/api/training-modules"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/training/modules"] });
       setCurrentStep(5);
     },
     onError: (error: any) => {

@@ -4277,10 +4277,22 @@ export async function registerRoutes(
       const includeInactive = includeAll === 'true';
       let modules = await storage.getTrainingModules(ministryId as string | undefined, includeInactive);
       
-      // Filter by moduleStatus if specified (for Training Studio)
-      if (status && typeof status === 'string') {
-        const statusFilter = status.toLowerCase();
-        modules = modules.filter(m => (m.moduleStatus || 'draft') === statusFilter);
+      // Define leader/admin roles
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const isAdminOrLeader = leaderRoles.includes(userRole);
+      
+      // SERVER-SIDE SECURITY: Only admins/leaders can use includeAll or filter by status
+      // Non-leaders always get only LIVE modules, regardless of query params
+      if (isAdminOrLeader) {
+        // Leaders can filter by status for Training Studio
+        if (status && typeof status === 'string') {
+          const statusFilter = status.toLowerCase();
+          modules = modules.filter(m => (m.moduleStatus || 'draft') === statusFilter);
+        }
+        // Leaders can use includeAll to see all modules
+      } else {
+        // Non-leaders can ONLY see LIVE modules - no exceptions
+        modules = modules.filter(m => (m.moduleStatus || 'draft') === 'live');
       }
       
       // If not includeAll, filter to user's relevant trainings
@@ -4355,6 +4367,18 @@ export async function registerRoutes(
       const module = await storage.getTrainingModule(req.params.id);
       if (!module) {
         return res.status(404).json({ message: "Training module not found" });
+      }
+      
+      // SERVER-SIDE SECURITY: Check if non-leader is trying to access non-live module
+      const user = await storage.getUser(req.user.claims.sub);
+      const userRole = user?.role || 'member';
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const isAdminOrLeader = leaderRoles.includes(userRole);
+      
+      // Block access to draft/archived modules for non-leaders
+      const moduleStatus = module.moduleStatus || 'draft';
+      if (!isAdminOrLeader && moduleStatus !== 'live') {
+        return res.status(403).json({ message: "This training is not available yet" });
       }
       
       const rawAssessments = await storage.getTrainingAssessments(req.params.id);
