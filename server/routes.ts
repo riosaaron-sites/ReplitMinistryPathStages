@@ -7380,28 +7380,22 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Analysis already in progress" });
       }
       
-      // Create or update analysis record
-      if (!existingAnalysis) {
-        await storage.createManualAnalysis({
-          manualId: id,
-          status: 'processing',
-          triggeredBy: userId,
-        });
-      } else {
-        await storage.updateManualAnalysis(id, {
-          status: 'processing',
-          triggeredBy: userId,
-          errorMessage: null,
+      // Run analysis synchronously and return the result
+      const { analyzeManual } = await import('./manualAnalysisService');
+      const result = await analyzeManual(id);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          message: result.error || "Analysis failed", 
+          status: 'failed' 
         });
       }
       
-      // Trigger async analysis (fire and forget)
-      const { analyzeManual } = await import('./manualAnalysisService');
-      analyzeManual(id).catch((error: Error) => {
-        console.error("Background analysis error:", error);
+      res.json({ 
+        message: "Training generated successfully", 
+        status: 'completed',
+        trainingModuleId: result.trainingModuleId 
       });
-      
-      res.json({ message: "Analysis started", status: 'processing' });
     } catch (error) {
       console.error("Error triggering manual analysis:", error);
       return handleApiError(error, res);
