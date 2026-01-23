@@ -118,7 +118,7 @@ export default function TrainingStudio() {
   });
 
   const { data: selectedTraining, refetch: refetchTraining } = useQuery<TrainingModule>({
-    queryKey: ["/api/training/modules", selectedTrainingId],
+    queryKey: [`/api/training/modules/${selectedTrainingId}`],
     enabled: !!selectedTrainingId,
   });
 
