@@ -1,0 +1,66 @@
+I can generate trainings successfully via Manuals → “Generate Training using AI”, but the admin/leadership experience is scattered and editing is weak.
+
+Implement a simplified, centralized “Training Generator / Training Studio” with a guided create-training workflow + a proper rich text editing experience.
+
+GOALS
+- One central location to upload manuals + generate trainings (no hunting).
+- Trainings generate as DRAFT, then leaders review/edit content + questions before publishing LIVE.
+- Fix markdown rendering: do not show raw markdown symbols to users when viewing content.
+- In edit windows, provide bold/italic/bullets/numbered lists/links, etc.
+
+PART A — Centralize generation into one place
+1) Add a top-level Leadership/Admin nav item: “Training Studio” (or “Training Generator”).
+2) This page is the primary workflow:
+   Step 1: Upload Manual (PDF) OR pick existing manual from library
+   Step 2: Set manual metadata (title, category, ministry visibility)
+   Step 3: Generate Training (AI) → creates/updates a DRAFT training module
+   Step 4: Review/Edit content (overview, intro, lessons) + Review/Edit questions
+   Step 5: Publish LIVE (only after review)
+
+3) Hide or de-emphasize other generation entry points:
+   - Keep “Generate Training using AI” button but add a note “Use Training Studio” and/or redirect it into Training Studio after generating.
+   - Goal is: leaders always end up in the same review/publish screen.
+
+PART B — Draft vs Live publishing gate
+1) Add status to training modules: DRAFT | LIVE | ARCHIVED
+   - AI generation always produces DRAFT
+   - Only LIVE trainings appear for members (My Trainings)
+2) Add “Publish” button only in Training Studio / TrainingManagement for leaders.
+3) Add “Last generated at”, “Last edited by”, “Last published at” fields.
+
+PART C — Fix markdown display AND add rich text editing
+1) Anywhere a member views training content:
+   - Render markdown properly (headings, bold, bullets) using a Markdown renderer component.
+   - Never display raw markdown symbols as plain text.
+
+2) In leader edit windows for:
+   - overview/summary
+   - introductions
+   - lesson content
+Replace plain textarea with a rich-text editor:
+   Option A: TipTap editor with toolbar (bold/italic/underline, bullets, numbered lists, links)
+   Option B: Markdown editor with toolbar + live preview (write markdown, preview formatted)
+Choose the simplest stable approach already compatible with the project.
+
+3) Store content as markdown in DB (fine), but:
+   - show formatted preview in viewer
+   - provide WYSIWYG-style editing tools in admin UI
+
+PART D — Make TrainingManagement show where trainings were generated
+1) In Leadership → Trainings list, add columns/badges:
+   - status (Draft/Live)
+   - manual linked (Yes/No)
+   - generated (Yes/No)
+2) Clicking a training should open the same “Review/Edit” screen used by Training Studio.
+
+PART E — Proof / Acceptance Criteria
+1) Upload a manual in Training Studio → generate DRAFT training.
+2) Open DRAFT training → edit overview using rich text tools → save → view shows formatted output.
+3) Verify member view renders formatted content (not raw markdown).
+4) Publish → training becomes LIVE and appears in My Trainings for the right ministry.
+5) Confirm generation is discoverable and centralized (Training Studio is obvious and works end-to-end).
+
+Deliver:
+- files changed list
+- screenshots or short description of the new Training Studio flow
+- confirm any removed/redirected generation buttons
