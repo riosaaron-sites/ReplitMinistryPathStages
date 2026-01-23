@@ -346,7 +346,7 @@ export default function TrainingStudio() {
                   <p className="text-sm text-muted-foreground mb-2">
                     Or upload a new manual PDF using the Manuals page
                   </p>
-                  <Button variant="outline" onClick={() => navigate("/leadership/manuals")} data-testid="button-upload-manual">
+                  <Button variant="outline" onClick={() => navigate("/manuals")} data-testid="button-upload-manual">
                     <Upload className="w-4 h-4 mr-2" />
                     Go to Manuals
                   </Button>
