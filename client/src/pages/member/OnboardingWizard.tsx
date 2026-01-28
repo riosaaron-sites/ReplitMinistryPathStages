@@ -42,7 +42,19 @@ interface OnboardingProgress {
   blockedAtStep?: number;
 }
 
-const STEP_CONTENT: Record<number, {
+interface AgreementContentItem {
+  id: string;
+  stepNumber: number;
+  title: string;
+  scripture: string;
+  scriptureRef: string;
+  content: string;
+  question: string;
+  isActive?: boolean;
+  isRequired?: boolean;
+}
+
+const FALLBACK_STEP_CONTENT: Record<number, {
   title: string;
   scripture: string;
   scriptureRef: string;
@@ -137,6 +149,32 @@ export default function OnboardingWizard() {
   const { data: progress, isLoading } = useQuery<OnboardingProgress>({
     queryKey: ["/api/onboarding/progress"],
   });
+
+  // Fetch agreement content from API (editable by leadership)
+  const { data: agreementContent } = useQuery<AgreementContentItem[]>({
+    queryKey: ["/api/agreement-content"],
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  // Build step content from API or fallback to hardcoded content
+  const getStepContent = (step: number) => {
+    // First try to get content from API
+    if (agreementContent && agreementContent.length > 0) {
+      const apiStep = agreementContent.find(item => item.stepNumber === step);
+      if (apiStep) {
+        return {
+          title: apiStep.title,
+          scripture: apiStep.scripture,
+          scriptureRef: apiStep.scriptureRef,
+          content: apiStep.content,
+          question: apiStep.question,
+          isSpecial: step === 5, // Step 5 (Holy Spirit) is always special
+        };
+      }
+    }
+    // Fallback to hardcoded content
+    return FALLBACK_STEP_CONTENT[step];
+  };
 
   const [currentStep, setCurrentStep] = useState(1);
   const [stepResponses, setStepResponses] = useState<Record<string, StepResponse>>({});
@@ -330,7 +368,7 @@ export default function OnboardingWizard() {
     );
   }
 
-  const stepInfo = STEP_CONTENT[currentStep];
+  const stepInfo = getStepContent(currentStep);
   const progressPercent = ((currentStep - 1) / 11) * 100;
   const isStep5 = currentStep === 5;
 

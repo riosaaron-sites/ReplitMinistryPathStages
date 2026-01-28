@@ -25,6 +25,7 @@ import {
   messages,
   onboardingProgress,
   ministrySelections,
+  agreementContent,
   TRAINING_STATUS,
   type TrainingStatus,
 } from "@shared/schema";
@@ -49,7 +50,7 @@ import {
 } from "./emailService";
 import { z } from "zod";
 import { seedHelpArticles } from "./seedHelpArticles";
-import { seedCoreData } from "./seedCoreData";
+import { seedCoreData, seedAgreementContent } from "./seedCoreData";
 import { slugify } from "./utils/slugify";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
@@ -2584,6 +2585,148 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
+      return handleApiError(error, res);
+    }
+  });
+
+  // =============================================================================
+  // AGREEMENT CONTENT ROUTES - Editable faith commitment content
+  // =============================================================================
+  
+  // GET all agreement content (public - used by OnboardingWizard)
+  app.get('/api/agreement-content', async (req: any, res) => {
+    try {
+      const content = await db.query.agreementContent.findMany({
+        where: (table, { eq }) => eq(table.isActive, true),
+        orderBy: (table, { asc }) => asc(table.stepNumber),
+      });
+      res.json(content);
+    } catch (error) {
+      console.error("Error fetching agreement content:", error);
+      return handleApiError(error, res);
+    }
+  });
+  
+  // GET single agreement step
+  app.get('/api/agreement-content/:stepNumber', async (req: any, res) => {
+    try {
+      const stepNumber = parseInt(req.params.stepNumber);
+      if (isNaN(stepNumber)) {
+        return res.status(400).json({ message: "Invalid step number" });
+      }
+      
+      const content = await db.query.agreementContent.findFirst({
+        where: (table, { eq }) => eq(table.stepNumber, stepNumber),
+      });
+      
+      if (!content) {
+        return res.status(404).json({ message: "Agreement step not found" });
+      }
+      
+      res.json(content);
+    } catch (error) {
+      console.error("Error fetching agreement step:", error);
+      return handleApiError(error, res);
+    }
+  });
+  
+  // UPDATE agreement step (leadership only)
+  app.patch('/api/agreement-content/:stepNumber', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Only admins, pastors, and owners can edit agreement content
+      if (!user || !isAdmin(user.role)) {
+        return res.status(403).json({ message: "Leadership access required to edit agreement content" });
+      }
+      
+      const stepNumber = parseInt(req.params.stepNumber);
+      if (isNaN(stepNumber)) {
+        return res.status(400).json({ message: "Invalid step number" });
+      }
+      
+      const existing = await db.query.agreementContent.findFirst({
+        where: (table, { eq }) => eq(table.stepNumber, stepNumber),
+      });
+      
+      if (!existing) {
+        return res.status(404).json({ message: "Agreement step not found" });
+      }
+      
+      const { title, scripture, scriptureRef, content, question, isRequired } = req.body;
+      
+      const [updated] = await db
+        .update(agreementContent)
+        .set({
+          title: title ?? existing.title,
+          scripture: scripture ?? existing.scripture,
+          scriptureRef: scriptureRef ?? existing.scriptureRef,
+          content: content ?? existing.content,
+          question: question ?? existing.question,
+          isRequired: isRequired ?? existing.isRequired,
+          version: (existing.version || 1) + 1,
+          updatedAt: new Date(),
+          lastEditedBy: userId,
+        })
+        .where(eq(agreementContent.stepNumber, stepNumber))
+        .returning();
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating agreement step:", error);
+      return handleApiError(error, res);
+    }
+  });
+  
+  // BULK UPDATE all agreement content (leadership only)
+  app.put('/api/agreement-content', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Only admins, pastors, and owners can edit agreement content
+      if (!user || !isAdmin(user.role)) {
+        return res.status(403).json({ message: "Leadership access required to edit agreement content" });
+      }
+      
+      const { steps } = req.body;
+      if (!Array.isArray(steps)) {
+        return res.status(400).json({ message: "Steps array is required" });
+      }
+      
+      const updated = [];
+      for (const step of steps) {
+        if (!step.stepNumber) continue;
+        
+        const existing = await db.query.agreementContent.findFirst({
+          where: (table, { eq }) => eq(table.stepNumber, step.stepNumber),
+        });
+        
+        if (!existing) continue;
+        
+        const [result] = await db
+          .update(agreementContent)
+          .set({
+            title: step.title ?? existing.title,
+            scripture: step.scripture ?? existing.scripture,
+            scriptureRef: step.scriptureRef ?? existing.scriptureRef,
+            content: step.content ?? existing.content,
+            question: step.question ?? existing.question,
+            isRequired: step.isRequired ?? existing.isRequired,
+            version: (existing.version || 1) + 1,
+            updatedAt: new Date(),
+            lastEditedBy: userId,
+          })
+          .where(eq(agreementContent.stepNumber, step.stepNumber))
+          .returning();
+        
+        updated.push(result);
+      }
+      
+      res.json({ message: "Agreement content updated", updated });
+    } catch (error) {
+      console.error("Error bulk updating agreement content:", error);
       return handleApiError(error, res);
     }
   });
@@ -10493,6 +10636,7 @@ export async function registerRoutes(
   seedDefaultCalendarCategories();
   seedHelpArticles();
   seedCoreData();
+  seedAgreementContent();
 
   return httpServer;
 }

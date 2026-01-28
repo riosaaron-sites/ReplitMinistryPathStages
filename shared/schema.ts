@@ -455,6 +455,37 @@ export type InsertDoctrineAcknowledgment = z.infer<typeof insertDoctrineAcknowle
 export type DoctrineAcknowledgment = typeof doctrineAcknowledgments.$inferSelect;
 
 // =============================================================================
+// AGREEMENT CONTENT - Editable onboarding agreement/doctrine content
+// =============================================================================
+// This stores the editable content for onboarding faith commitment steps
+// Leaders can edit this content while the UI structure remains unchanged
+
+export const agreementContent = pgTable("agreement_content", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stepNumber: integer("step_number").notNull().unique(), // Maps to onboarding step 1-11
+  title: varchar("title").notNull(),
+  scripture: text("scripture").notNull(),
+  scriptureRef: varchar("scripture_ref").notNull(),
+  content: text("content").notNull(),
+  question: text("question").notNull(),
+  isActive: boolean("is_active").default(true),
+  isRequired: boolean("is_required").default(true), // Whether this step must be agreed to
+  version: integer("version").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  lastEditedBy: varchar("last_edited_by"),
+});
+
+export const insertAgreementContentSchema = createInsertSchema(agreementContent).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAgreementContent = z.infer<typeof insertAgreementContentSchema>;
+export type AgreementContent = typeof agreementContent.$inferSelect;
+
+// =============================================================================
 // FAITH COMMITMENT ONBOARDING - Track onboarding wizard progress
 // =============================================================================
 

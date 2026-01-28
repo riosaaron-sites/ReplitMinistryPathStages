@@ -111,6 +111,9 @@ export default function TrainingStudio() {
     videoUrl: "",
     videoRequired: false,
   });
+  
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const { data: ministries = [] } = useQuery<Ministry[]>({
     queryKey: ["/api/ministries"],
@@ -139,8 +142,15 @@ export default function TrainingStudio() {
         videoUrl: selectedTraining.videoUrl || "",
         videoRequired: selectedTraining.videoRequired || false,
       });
+      setHasUnsavedChanges(false); // Reset when loading fresh data
     }
   }, [selectedTraining]);
+  
+  // Track content changes to detect unsaved edits
+  const updateEditedContent = (updates: Partial<typeof editedContent>) => {
+    setEditedContent(prev => ({ ...prev, ...updates }));
+    setHasUnsavedChanges(true);
+  };
 
   const generateTrainingMutation = useMutation({
     mutationFn: async ({ manualId, meta }: { manualId: string; meta: typeof metadata }) => {
@@ -186,6 +196,7 @@ export default function TrainingStudio() {
     },
     onSuccess: async () => {
       toast({ title: "Saved", description: "Training content has been saved." });
+      setHasUnsavedChanges(false);
       await refetchTraining();
     },
     onError: (error: any) => {
@@ -280,6 +291,7 @@ export default function TrainingStudio() {
       ...prev,
       lessons: [...prev.lessons, newLesson],
     }));
+    setHasUnsavedChanges(true);
   };
 
   const handleDeleteLesson = (idx: number) => {
@@ -290,6 +302,7 @@ export default function TrainingStudio() {
         lessonNumber: i + 1,
       })),
     }));
+    setHasUnsavedChanges(true);
   };
 
   const handleGenerate = async () => {
@@ -316,8 +329,45 @@ export default function TrainingStudio() {
     });
   };
 
-  const handlePublish = () => {
-    publishMutation.mutate();
+  const handlePublish = async () => {
+    // Validation: must have a valid module ID
+    if (!selectedTrainingId) {
+      toast({ 
+        title: "Cannot Publish", 
+        description: "No training module is selected. Please select or create a training first.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    setIsPublishing(true);
+    
+    try {
+      // Auto-save first if there are unsaved changes
+      if (hasUnsavedChanges) {
+        console.log('[Training Studio] Auto-saving before publish...');
+        await saveContentMutation.mutateAsync({
+          description: editedContent.description,
+          lessonSummary: editedContent.lessonSummary,
+          lessons: editedContent.lessons as any,
+          reflectionPrompt: editedContent.reflectionPrompt,
+          videoUrl: editedContent.videoUrl || null,
+          videoRequired: editedContent.videoRequired,
+        });
+      }
+      
+      // Now publish
+      await publishMutation.mutateAsync();
+    } catch (error: any) {
+      console.error('[Training Studio] Publish failed:', error);
+      toast({ 
+        title: "Publish Failed", 
+        description: error?.message || "Failed to publish training. Please try again.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const handleSelectDraft = (trainingId: string) => {
@@ -757,7 +807,7 @@ export default function TrainingStudio() {
                           <Label>Description</Label>
                           <RichTextEditor
                             content={editedContent.description}
-                            onChange={(val) => setEditedContent(prev => ({ ...prev, description: val }))}
+                            onChange={(val) => { setEditedContent(prev => ({ ...prev, description: val })); setHasUnsavedChanges(true); }}
                             placeholder="Enter training description..."
                           />
                         </div>
@@ -765,7 +815,7 @@ export default function TrainingStudio() {
                           <Label>Lesson Summary</Label>
                           <RichTextEditor
                             content={editedContent.lessonSummary}
-                            onChange={(val) => setEditedContent(prev => ({ ...prev, lessonSummary: val }))}
+                            onChange={(val) => { setEditedContent(prev => ({ ...prev, lessonSummary: val })); setHasUnsavedChanges(true); }}
                             placeholder="Enter lesson summary..."
                           />
                         </div>
@@ -806,6 +856,7 @@ export default function TrainingStudio() {
                                             const updated = [...editedContent.lessons];
                                             updated[idx] = { ...updated[idx], title: e.target.value };
                                             setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                            setHasUnsavedChanges(true);
                                           }}
                                           className="h-8 w-64"
                                           placeholder="Lesson title..."
@@ -832,6 +883,7 @@ export default function TrainingStudio() {
                                           const updated = [...editedContent.lessons];
                                           updated[idx] = { ...updated[idx], teachingContent: val };
                                           setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                          setHasUnsavedChanges(true);
                                         }}
                                         placeholder="Teaching content..."
                                       />
@@ -844,6 +896,7 @@ export default function TrainingStudio() {
                                           const updated = [...editedContent.lessons];
                                           updated[idx] = { ...updated[idx], whyThisMatters: val };
                                           setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                          setHasUnsavedChanges(true);
                                         }}
                                         placeholder="Why this matters..."
                                       />
@@ -856,6 +909,7 @@ export default function TrainingStudio() {
                                           const updated = [...editedContent.lessons];
                                           updated[idx] = { ...updated[idx], reflectionPrompt: e.target.value };
                                           setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                          setHasUnsavedChanges(true);
                                         }}
                                         placeholder="Reflection prompt for this lesson..."
                                         rows={2}
@@ -875,6 +929,7 @@ export default function TrainingStudio() {
                                           const updated = [...editedContent.lessons];
                                           updated[idx] = { ...updated[idx], videoUrl: e.target.value };
                                           setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                          setHasUnsavedChanges(true);
                                         }}
                                         placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
                                         data-testid={`input-lesson-video-${idx}`}
@@ -905,6 +960,7 @@ export default function TrainingStudio() {
                                               questions: [...(updated[idx].questions || []), newQuestion],
                                             };
                                             setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                            setHasUnsavedChanges(true);
                                           }}
                                           data-testid={`button-add-question-${idx}`}
                                         >
@@ -931,6 +987,7 @@ export default function TrainingStudio() {
                                                         questions[qIdx] = { ...questions[qIdx], question: e.target.value };
                                                         updated[idx] = { ...updated[idx], questions };
                                                         setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                                        setHasUnsavedChanges(true);
                                                       }}
                                                       placeholder="Enter question..."
                                                       rows={2}
@@ -945,6 +1002,7 @@ export default function TrainingStudio() {
                                                       const questions = (updated[idx].questions || []).filter((_, i) => i !== qIdx);
                                                       updated[idx] = { ...updated[idx], questions };
                                                       setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                                      setHasUnsavedChanges(true);
                                                     }}
                                                     className="text-destructive hover:text-destructive"
                                                     data-testid={`button-delete-question-${idx}-${qIdx}`}
@@ -966,6 +1024,7 @@ export default function TrainingStudio() {
                                                           questions[qIdx] = { ...questions[qIdx], correctIndex: optIdx };
                                                           updated[idx] = { ...updated[idx], questions };
                                                           setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                                          setHasUnsavedChanges(true);
                                                         }}
                                                         className="h-4 w-4"
                                                         data-testid={`radio-correct-${idx}-${qIdx}-${optIdx}`}
@@ -980,6 +1039,7 @@ export default function TrainingStudio() {
                                                           questions[qIdx] = { ...questions[qIdx], options: newOptions };
                                                           updated[idx] = { ...updated[idx], questions };
                                                           setEditedContent(prev => ({ ...prev, lessons: updated }));
+                                                          setHasUnsavedChanges(true);
                                                         }}
                                                         placeholder={`Option ${optIdx + 1}`}
                                                         className={q.correctIndex === optIdx ? "border-green-500 bg-green-50 dark:bg-green-900/20" : ""}
@@ -1022,7 +1082,7 @@ export default function TrainingStudio() {
                               <Input
                                 id="editVideoUrl"
                                 value={editedContent.videoUrl}
-                                onChange={(e) => setEditedContent(prev => ({ ...prev, videoUrl: e.target.value }))}
+                                onChange={(e) => { setEditedContent(prev => ({ ...prev, videoUrl: e.target.value })); setHasUnsavedChanges(true); }}
                                 placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
                                 data-testid="input-edit-video-url"
                               />
@@ -1035,7 +1095,7 @@ export default function TrainingStudio() {
                                 type="checkbox"
                                 id="editVideoRequired"
                                 checked={editedContent.videoRequired}
-                                onChange={(e) => setEditedContent(prev => ({ ...prev, videoRequired: e.target.checked }))}
+                                onChange={(e) => { setEditedContent(prev => ({ ...prev, videoRequired: e.target.checked })); setHasUnsavedChanges(true); }}
                                 className="h-4 w-4 rounded border-gray-300"
                                 data-testid="checkbox-edit-video-required"
                               />
@@ -1068,7 +1128,7 @@ export default function TrainingStudio() {
                           <Label>Final Reflection Prompt</Label>
                           <RichTextEditor
                             content={editedContent.reflectionPrompt}
-                            onChange={(val) => setEditedContent(prev => ({ ...prev, reflectionPrompt: val }))}
+                            onChange={(val) => { setEditedContent(prev => ({ ...prev, reflectionPrompt: val })); setHasUnsavedChanges(true); }}
                             placeholder="Enter final reflection prompt..."
                           />
                         </div>
@@ -1123,11 +1183,20 @@ export default function TrainingStudio() {
                 </Button>
                 <Button 
                   onClick={handlePublish} 
-                  disabled={!selectedTraining || publishMutation.isPending}
+                  disabled={!selectedTraining || !selectedTrainingId || isPublishing || saveContentMutation.isPending}
                   data-testid="button-publish-training"
                 >
-                  {publishMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                  Publish Training
+                  {isPublishing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      {hasUnsavedChanges ? "Saving & Publishing..." : "Publishing..."}
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Publish Training
+                    </>
+                  )}
                 </Button>
               </CardFooter>
             </Card>

@@ -52,6 +52,9 @@ Preferred communication style: Simple, everyday language.
 - **Profile Photo Upload**: User profile photo upload with client-side cropping and storage to Replit Object Storage via presigned URLs.
 - **Bulk Invite System**: Allows single or bulk invitations with parsing for various formats, permission enforcement, duplicate checking, and comprehensive error reporting.
 - **Weekly Ministry Metrics**: Per-ministry weekly metric submissions tracking attendance, volunteers, first-timers, altar responses, follow-ups, and qualitative notes (wins, concerns, next steps). Includes missing submissions view for admin/pastoral oversight and 8-week historical view.
+- **Enhanced AI Assessment Generation**: AI-powered quiz/assessment generation with enforced question requirements (10-12 questions with 4-5 multiple-choice, 3-4 scenario-based, 2-3 reflection). Includes retry logic (max 3 attempts) to guarantee minimum question count.
+- **Training Studio Auto-Save on Publish**: Training Studio tracks unsaved changes and automatically saves content before publishing to prevent first-attempt publish failures.
+- **Editable Faith Agreements**: The onboarding faith commitment content is stored in database (`agreement_content` table) and editable via Admin Portal at `/leadership/agreements` (admin-only access for sensitive doctrinal content). OnboardingWizard fetches content from API with fallback to hardcoded defaults. This allows administrators to update agreement text without code changes.
 
 ### System Design Choices
 - **API Design**: RESTful API for all core functionalities, including user management, surveys, ministries, training, gamification, and administrative functions.

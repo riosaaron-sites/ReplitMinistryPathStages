@@ -1,0 +1,124 @@
+You are working on the MinistryPath codebase.
+Do not ignore prior context: we recently improved training systems (required trainings endpoint, validation, submissions review, notifications) and we are tightening Training Studio behavior.
+
+HARD RULES
+
+Do NOT refactor architecture
+
+Do NOT redesign UI layouts unless explicitly required
+
+Initial Agreement must look and behave EXACTLY the same to users as it does today
+
+Make minimal, safe changes that are verifiable end-to-end
+
+Add clear error messages; no silent failures
+
+TASK 1 — SMARTER AI ASSESSMENTS (10–12 QUESTIONS)
+
+Upgrade AI generation so every generated module/assessment produces 10–12 strong questions (not 3–5 weak ones).
+Requirements:
+
+Always generate 10–12 questions total
+
+Mix required types:
+
+4–5 multiple-choice (4 options, 1 correct, plausible distractors)
+
+3–4 scenario-based (real ministry situations; “best response”)
+
+2–3 reflection/short-answer (minWords: 10)
+
+Questions must align tightly to generated content; no generic filler
+
+Output must be structured and stored so the UI can render it reliably
+
+Add a safety check: if AI returns fewer than 10, re-request or regenerate until it meets requirements
+Deliverable:
+
+Where prompt lives + updated prompt text + where questions are stored in DB/schema
+
+Verify on at least 1 module: count is 10–12 and includes all required types
+
+TASK 2 — PUBLISH FAILS ON FIRST TRY (BUGFIX)
+
+In Training Studio: the first attempt to Publish sometimes fails, but succeeds after manual Save.
+Investigate and fix.
+Requirements:
+
+Identify the exact failure cause via logs/network/stack trace (do not guess)
+
+Make Publish reliable:
+
+If module is unsaved OR has unsaved changes → auto-save first, await success, then publish
+
+Disable Publish during save/publish and when moduleId is missing
+
+Show a clear toast/message if publish fails (include server message)
+
+Add tests/verification steps for: create → generate → publish (first attempt must succeed)
+Deliverable:
+
+Root cause summary (1–3 bullets)
+
+Files changed
+
+Verification steps
+
+TASK 3 — INITIAL AGREEMENT: EDITABLE LIKE A TRAINING MODULE (NO UI CHANGE)
+
+Goal: keep the initial agreement screen exactly as it currently appears, but make its text/content editable from Leadership tools like a training module. Also allow adding future agreements (even temporary) without altering the UI structure.
+
+Requirements:
+
+Locate where the initial agreement content currently lives (onboarding step / component / hardcoded text / DB).
+
+Implement a “content source” layer so the agreement content is loaded from a stored record (DB) BUT rendered in the same UI as today.
+
+Create a special Training Module type or flag (e.g., moduleType: 'agreement' or isAgreement: true) that:
+
+is editable in Training Studio (or a dedicated “Agreements” section under Training Management/Studio)
+
+supports versioning/history optionally, but not required now
+
+supports enabling/disabling additional agreements in the future (temporary agreements)
+
+Rendering rules:
+
+The onboarding agreement page must keep the same structure, headings, button placements, and flow
+
+Only the underlying content becomes editable
+
+Data rules:
+
+Default agreement must always exist (seed if missing)
+
+If multiple agreements exist in the future, the onboarding UI should still look the same; it can show additional agreements only if enabled, but must not redesign the page
+Deliverable:
+
+Where the initial agreement content is now sourced from
+
+The minimal DB/model changes (if any)
+
+How leadership edits it (exact page/path)
+
+Verification steps: update agreement content → reload onboarding → agreement displays same but with new text
+
+OUTPUT REQUIREMENTS (MANDATORY)
+
+Provide:
+
+List of files changed grouped by Task 1/2/3
+
+Short “what changed” bullets per task
+
+Step-by-step verification checklist for:
+
+Member (onboarding agreement appearance unchanged)
+
+Leader (can edit agreement content + generate trainings + publish works first try)
+
+Admin (no permission regressions)
+
+Confirm: no broken routes, no dead buttons, no UI redesign of agreement screen
+
+End.

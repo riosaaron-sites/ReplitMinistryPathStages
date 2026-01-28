@@ -19,7 +19,8 @@ import {
   ClipboardList,
   Heart,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -40,6 +41,7 @@ const leadershipNavItems = [
   { path: "/leadership/ministries", label: "Ministries", icon: Building2 },
   { path: "/leadership/training-studio", label: "Training Studio", icon: Sparkles },
   { path: "/leadership/trainings", label: "Training", icon: GraduationCap },
+  { path: "/leadership/agreements", label: "Faith Agreements", icon: BookOpen, adminOnly: true },
   { path: "/leadership/requests", label: "Requests", icon: Inbox },
   { path: "/leadership/rooms", label: "Rooms & Calendar", icon: Calendar },
   { path: "/leadership/metrics", label: "Attendance", icon: BarChart3 },

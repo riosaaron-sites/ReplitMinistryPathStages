@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { ministries, trainingModules } from "@shared/schema";
+import { ministries, trainingModules, agreementContent } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 function slugify(text: string): string {
@@ -135,4 +135,138 @@ export async function seedCoreData() {
   console.log(`[Seed] Trainings: ${trainingsAdded} added, ${trainingsSkipped} already existed`);
   
   return { ministriesAdded, ministriesSkipped, trainingsAdded, trainingsSkipped };
+}
+
+// =============================================================================
+// Default agreement content for onboarding faith commitment steps
+// =============================================================================
+const defaultAgreementContent = [
+  {
+    stepNumber: 1,
+    title: "Scripture & Authority",
+    scripture: "All Scripture is God-breathed and is useful for teaching, rebuking, correcting and training in righteousness.",
+    scriptureRef: "2 Timothy 3:16",
+    content: "We believe the Bible is the inspired, infallible Word of God—the final authority for faith and practice. It reveals God's character, His plan for humanity, and how we are to live.",
+    question: "I affirm that the Bible is God's inspired Word and the ultimate authority for my faith and life.",
+  },
+  {
+    stepNumber: 2,
+    title: "Nature of God",
+    scripture: "Therefore go and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit.",
+    scriptureRef: "Matthew 28:19",
+    content: "We believe in one God, eternally existing in three persons: Father, Son, and Holy Spirit. Each is fully God, co-equal and co-eternal, yet distinct in role and relationship.",
+    question: "I believe in one God who exists eternally as Father, Son, and Holy Spirit—the Trinity.",
+  },
+  {
+    stepNumber: 3,
+    title: "Jesus Christ",
+    scripture: "For what I received I passed on to you as of first importance: that Christ died for our sins according to the Scriptures, that he was buried, that he was raised on the third day.",
+    scriptureRef: "1 Corinthians 15:3-4",
+    content: "We believe Jesus Christ is fully God and fully man. He was born of a virgin, lived a sinless life, died on the cross for our sins, rose bodily from the grave, and will return in power and glory.",
+    question: "I believe Jesus is the Son of God who died for my sins, rose from the dead, and is coming again.",
+  },
+  {
+    stepNumber: 4,
+    title: "Salvation",
+    scripture: "For it is by grace you have been saved, through faith—and this is not from yourselves, it is the gift of God—not by works, so that no one can boast.",
+    scriptureRef: "Ephesians 2:8-9",
+    content: "We believe salvation is a gift of God's grace, received through faith in Jesus Christ alone. It cannot be earned by good works but results in a transformed life that produces good works.",
+    question: "I believe salvation comes by grace through faith in Jesus Christ alone, not by works.",
+  },
+  {
+    stepNumber: 5,
+    title: "Baptism in the Holy Spirit",
+    scripture: "You will receive power when the Holy Spirit comes on you; and you will be my witnesses in Jerusalem, and in all Judea and Samaria, and to the ends of the earth.",
+    scriptureRef: "Acts 1:8",
+    content: "We believe the Baptism in the Holy Spirit is a distinct experience from salvation, empowering believers for witness and service. The initial physical evidence is speaking in tongues as the Spirit gives utterance (Acts 2:4). This is a core distinctive of Assemblies of God doctrine.",
+    question: "I understand and embrace this doctrine as taught by the Assemblies of God.",
+  },
+  {
+    stepNumber: 6,
+    title: "Sanctity of Life",
+    scripture: "For you created my inmost being; you knit me together in my mother's womb. I praise you because I am fearfully and wonderfully made.",
+    scriptureRef: "Psalm 139:13-14",
+    content: "We believe every human life is sacred from conception to natural death. Life is a gift from God to be protected and cherished. This includes the unborn, the elderly, and every person created in God's image.",
+    question: "I affirm the sanctity of human life from conception to natural death.",
+  },
+  {
+    stepNumber: 7,
+    title: "Sexuality & Marriage",
+    scripture: "For this reason a man will leave his father and mother and be united to his wife, and they will become one flesh.",
+    scriptureRef: "Genesis 2:24",
+    content: "We believe God designed marriage as a lifelong covenant between one man and one woman. Sexual intimacy is a beautiful gift reserved for this covenant relationship. We call all people to sexual purity, whether single or married.",
+    question: "I uphold the biblical view of marriage as between one man and one woman, and commit to sexual purity.",
+  },
+  {
+    stepNumber: 8,
+    title: "Sobriety & Witness",
+    scripture: "Do not get drunk with wine, for that is debauchery, but be filled with the Spirit.",
+    scriptureRef: "Ephesians 5:18",
+    content: "We believe followers of Jesus are called to practice sobriety — not just as a behavior, but as a posture of the heart. Sobriety reflects a life that is alert, disciplined, and yielded to the Holy Spirit rather than influenced or impaired by any substance, activity, or habit.\n\nScripture calls believers to avoid drunkenness, addiction, and anything that diminishes judgment, weakens witness, or causes another person to stumble (Romans 14:21; 1 Corinthians 8:9; 1 Peter 5:8). Our goal is to live in a way that reflects wisdom, responsibility, and love for others.\n\nThose who serve or represent the ministry of Garden City Church agree to maintain a sober and clear mind while serving, leading, on church property, or participating in ministry-related activities. This standard is rooted in responsibility, influence, and example — recognizing that leadership is both seen and followed.",
+    question: "I commit to living sober-minded and exercising wisdom, self-control, and responsibility in my personal conduct.",
+  },
+  {
+    stepNumber: 9,
+    title: "Majors & Minors",
+    scripture: "Accept the one whose faith is weak, without quarreling over disputable matters.",
+    scriptureRef: "Romans 14:1",
+    content: "We distinguish between essential doctrines (salvation, deity of Christ, Scripture) and secondary issues where believers may disagree in good conscience. We maintain unity on the essentials and extend grace on matters of personal conviction.",
+    question: "I understand the difference between essential and secondary matters, and commit to unity and grace.",
+  },
+  {
+    stepNumber: 10,
+    title: "Social Media & Representation",
+    scripture: "Whatever you do, whether in word or deed, do it all in the name of the Lord Jesus, giving thanks to God the Father through him.",
+    scriptureRef: "Colossians 3:17",
+    content: "As representatives of Christ and Garden City Church, we are mindful that our public presence—including social media—reflects on Him and His body. We commit to wisdom, integrity, and Christ-honoring conduct in all public forums.",
+    question: "I will represent Christ and this church with integrity in all public and social media contexts.",
+  },
+  {
+    stepNumber: 11,
+    title: "Final Commitment",
+    scripture: "Therefore, I urge you, brothers and sisters, in view of God's mercy, to offer your bodies as a living sacrifice, holy and pleasing to God—this is your true and proper worship.",
+    scriptureRef: "Romans 12:1",
+    content: "By completing this commitment, you are affirming your alignment with the core beliefs and values of Garden City Church. You understand that serving in ministry means representing these beliefs faithfully.",
+    question: "I am in full agreement with the doctrines and values of Garden City Church and desire to serve faithfully.",
+  },
+];
+
+export async function seedAgreementContent() {
+  console.log("[Seed] Checking for agreement content...");
+  
+  let added = 0;
+  let skipped = 0;
+  
+  for (const step of defaultAgreementContent) {
+    try {
+      const existing = await db.query.agreementContent.findFirst({
+        where: (table, { eq }) => eq(table.stepNumber, step.stepNumber)
+      });
+      
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      
+      await db.insert(agreementContent).values({
+        stepNumber: step.stepNumber,
+        title: step.title,
+        scripture: step.scripture,
+        scriptureRef: step.scriptureRef,
+        content: step.content,
+        question: step.question,
+        isActive: true,
+        isRequired: true,
+        version: 1,
+      });
+      
+      added++;
+      console.log(`[Seed] Added agreement step ${step.stepNumber}: ${step.title}`);
+    } catch (error) {
+      console.error(`[Seed] Failed to add agreement step ${step.stepNumber}:`, error);
+    }
+  }
+  
+  console.log(`[Seed] Agreement content: ${added} added, ${skipped} already existed`);
+  return { added, skipped };
 }

@@ -39,6 +39,7 @@ import PeopleRoles from "@/pages/leadership/PeopleRoles";
 import MinistriesManagement from "@/pages/leadership/MinistriesManagement";
 import TrainingManagement from "@/pages/leadership/TrainingManagement";
 import TrainingStudio from "@/pages/leadership/TrainingStudio";
+import AgreementEditor from "@/pages/leadership/AgreementEditor";
 import InternPortal from "@/pages/leadership/InternPortal";
 import MyTeam from "@/pages/leadership/MyTeam";
 import InviteManagement from "@/pages/leadership/InviteManagement";
@@ -114,6 +115,7 @@ function AuthenticatedRouter() {
             <Route path="/leadership/ministries" component={MinistriesManagement} />
             <Route path="/leadership/trainings" component={TrainingManagement} />
             <Route path="/leadership/training-studio" component={TrainingStudio} />
+            <Route path="/leadership/agreements" component={AgreementEditor} />
             <Route path="/leadership/requests" component={RequestCenter} />
             <Route path="/leadership/rooms" component={RoomsManagement} />
             <Route path="/leadership/metrics" component={MetricsDashboard} />
