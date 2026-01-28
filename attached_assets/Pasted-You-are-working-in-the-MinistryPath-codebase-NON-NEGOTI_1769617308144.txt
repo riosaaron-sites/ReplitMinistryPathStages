@@ -1,0 +1,153 @@
+You are working in the MinistryPath codebase.
+
+NON-NEGOTIABLE RULES
+
+Do NOT refactor architecture
+
+Do NOT rename core models
+
+Do NOT introduce new feature domains
+
+Do NOT duplicate training functionality
+
+Make minimal, safe, verifiable changes
+
+Your task is to consolidate training management into a single, intuitive workflow and eliminate redundant or confusing entry points.
+
+PRIMARY OBJECTIVE
+
+There must be one clear place for Leaders/Admins to manage trainings after creation, and one clear place to deeply edit training content.
+
+TASK 1 — TRAINING MANAGEMENT PURPOSE (MANDATORY)
+
+Designate Leadership → Training Management as the primary place to:
+
+View trainings
+
+Filter by status (LIVE / DRAFT / ARCHIVED)
+
+Review submissions
+
+Perform management actions (edit, archive, delete)
+
+Designate Training Studio as:
+
+The place to create trainings
+
+The place to deeply edit training content (overview, lessons, structure)
+
+Remove or restrict any other training management paths (including Admin Panel) that duplicate these responsibilities.
+
+TASK 2 — REMOVE CONFUSING ENTRY POINTS
+
+Remove the “Add Training” button from Training Management.
+
+Replace it with a clear action:
+
+“Create Training (Training Studio)” → links to /leadership/training-studio
+
+There should be no ambiguity about where trainings are created.
+
+TASK 3 — SINGLE “EDIT” ACTION (UI BEHAVIOR LEFT TO YOU)
+
+In Training Management, replace scattered controls (settings, questions, details, delete, etc.) with one primary action: “Edit”.
+
+When “Edit” is clicked:
+
+Provide access to:
+
+Module details & settings
+
+Questions / assessments
+
+Status changes (publish / unpublish / republish)
+
+Archive / unarchive
+
+Delete (admin-only, confirmed)
+
+If deep content editing is required (lessons, overview):
+
+Route the user into Training Studio in edit mode for that module.
+
+UI implementation choice is yours (page, modal, tabs, redirect), but:
+
+All edit actions must be reachable from one place
+
+No feature may exist only in a secondary location
+
+TASK 4 — ARCHIVE SUPPORT (REQUIRED)
+
+Implement Archive / Unarchive using moduleStatus = 'archived'.
+
+Archived trainings must:
+
+Be hidden from members
+
+Preserve completion and reporting history
+
+Archived trainings must still be visible in Training Management when filtered.
+
+TASK 5 — LIVE TRAINING EDITING & REPUBLISHING
+
+Editing a LIVE training must be allowed.
+
+Changes must:
+
+Require an explicit Save and Republish
+
+Not silently alter published content
+
+After republish:
+
+Updated training is visible to members
+
+Training status remains LIVE
+
+TASK 6 — REMOVE DUPLICATE TRAINING CONTROLS
+
+Identify any training editing or management features that appear in:
+
+Admin Panel
+
+Other leadership pages
+
+Either:
+
+Remove them, or
+
+Restrict them to admin-only system tasks (bulk delete, emergency cleanup)
+
+Ensure there is one authoritative workflow for managing trainings.
+
+OUTPUT REQUIREMENTS
+
+Provide:
+
+Files changed
+
+What was removed vs consolidated vs retained
+
+Where each training action now lives (create / edit / archive / delete / republish)
+
+Step-by-step test instructions:
+
+Create → Publish → Edit → Save → Republish → Archive → Verify member visibility
+
+SUCCESS CRITERIA
+
+No duplicate “training control centers”
+
+No dead or misleading buttons
+
+One obvious place to manage trainings
+
+One obvious place to deeply edit content
+
+Editing a training feels complete and uninterrupted
+
+IMPORTANT
+
+If you must choose between multiple UI behaviors:
+
+Choose the option that reduces confusion and minimizes navigation hops for Leaders.

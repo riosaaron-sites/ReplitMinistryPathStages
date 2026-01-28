@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,18 +75,12 @@ const getModuleStatus = (training: TrainingModule): 'draft' | 'live' | 'archived
 function TrainingCard({
   training,
   onEdit,
-  onManageQuestions,
-  onDelete,
-  onSettings,
   enrolledCount,
   completedCount,
   ministry,
 }: {
   training: TrainingModule;
   onEdit: () => void;
-  onManageQuestions: () => void;
-  onDelete: () => void;
-  onSettings: () => void;
   enrolledCount: number;
   completedCount: number;
   ministry?: Ministry;
@@ -127,20 +122,10 @@ function TrainingCard({
             </div>
             <CardDescription className="mt-1">{ministry?.name || "General"}</CardDescription>
           </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={onSettings} data-testid={`button-settings-training-${training.id}`}>
-              <Settings2 className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onManageQuestions} data-testid={`button-manage-questions-${training.id}`}>
-              <FileQuestion className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onEdit} data-testid={`button-edit-training-${training.id}`}>
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete} className="text-destructive hover:text-destructive" data-testid={`button-delete-training-${training.id}`}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={onEdit} data-testid={`button-edit-training-${training.id}`}>
+            <Pencil className="w-4 h-4 mr-2" />
+            Edit
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -233,6 +218,10 @@ export default function TrainingManagement() {
   const [managingQuestionsTraining, setManagingQuestionsTraining] = useState<TrainingModule | null>(null);
   const [editingQuestion, setEditingQuestion] = useState<Assessment | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [editPanelOpen, setEditPanelOpen] = useState(false);
+  const [editPanelTraining, setEditPanelTraining] = useState<TrainingModule | null>(null);
+  const [editPanelTab, setEditPanelTab] = useState<string>("details");
+  const [, navigate] = useLocation();
   const [questionForm, setQuestionForm] = useState({
     question: "",
     options: ["", "", "", ""],
@@ -404,9 +393,63 @@ export default function TrainingManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/training/progress/all"] });
       toast({ title: "Training Deleted", description: "The training module has been permanently deleted." });
       setDeleteConfirmId(null);
+      setEditPanelOpen(false);
+      setEditPanelTraining(null);
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to delete training module. You may not have admin access.", variant: "destructive" });
+    },
+  });
+
+  // Archive/Unarchive mutation
+  const archiveMutation = useMutation({
+    mutationFn: async ({ id, archive }: { id: string; archive: boolean }) => {
+      return apiRequest("PATCH", `/api/training/modules/${id}`, { 
+        moduleStatus: archive ? 'archived' : 'draft' 
+      });
+    },
+    onSuccess: (_, { archive }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training/modules?includeAll=true"] });
+      toast({ 
+        title: archive ? "Training Archived" : "Training Unarchived", 
+        description: archive 
+          ? "The training is now hidden from members but history is preserved." 
+          : "The training is now visible in draft status."
+      });
+      setEditPanelOpen(false);
+      setEditPanelTraining(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update training status.", variant: "destructive" });
+    },
+  });
+
+  // Publish/Republish mutation
+  const publishMutation = useMutation({
+    mutationFn: async ({ id, publish }: { id: string; publish: boolean }) => {
+      return apiRequest("PATCH", `/api/training/modules/${id}`, { 
+        moduleStatus: publish ? 'live' : 'draft',
+        publishedAt: publish ? new Date().toISOString() : null,
+      });
+    },
+    onSuccess: (_, { publish }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training/modules?includeAll=true"] });
+      toast({ 
+        title: publish ? "Training Published" : "Training Unpublished", 
+        description: publish 
+          ? "The training is now live and visible to members." 
+          : "The training is now a draft and hidden from members."
+      });
+      // Refresh the edit panel training
+      if (editPanelTraining) {
+        const updatedTrainings = trainings?.find(t => t.id === editPanelTraining.id);
+        if (updatedTrainings) {
+          setEditPanelTraining({ ...updatedTrainings, moduleStatus: publish ? 'live' : 'draft' } as TrainingModule);
+        }
+      }
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update training status.", variant: "destructive" });
     },
   });
 
@@ -665,13 +708,13 @@ export default function TrainingManagement() {
           </div>
           <HelpLink category="admin" tooltip="Training Help" />
         </div>
+        <Link href="/leadership/training-studio">
+          <Button data-testid="button-create-training">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Training (Training Studio)
+          </Button>
+        </Link>
         <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : closeDialog()}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-training">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Training
-            </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingTraining ? "Edit Training" : "Create Training"}</DialogTitle>
@@ -952,7 +995,7 @@ export default function TrainingManagement() {
                 <CheckCircle className="w-5 h-5 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold" data-testid="stat-active">{stats.active}</p>
+                <p className="text-2xl font-bold" data-testid="stat-active">{stats.live}</p>
                 <p className="text-sm text-muted-foreground">Published</p>
               </div>
             </div>
@@ -1212,15 +1255,9 @@ export default function TrainingManagement() {
                     <TrainingCard
                       key={training.id}
                       training={training}
-                      onEdit={() => openEditDialog(training)}
-                      onManageQuestions={() => {
-                        setManagingQuestionsTraining(training);
-                        setQuestionsDialogOpen(true);
-                      }}
-                      onDelete={() => setDeleteConfirmId(training.id)}
-                      onSettings={() => {
-                        setSettingsTraining(training);
-                        setSettingsDialogOpen(true);
+                      onEdit={() => {
+                        setEditPanelTraining(training);
+                        setEditPanelOpen(true);
                       }}
                       enrolledCount={getEnrolledCount(training.id)}
                       completedCount={getCompletedCount(training.id)}
@@ -1859,6 +1896,335 @@ export default function TrainingManagement() {
               </>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Comprehensive Edit Panel Dialog */}
+      <Dialog 
+        open={editPanelOpen} 
+        onOpenChange={(open) => {
+          setEditPanelOpen(open);
+          if (!open) {
+            setEditPanelTraining(null);
+            setEditPanelTab("details");
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5" />
+              Edit Training: {editPanelTraining?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Manage all aspects of this training module
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editPanelTraining && (
+            <div className="space-y-6 py-4">
+              {/* Status Badge and Quick Actions */}
+              <div className="flex items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Badge variant={getModuleStatus(editPanelTraining) === 'live' ? 'default' : getModuleStatus(editPanelTraining) === 'archived' ? 'outline' : 'secondary'}>
+                    {getModuleStatus(editPanelTraining) === 'live' && <Eye className="w-3 h-3 mr-1" />}
+                    {getModuleStatus(editPanelTraining) === 'draft' && <FileEdit className="w-3 h-3 mr-1" />}
+                    {getModuleStatus(editPanelTraining) === 'archived' && <Archive className="w-3 h-3 mr-1" />}
+                    {getModuleStatus(editPanelTraining).toUpperCase()}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {editPanelTraining.ministryId ? getMinistryById(editPanelTraining.ministryId)?.name || 'General' : 'General'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {getModuleStatus(editPanelTraining) === 'draft' && (
+                    <Button 
+                      size="sm"
+                      onClick={() => publishMutation.mutate({ id: editPanelTraining.id, publish: true })}
+                      disabled={publishMutation.isPending}
+                      data-testid="button-publish-training"
+                    >
+                      {publishMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+                      Publish
+                    </Button>
+                  )}
+                  {getModuleStatus(editPanelTraining) === 'live' && (
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      onClick={() => publishMutation.mutate({ id: editPanelTraining.id, publish: false })}
+                      disabled={publishMutation.isPending}
+                      data-testid="button-unpublish-training"
+                    >
+                      {publishMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <FileEdit className="w-4 h-4 mr-1" />}
+                      Unpublish
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Tabs for different edit sections */}
+              <Tabs value={editPanelTab} onValueChange={setEditPanelTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="details" data-testid="tab-edit-details">Details</TabsTrigger>
+                  <TabsTrigger value="settings" data-testid="tab-edit-settings">Settings</TabsTrigger>
+                  <TabsTrigger value="questions" data-testid="tab-edit-questions">Questions</TabsTrigger>
+                  <TabsTrigger value="actions" data-testid="tab-edit-actions">Actions</TabsTrigger>
+                </TabsList>
+
+                {/* Details Tab - Module Info */}
+                <TabsContent value="details" className="space-y-4 mt-4">
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <Label>Title</Label>
+                      <Input 
+                        value={editPanelTraining.title} 
+                        onChange={(e) => setEditPanelTraining({...editPanelTraining, title: e.target.value})}
+                        data-testid="input-edit-title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea 
+                        value={editPanelTraining.description || ''} 
+                        onChange={(e) => setEditPanelTraining({...editPanelTraining, description: e.target.value})}
+                        rows={3}
+                        data-testid="input-edit-description"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Ministry</Label>
+                        <Select 
+                          value={editPanelTraining.ministryId || "__none__"} 
+                          onValueChange={(v) => setEditPanelTraining({...editPanelTraining, ministryId: v === "__none__" ? null : v})}
+                        >
+                          <SelectTrigger data-testid="select-edit-ministry">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">General (All Ministries)</SelectItem>
+                            {ministries?.map(m => (
+                              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Path Step</Label>
+                        <Select 
+                          value={editPanelTraining.pathStep || "__none__"} 
+                          onValueChange={(v) => setEditPanelTraining({...editPanelTraining, pathStep: v === "__none__" ? null : v})}
+                        >
+                          <SelectTrigger data-testid="select-edit-pathstep">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">None</SelectItem>
+                            {DISCIPLESHIP_STEPS.map(step => (
+                              <SelectItem key={step.id} value={step.id}>{step.title}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Est. Minutes</Label>
+                        <Input 
+                          type="number" 
+                          value={editPanelTraining.estimatedMinutes || 30} 
+                          onChange={(e) => setEditPanelTraining({...editPanelTraining, estimatedMinutes: parseInt(e.target.value) || 30})}
+                          data-testid="input-edit-minutes"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>XP Reward</Label>
+                        <Input 
+                          type="number" 
+                          value={editPanelTraining.xpReward || 100} 
+                          onChange={(e) => setEditPanelTraining({...editPanelTraining, xpReward: parseInt(e.target.value) || 100})}
+                          data-testid="input-edit-xp"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Passing Score %</Label>
+                        <Input 
+                          type="number" 
+                          value={editPanelTraining.passingScore || 80} 
+                          onChange={(e) => setEditPanelTraining({...editPanelTraining, passingScore: parseInt(e.target.value) || 80})}
+                          data-testid="input-edit-passing"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pt-4">
+                      <Button 
+                        variant="outline"
+                        onClick={() => navigate(`/leadership/training-studio?edit=${editPanelTraining.id}`)}
+                        data-testid="button-deep-edit"
+                      >
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Edit Content in Training Studio
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          updateMutation.mutate({ 
+                            id: editPanelTraining.id, 
+                            data: {
+                              title: editPanelTraining.title,
+                              description: editPanelTraining.description,
+                              ministryId: editPanelTraining.ministryId,
+                              pathStep: editPanelTraining.pathStep,
+                              estimatedMinutes: editPanelTraining.estimatedMinutes,
+                              xpReward: editPanelTraining.xpReward,
+                              passingScore: editPanelTraining.passingScore,
+                            } as any
+                          });
+                        }}
+                        disabled={updateMutation.isPending}
+                        data-testid="button-save-details"
+                      >
+                        {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CheckCircle className="w-4 h-4 mr-1" />}
+                        {getModuleStatus(editPanelTraining) === 'live' ? 'Save & Republish' : 'Save Changes'}
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Settings Tab - Requirements & Configuration */}
+                <TabsContent value="settings" className="space-y-4 mt-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">Required Training</p>
+                        <p className="text-sm text-muted-foreground">Members must complete this training</p>
+                      </div>
+                      <Switch 
+                        checked={editPanelTraining.isRequired || false}
+                        onCheckedChange={(checked) => {
+                          setEditPanelTraining({...editPanelTraining, isRequired: checked});
+                          updateMutation.mutate({ id: editPanelTraining.id, data: { isRequired: checked } as any });
+                        }}
+                        data-testid="switch-required"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">Onboarding Required</p>
+                        <p className="text-sm text-muted-foreground">New members must complete during onboarding</p>
+                      </div>
+                      <Switch 
+                        checked={editPanelTraining.isOnboardingRequired || false}
+                        onCheckedChange={(checked) => {
+                          setEditPanelTraining({...editPanelTraining, isOnboardingRequired: checked});
+                          updateMutation.mutate({ id: editPanelTraining.id, data: { isOnboardingRequired: checked } as any });
+                        }}
+                        data-testid="switch-onboarding"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">Requires Leader Approval</p>
+                        <p className="text-sm text-muted-foreground">Leader must approve completion before XP is awarded</p>
+                      </div>
+                      <Switch 
+                        checked={editPanelTraining.requiresApproval ?? true}
+                        onCheckedChange={(checked) => {
+                          setEditPanelTraining({...editPanelTraining, requiresApproval: checked});
+                          updateMutation.mutate({ id: editPanelTraining.id, data: { requiresApproval: checked } as any });
+                        }}
+                        data-testid="switch-approval"
+                      />
+                    </div>
+                    <div className="space-y-2 p-4 border rounded-lg">
+                      <Label>Audience</Label>
+                      <Select 
+                        value={(editPanelTraining as any).audience || 'all'} 
+                        onValueChange={(v) => {
+                          setEditPanelTraining({...editPanelTraining, audience: v} as any);
+                          updateMutation.mutate({ id: editPanelTraining.id, data: { audience: v } as any });
+                        }}
+                      >
+                        <SelectTrigger data-testid="select-audience">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Members</SelectItem>
+                          <SelectItem value="leader">Leaders Only</SelectItem>
+                          <SelectItem value="ministry">Ministry Members Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Who should be required/able to take this training</p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Questions Tab - Quiz Management */}
+                <TabsContent value="questions" className="mt-4">
+                  <QuestionsManager 
+                    moduleId={editPanelTraining.id} 
+                    onClose={() => setEditPanelTab("details")}
+                  />
+                </TabsContent>
+
+                {/* Actions Tab - Archive, Delete, etc */}
+                <TabsContent value="actions" className="space-y-4 mt-4">
+                  <div className="space-y-4">
+                    {/* Archive/Unarchive */}
+                    {getModuleStatus(editPanelTraining) !== 'archived' ? (
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <p className="font-medium">Archive Training</p>
+                          <p className="text-sm text-muted-foreground">Hide from members while preserving completion history</p>
+                        </div>
+                        <Button 
+                          variant="outline"
+                          onClick={() => archiveMutation.mutate({ id: editPanelTraining.id, archive: true })}
+                          disabled={archiveMutation.isPending}
+                          data-testid="button-archive"
+                        >
+                          {archiveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Archive className="w-4 h-4 mr-1" />}
+                          Archive
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <p className="font-medium">Unarchive Training</p>
+                          <p className="text-sm text-muted-foreground">Restore training to draft status</p>
+                        </div>
+                        <Button 
+                          variant="outline"
+                          onClick={() => archiveMutation.mutate({ id: editPanelTraining.id, archive: false })}
+                          disabled={archiveMutation.isPending}
+                          data-testid="button-unarchive"
+                        >
+                          {archiveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                          Unarchive
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Delete */}
+                    <div className="flex items-center justify-between p-4 border border-destructive/30 rounded-lg bg-destructive/5">
+                      <div>
+                        <p className="font-medium text-destructive">Delete Training</p>
+                        <p className="text-sm text-muted-foreground">Permanently remove this training and all associated data</p>
+                      </div>
+                      <Button 
+                        variant="destructive"
+                        onClick={() => setDeleteConfirmId(editPanelTraining.id)}
+                        data-testid="button-delete-from-panel"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
