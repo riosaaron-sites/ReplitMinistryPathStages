@@ -46,3 +46,6 @@ integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_database:1.0.
 
 [userenv.shared]
 MAILGUN_DOMAIN = "mg.gardencitychurch.net"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-6f91dc24-4896-4853-b660-42f6c82924ad"
