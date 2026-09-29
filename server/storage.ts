@@ -272,25 +272,25 @@ export interface IStorage {
   getChildMinistries(parentMinistryId: string, organizationId: string): Promise<Ministry[]>;
   
   // Ministry leaders operations
-  getMinistryLeaders(ministryId: string): Promise<MinistryLeader[]>;
+  getMinistryLeaders(ministryId: string, organizationId: string): Promise<MinistryLeader[]>;
   addMinistryLeader(data: InsertMinistryLeader): Promise<MinistryLeader>;
   removeMinistryLeader(ministryId: string, userId: string): Promise<void>;
-  updateMinistryLeader(id: string, data: Partial<InsertMinistryLeader>): Promise<MinistryLeader>;
-  
+  updateMinistryLeader(id: string, organizationId: string, data: Partial<InsertMinistryLeader>): Promise<MinistryLeader>;
+
   // Ministry leadership assignments (H1)
   createMinistryLeadershipAssignment(data: InsertMinistryLeadershipAssignment): Promise<MinistryLeadershipAssignment>;
-  getMinistryLeadershipAssignments(ministryId: string): Promise<MinistryLeadershipAssignment[]>;
+  getMinistryLeadershipAssignments(ministryId: string, organizationId: string): Promise<MinistryLeadershipAssignment[]>;
   getUserLeadershipAssignments(userId: string): Promise<MinistryLeadershipAssignment[]>;
-  getLeadershipAssignment(id: string): Promise<MinistryLeadershipAssignment | undefined>;
-  updateLeadershipAssignment(id: string, data: Partial<InsertMinistryLeadershipAssignment>): Promise<MinistryLeadershipAssignment>;
-  getAllActiveLeadershipAssignments(): Promise<MinistryLeadershipAssignment[]>;
-  
+  getLeadershipAssignment(id: string, organizationId: string): Promise<MinistryLeadershipAssignment | undefined>;
+  updateLeadershipAssignment(id: string, organizationId: string, data: Partial<InsertMinistryLeadershipAssignment>): Promise<MinistryLeadershipAssignment>;
+  getAllActiveLeadershipAssignments(organizationId: string): Promise<MinistryLeadershipAssignment[]>;
+
   // Role assignments operations
-  getRoleAssignments(): Promise<RoleAssignment[]>;
+  getRoleAssignments(organizationId: string): Promise<RoleAssignment[]>;
   getUserRoleAssignments(userId: string): Promise<RoleAssignment[]>;
   createRoleAssignment(assignment: InsertRoleAssignment): Promise<RoleAssignment>;
-  updateRoleAssignment(id: string, data: Partial<InsertRoleAssignment>): Promise<RoleAssignment>;
-  deleteRoleAssignment(id: string): Promise<void>;
+  updateRoleAssignment(id: string, organizationId: string, data: Partial<InsertRoleAssignment>): Promise<RoleAssignment>;
+  deleteRoleAssignment(id: string, organizationId: string): Promise<void>;
   
   // Training modules operations
   getTrainingModules(organizationId: string, ministryId?: string): Promise<TrainingModule[]>;
@@ -311,13 +311,13 @@ export interface IStorage {
   updateTrainingProgress(id: string, data: Partial<UserTrainingProgress>): Promise<UserTrainingProgress>;  // Phase 3
   
   // Gamification operations
-  getBadges(): Promise<Badge[]>;
+  getBadges(organizationId: string): Promise<Badge[]>;
   createBadge(badge: InsertBadge): Promise<Badge>;
-  getUserBadges(userId: string): Promise<UserBadge[]>;
+  getUserBadges(userId: string, organizationId: string): Promise<UserBadge[]>;
   awardBadge(data: InsertUserBadge): Promise<UserBadge>;
-  getUserXp(userId: string): Promise<number>;
+  getUserXp(userId: string, organizationId: string): Promise<number>;
   addXpLog(log: InsertXpLog): Promise<XpLog>;
-  getXpLogs(userId: string): Promise<XpLog[]>;
+  getXpLogs(userId: string, organizationId: string): Promise<XpLog[]>;
   awardXp(organizationId: string, userId: string, amount: number, sourceType: string, reason: string): Promise<XpLog>;  // Phase 3 convenience method
   
   // Rooms operations
@@ -352,17 +352,17 @@ export interface IStorage {
   getWeeklyMetric(organizationId: string, ministryId: string, weekStartDate: Date): Promise<WeeklyMinistryMetrics | undefined>;
   
   // Support requests operations
-  getSupportRequests(status?: string): Promise<SupportRequest[]>;
-  getSupportRequest(id: string): Promise<SupportRequest | undefined>;
+  getSupportRequests(organizationId: string, status?: string): Promise<SupportRequest[]>;
+  getSupportRequest(id: string, organizationId: string): Promise<SupportRequest | undefined>;
   createSupportRequest(request: InsertSupportRequest): Promise<SupportRequest>;
-  updateSupportRequest(id: string, request: Partial<InsertSupportRequest>): Promise<SupportRequest>;
-  
+  updateSupportRequest(id: string, organizationId: string, request: Partial<InsertSupportRequest>): Promise<SupportRequest>;
+
   // Intern portal operations
-  getInternProfiles(): Promise<InternProfile[]>;
-  getInternProfile(userId: string): Promise<InternProfile | undefined>;
+  getInternProfiles(organizationId: string): Promise<InternProfile[]>;
+  getInternProfile(userId: string, organizationId: string): Promise<InternProfile | undefined>;
   createInternProfile(profile: InsertInternProfile): Promise<InternProfile>;
-  updateInternProfile(id: string, profile: Partial<InsertInternProfile>): Promise<InternProfile>;
-  getInternLogs(internProfileId: string): Promise<InternLog[]>;
+  updateInternProfile(id: string, organizationId: string, profile: Partial<InsertInternProfile>): Promise<InternProfile>;
+  getInternLogs(internProfileId: string, organizationId: string): Promise<InternLog[]>;
   createInternLog(log: InsertInternLog): Promise<InternLog>;
   
   // Meetings operations
@@ -387,7 +387,7 @@ export interface IStorage {
   updateMeetingAttendance(id: string, organizationId: string, data: Partial<MeetingAttendance>): Promise<MeetingAttendance>;
   
   // Background check operations
-  getBackgroundCheck(userId: string): Promise<BackgroundCheck | undefined>;
+  getBackgroundCheck(userId: string, organizationId: string): Promise<BackgroundCheck | undefined>;
   upsertBackgroundCheck(check: InsertBackgroundCheck): Promise<BackgroundCheck>;
   
   // Permissions operations
@@ -396,15 +396,15 @@ export interface IStorage {
   removeRolePermission(role: string, permission: string): Promise<void>;
   
   // Team join requests operations
-  getTeamJoinRequests(ministryId?: string): Promise<TeamJoinRequest[]>;
+  getTeamJoinRequests(organizationId: string, ministryId?: string): Promise<TeamJoinRequest[]>;
   getTeamJoinRequestsByUser(userId: string): Promise<TeamJoinRequest[]>;
-  getTeamJoinRequest(id: string): Promise<TeamJoinRequest | undefined>;
+  getTeamJoinRequest(id: string, organizationId: string): Promise<TeamJoinRequest | undefined>;
   createTeamJoinRequest(request: InsertTeamJoinRequest): Promise<TeamJoinRequest>;
-  updateTeamJoinRequest(id: string, data: Partial<TeamJoinRequest>): Promise<TeamJoinRequest>;
+  updateTeamJoinRequest(id: string, organizationId: string, data: Partial<TeamJoinRequest>): Promise<TeamJoinRequest>;
   
   // Team roster operations
-  getMinistryMembers(ministryId: string): Promise<RoleAssignment[]>;
-  getMinistryMemberCounts(): Promise<{ ministryId: string; count: number }[]>;
+  getMinistryMembers(ministryId: string, organizationId: string): Promise<RoleAssignment[]>;
+  getMinistryMemberCounts(organizationId: string): Promise<{ ministryId: string; count: number }[]>;
   
   // Messages operations
   getMessages(organizationId: string, userId: string): Promise<Message[]>;
@@ -413,20 +413,20 @@ export interface IStorage {
   markMessageRead(id: string, organizationId: string): Promise<void>;
   
   // Manuals operations
-  getManuals(ministryId?: string): Promise<Manual[]>;
-  getManual(id: string): Promise<Manual | undefined>;
+  getManuals(organizationId: string, ministryId?: string): Promise<Manual[]>;
+  getManual(id: string, organizationId: string): Promise<Manual | undefined>;
   createManual(manual: InsertManual): Promise<Manual>;
-  updateManual(id: string, data: Partial<InsertManual>): Promise<Manual>;
-  deleteManual(id: string): Promise<void>;
+  updateManual(id: string, organizationId: string, data: Partial<InsertManual>): Promise<Manual>;
+  deleteManual(id: string, organizationId: string): Promise<void>;
   
   // Team invites operations
-  getTeamInvites(ministryId?: string): Promise<TeamInvite[]>;
-  getTeamInvite(id: string): Promise<TeamInvite | undefined>;
+  getTeamInvites(organizationId: string, ministryId?: string): Promise<TeamInvite[]>;
+  getTeamInvite(id: string, organizationId: string): Promise<TeamInvite | undefined>;
   getTeamInviteByToken(token: string): Promise<TeamInvite | undefined>;
   getPendingInvitesByEmail(email: string): Promise<TeamInvite[]>;
   createTeamInvite(invite: InsertTeamInvite): Promise<TeamInvite>;
-  updateTeamInvite(id: string, data: Partial<TeamInvite>): Promise<TeamInvite>;
-  deleteTeamInvite(id: string): Promise<void>;
+  updateTeamInvite(id: string, organizationId: string, data: Partial<TeamInvite>): Promise<TeamInvite>;
+  deleteTeamInvite(id: string, organizationId: string): Promise<void>;
   
   // Ministry selections operations (for multi-ministry onboarding)
   getUserMinistrySelections(userId: string): Promise<MinistrySelection[]>;
@@ -485,10 +485,10 @@ export interface IStorage {
   markAllNotificationsRead(organizationId: string, userId: string): Promise<void>;
   
   // Manual analysis operations
-  getManualAnalysis(manualId: string): Promise<ManualAnalysis | undefined>;
+  getManualAnalysis(manualId: string, organizationId: string): Promise<ManualAnalysis | undefined>;
   createManualAnalysis(analysis: InsertManualAnalysis): Promise<ManualAnalysis>;
-  updateManualAnalysis(manualId: string, data: Partial<InsertManualAnalysis>): Promise<ManualAnalysis>;
-  getTrainingByManualId(manualId: string): Promise<TrainingModule | undefined>;
+  updateManualAnalysis(manualId: string, organizationId: string, data: Partial<InsertManualAnalysis>): Promise<ManualAnalysis>;
+  getTrainingByManualId(manualId: string, organizationId: string): Promise<TrainingModule | undefined>;
   
   // Config Bank / Field Bank operations
   getAdminTags(): Promise<AdminTag[]>;
@@ -995,9 +995,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Ministry leaders operations
-  async getMinistryLeaders(ministryId: string): Promise<MinistryLeader[]> {
+  async getMinistryLeaders(ministryId: string, organizationId: string): Promise<MinistryLeader[]> {
     return await db.select().from(ministryLeaders)
-      .where(eq(ministryLeaders.ministryId, ministryId));
+      .where(and(eq(ministryLeaders.ministryId, ministryId), eq(ministryLeaders.organizationId, organizationId)));
   }
 
   async addMinistryLeader(data: InsertMinistryLeader): Promise<MinistryLeader> {
@@ -1013,9 +1013,9 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  async updateMinistryLeader(id: string, data: Partial<InsertMinistryLeader>): Promise<MinistryLeader> {
+  async updateMinistryLeader(id: string, organizationId: string, data: Partial<InsertMinistryLeader>): Promise<MinistryLeader> {
     const [leader] = await db.update(ministryLeaders).set(data)
-      .where(eq(ministryLeaders.id, id)).returning();
+      .where(and(eq(ministryLeaders.id, id), eq(ministryLeaders.organizationId, organizationId))).returning();
     return leader;
   }
 
@@ -1025,10 +1025,11 @@ export class DatabaseStorage implements IStorage {
     return assignment;
   }
 
-  async getMinistryLeadershipAssignments(ministryId: string): Promise<MinistryLeadershipAssignment[]> {
+  async getMinistryLeadershipAssignments(ministryId: string, organizationId: string): Promise<MinistryLeadershipAssignment[]> {
     return await db.select().from(ministryLeadershipAssignments)
       .where(and(
         eq(ministryLeadershipAssignments.ministryId, ministryId),
+        eq(ministryLeadershipAssignments.organizationId, organizationId),
         eq(ministryLeadershipAssignments.isActive, true)
       ));
   }
@@ -1041,28 +1042,28 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  async getLeadershipAssignment(id: string): Promise<MinistryLeadershipAssignment | undefined> {
+  async getLeadershipAssignment(id: string, organizationId: string): Promise<MinistryLeadershipAssignment | undefined> {
     const [assignment] = await db.select().from(ministryLeadershipAssignments)
-      .where(eq(ministryLeadershipAssignments.id, id));
+      .where(and(eq(ministryLeadershipAssignments.id, id), eq(ministryLeadershipAssignments.organizationId, organizationId)));
     return assignment;
   }
 
-  async updateLeadershipAssignment(id: string, data: Partial<InsertMinistryLeadershipAssignment>): Promise<MinistryLeadershipAssignment> {
+  async updateLeadershipAssignment(id: string, organizationId: string, data: Partial<InsertMinistryLeadershipAssignment>): Promise<MinistryLeadershipAssignment> {
     const [assignment] = await db.update(ministryLeadershipAssignments)
       .set(data)
-      .where(eq(ministryLeadershipAssignments.id, id))
+      .where(and(eq(ministryLeadershipAssignments.id, id), eq(ministryLeadershipAssignments.organizationId, organizationId)))
       .returning();
     return assignment;
   }
 
-  async getAllActiveLeadershipAssignments(): Promise<MinistryLeadershipAssignment[]> {
+  async getAllActiveLeadershipAssignments(organizationId: string): Promise<MinistryLeadershipAssignment[]> {
     return await db.select().from(ministryLeadershipAssignments)
-      .where(eq(ministryLeadershipAssignments.isActive, true));
+      .where(and(eq(ministryLeadershipAssignments.organizationId, organizationId), eq(ministryLeadershipAssignments.isActive, true)));
   }
 
   // Role assignments operations
-  async getRoleAssignments(): Promise<RoleAssignment[]> {
-    return await db.select().from(roleAssignments).where(eq(roleAssignments.isActive, true));
+  async getRoleAssignments(organizationId: string): Promise<RoleAssignment[]> {
+    return await db.select().from(roleAssignments).where(and(eq(roleAssignments.organizationId, organizationId), eq(roleAssignments.isActive, true)));
   }
 
   async getUserRoleAssignments(userId: string): Promise<RoleAssignment[]> {
@@ -1075,15 +1076,15 @@ export class DatabaseStorage implements IStorage {
     return assignment;
   }
 
-  async updateRoleAssignment(id: string, data: Partial<InsertRoleAssignment>): Promise<RoleAssignment> {
+  async updateRoleAssignment(id: string, organizationId: string, data: Partial<InsertRoleAssignment>): Promise<RoleAssignment> {
     const [assignment] = await db.update(roleAssignments).set(data)
-      .where(eq(roleAssignments.id, id)).returning();
+      .where(and(eq(roleAssignments.id, id), eq(roleAssignments.organizationId, organizationId))).returning();
     return assignment;
   }
 
-  async deleteRoleAssignment(id: string): Promise<void> {
+  async deleteRoleAssignment(id: string, organizationId: string): Promise<void> {
     await db.update(roleAssignments).set({ isActive: false })
-      .where(eq(roleAssignments.id, id));
+      .where(and(eq(roleAssignments.id, id), eq(roleAssignments.organizationId, organizationId)));
   }
 
   // Training modules operations
@@ -1184,8 +1185,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Gamification operations
-  async getBadges(): Promise<Badge[]> {
-    return await db.select().from(badges).where(eq(badges.isActive, true));
+  async getBadges(organizationId: string): Promise<Badge[]> {
+    return await db.select().from(badges).where(and(eq(badges.organizationId, organizationId), eq(badges.isActive, true)));
   }
 
   async createBadge(data: InsertBadge): Promise<Badge> {
@@ -1193,8 +1194,8 @@ export class DatabaseStorage implements IStorage {
     return badge;
   }
 
-  async getUserBadges(userId: string): Promise<UserBadge[]> {
-    return await db.select().from(userBadges).where(eq(userBadges.userId, userId));
+  async getUserBadges(userId: string, organizationId: string): Promise<UserBadge[]> {
+    return await db.select().from(userBadges).where(and(eq(userBadges.userId, userId), eq(userBadges.organizationId, organizationId)));
   }
 
   async awardBadge(data: InsertUserBadge): Promise<UserBadge> {
@@ -1202,9 +1203,9 @@ export class DatabaseStorage implements IStorage {
     return userBadge;
   }
 
-  async getUserXp(userId: string): Promise<number> {
+  async getUserXp(userId: string, organizationId: string): Promise<number> {
     const result = await db.select({ total: sql<number>`COALESCE(SUM(${xpLogs.amount}), 0)` })
-      .from(xpLogs).where(eq(xpLogs.userId, userId));
+      .from(xpLogs).where(and(eq(xpLogs.userId, userId), eq(xpLogs.organizationId, organizationId)));
     return result[0]?.total ?? 0;
   }
 
@@ -1213,8 +1214,8 @@ export class DatabaseStorage implements IStorage {
     return log;
   }
 
-  async getXpLogs(userId: string): Promise<XpLog[]> {
-    return await db.select().from(xpLogs).where(eq(xpLogs.userId, userId))
+  async getXpLogs(userId: string, organizationId: string): Promise<XpLog[]> {
+    return await db.select().from(xpLogs).where(and(eq(xpLogs.userId, userId), eq(xpLogs.organizationId, organizationId)))
       .orderBy(desc(xpLogs.createdAt));
   }
 
@@ -1405,16 +1406,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Support requests operations
-  async getSupportRequests(status?: string): Promise<SupportRequest[]> {
+  async getSupportRequests(organizationId: string, status?: string): Promise<SupportRequest[]> {
     if (status) {
       return await db.select().from(supportRequests)
-        .where(eq(supportRequests.status, status)).orderBy(desc(supportRequests.createdAt));
+        .where(and(eq(supportRequests.organizationId, organizationId), eq(supportRequests.status, status))).orderBy(desc(supportRequests.createdAt));
     }
-    return await db.select().from(supportRequests).orderBy(desc(supportRequests.createdAt));
+    return await db.select().from(supportRequests).where(eq(supportRequests.organizationId, organizationId)).orderBy(desc(supportRequests.createdAt));
   }
 
-  async getSupportRequest(id: string): Promise<SupportRequest | undefined> {
-    const [request] = await db.select().from(supportRequests).where(eq(supportRequests.id, id));
+  async getSupportRequest(id: string, organizationId: string): Promise<SupportRequest | undefined> {
+    const [request] = await db.select().from(supportRequests).where(and(eq(supportRequests.id, id), eq(supportRequests.organizationId, organizationId)));
     return request;
   }
 
@@ -1423,20 +1424,20 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
-  async updateSupportRequest(id: string, data: Partial<InsertSupportRequest>): Promise<SupportRequest> {
+  async updateSupportRequest(id: string, organizationId: string, data: Partial<InsertSupportRequest>): Promise<SupportRequest> {
     const [request] = await db.update(supportRequests).set({ ...data, updatedAt: new Date() })
-      .where(eq(supportRequests.id, id)).returning();
+      .where(and(eq(supportRequests.id, id), eq(supportRequests.organizationId, organizationId))).returning();
     return request;
   }
 
   // Intern portal operations
-  async getInternProfiles(): Promise<InternProfile[]> {
-    return await db.select().from(internProfiles).where(eq(internProfiles.status, 'active'));
+  async getInternProfiles(organizationId: string): Promise<InternProfile[]> {
+    return await db.select().from(internProfiles).where(and(eq(internProfiles.organizationId, organizationId), eq(internProfiles.status, 'active')));
   }
 
-  async getInternProfile(userId: string): Promise<InternProfile | undefined> {
+  async getInternProfile(userId: string, organizationId: string): Promise<InternProfile | undefined> {
     const [profile] = await db.select().from(internProfiles)
-      .where(eq(internProfiles.userId, userId));
+      .where(and(eq(internProfiles.userId, userId), eq(internProfiles.organizationId, organizationId)));
     return profile;
   }
 
@@ -1445,15 +1446,15 @@ export class DatabaseStorage implements IStorage {
     return profile;
   }
 
-  async updateInternProfile(id: string, data: Partial<InsertInternProfile>): Promise<InternProfile> {
+  async updateInternProfile(id: string, organizationId: string, data: Partial<InsertInternProfile>): Promise<InternProfile> {
     const [profile] = await db.update(internProfiles).set({ ...data, updatedAt: new Date() })
-      .where(eq(internProfiles.id, id)).returning();
+      .where(and(eq(internProfiles.id, id), eq(internProfiles.organizationId, organizationId))).returning();
     return profile;
   }
 
-  async getInternLogs(internProfileId: string): Promise<InternLog[]> {
+  async getInternLogs(internProfileId: string, organizationId: string): Promise<InternLog[]> {
     return await db.select().from(internLogs)
-      .where(eq(internLogs.internProfileId, internProfileId)).orderBy(desc(internLogs.date));
+      .where(and(eq(internLogs.internProfileId, internProfileId), eq(internLogs.organizationId, organizationId))).orderBy(desc(internLogs.date));
   }
 
   async createInternLog(data: InsertInternLog): Promise<InternLog> {
@@ -1573,14 +1574,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Background check operations
-  async getBackgroundCheck(userId: string): Promise<BackgroundCheck | undefined> {
+  async getBackgroundCheck(userId: string, organizationId: string): Promise<BackgroundCheck | undefined> {
     const [check] = await db.select().from(backgroundChecks)
-      .where(eq(backgroundChecks.userId, userId));
+      .where(and(eq(backgroundChecks.userId, userId), eq(backgroundChecks.organizationId, organizationId)));
     return check;
   }
 
   async upsertBackgroundCheck(data: InsertBackgroundCheck): Promise<BackgroundCheck> {
-    const existing = await this.getBackgroundCheck(data.userId);
+    const existing = await this.getBackgroundCheck(data.userId, data.organizationId);
     if (existing) {
       const [check] = await db.update(backgroundChecks).set({ ...data, updatedAt: new Date() })
         .where(eq(backgroundChecks.userId, data.userId)).returning();
@@ -1606,13 +1607,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Team join requests operations
-  async getTeamJoinRequests(ministryId?: string): Promise<TeamJoinRequest[]> {
+  async getTeamJoinRequests(organizationId: string, ministryId?: string): Promise<TeamJoinRequest[]> {
     if (ministryId) {
       return await db.select().from(teamJoinRequests)
-        .where(eq(teamJoinRequests.ministryId, ministryId))
+        .where(and(eq(teamJoinRequests.organizationId, organizationId), eq(teamJoinRequests.ministryId, ministryId)))
         .orderBy(desc(teamJoinRequests.createdAt));
     }
     return await db.select().from(teamJoinRequests)
+      .where(eq(teamJoinRequests.organizationId, organizationId))
       .orderBy(desc(teamJoinRequests.createdAt));
   }
 
@@ -1622,9 +1624,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(teamJoinRequests.createdAt));
   }
 
-  async getTeamJoinRequest(id: string): Promise<TeamJoinRequest | undefined> {
+  async getTeamJoinRequest(id: string, organizationId: string): Promise<TeamJoinRequest | undefined> {
     const [request] = await db.select().from(teamJoinRequests)
-      .where(eq(teamJoinRequests.id, id));
+      .where(and(eq(teamJoinRequests.id, id), eq(teamJoinRequests.organizationId, organizationId)));
     return request;
   }
 
@@ -1633,30 +1635,31 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
-  async updateTeamJoinRequest(id: string, data: Partial<TeamJoinRequest>): Promise<TeamJoinRequest> {
+  async updateTeamJoinRequest(id: string, organizationId: string, data: Partial<TeamJoinRequest>): Promise<TeamJoinRequest> {
     const [request] = await db.update(teamJoinRequests)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(teamJoinRequests.id, id))
+      .where(and(eq(teamJoinRequests.id, id), eq(teamJoinRequests.organizationId, organizationId)))
       .returning();
     return request;
   }
 
   // Team roster operations
-  async getMinistryMembers(ministryId: string): Promise<RoleAssignment[]> {
+  async getMinistryMembers(ministryId: string, organizationId: string): Promise<RoleAssignment[]> {
     return await db.select().from(roleAssignments)
       .where(and(
         eq(roleAssignments.ministryId, ministryId),
+        eq(roleAssignments.organizationId, organizationId),
         eq(roleAssignments.isActive, true)
       ));
   }
 
-  async getMinistryMemberCounts(): Promise<{ ministryId: string; count: number }[]> {
+  async getMinistryMemberCounts(organizationId: string): Promise<{ ministryId: string; count: number }[]> {
     const results = await db.select({
       ministryId: roleAssignments.ministryId,
       count: sql<number>`count(*)::int`,
     })
       .from(roleAssignments)
-      .where(eq(roleAssignments.isActive, true))
+      .where(and(eq(roleAssignments.organizationId, organizationId), eq(roleAssignments.isActive, true)))
       .groupBy(roleAssignments.ministryId);
     
     return results.filter(r => r.ministryId !== null) as { ministryId: string; count: number }[];
@@ -1689,17 +1692,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Manuals operations
-  async getManuals(ministryId?: string): Promise<Manual[]> {
+  async getManuals(organizationId: string, ministryId?: string): Promise<Manual[]> {
     if (ministryId) {
       return await db.select().from(manuals)
-        .where(eq(manuals.ministryId, ministryId))
+        .where(and(eq(manuals.organizationId, organizationId), eq(manuals.ministryId, ministryId)))
         .orderBy(manuals.sortOrder);
     }
-    return await db.select().from(manuals).orderBy(manuals.sortOrder);
+    return await db.select().from(manuals).where(eq(manuals.organizationId, organizationId)).orderBy(manuals.sortOrder);
   }
 
-  async getManual(id: string): Promise<Manual | undefined> {
-    const [manual] = await db.select().from(manuals).where(eq(manuals.id, id));
+  async getManual(id: string, organizationId: string): Promise<Manual | undefined> {
+    const [manual] = await db.select().from(manuals).where(and(eq(manuals.id, id), eq(manuals.organizationId, organizationId)));
     return manual;
   }
 
@@ -1708,31 +1711,33 @@ export class DatabaseStorage implements IStorage {
     return manual;
   }
 
-  async updateManual(id: string, data: Partial<InsertManual>): Promise<Manual> {
+  async updateManual(id: string, organizationId: string, data: Partial<InsertManual>): Promise<Manual> {
     const [manual] = await db.update(manuals)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(manuals.id, id))
+      .where(and(eq(manuals.id, id), eq(manuals.organizationId, organizationId)))
       .returning();
     return manual;
   }
 
-  async deleteManual(id: string): Promise<void> {
-    await db.delete(manuals).where(eq(manuals.id, id));
+  async deleteManual(id: string, organizationId: string): Promise<void> {
+    await db.delete(manuals).where(and(eq(manuals.id, id), eq(manuals.organizationId, organizationId)));
   }
 
   // Team invites operations
-  async getTeamInvites(ministryId?: string): Promise<TeamInvite[]> {
+  async getTeamInvites(organizationId: string, ministryId?: string): Promise<TeamInvite[]> {
     if (ministryId) {
       return await db.select().from(teamInvites)
-        .where(eq(teamInvites.ministryId, ministryId))
+        .where(and(eq(teamInvites.organizationId, organizationId), eq(teamInvites.ministryId, ministryId)))
         .orderBy(desc(teamInvites.createdAt));
     }
-    return await db.select().from(teamInvites).orderBy(desc(teamInvites.createdAt));
+    return await db.select().from(teamInvites)
+      .where(eq(teamInvites.organizationId, organizationId))
+      .orderBy(desc(teamInvites.createdAt));
   }
 
-  async getTeamInvite(id: string): Promise<TeamInvite | undefined> {
+  async getTeamInvite(id: string, organizationId: string): Promise<TeamInvite | undefined> {
     const [invite] = await db.select().from(teamInvites)
-      .where(eq(teamInvites.id, id));
+      .where(and(eq(teamInvites.id, id), eq(teamInvites.organizationId, organizationId)));
     return invite;
   }
 
@@ -1756,16 +1761,16 @@ export class DatabaseStorage implements IStorage {
     return invite;
   }
 
-  async updateTeamInvite(id: string, data: Partial<TeamInvite>): Promise<TeamInvite> {
+  async updateTeamInvite(id: string, organizationId: string, data: Partial<TeamInvite>): Promise<TeamInvite> {
     const [invite] = await db.update(teamInvites)
       .set(data)
-      .where(eq(teamInvites.id, id))
+      .where(and(eq(teamInvites.id, id), eq(teamInvites.organizationId, organizationId)))
       .returning();
     return invite;
   }
 
-  async deleteTeamInvite(id: string): Promise<void> {
-    await db.delete(teamInvites).where(eq(teamInvites.id, id));
+  async deleteTeamInvite(id: string, organizationId: string): Promise<void> {
+    await db.delete(teamInvites).where(and(eq(teamInvites.id, id), eq(teamInvites.organizationId, organizationId)));
   }
 
   // Ministry selections operations
@@ -2162,9 +2167,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Manual analysis operations
-  async getManualAnalysis(manualId: string): Promise<ManualAnalysis | undefined> {
+  async getManualAnalysis(manualId: string, organizationId: string): Promise<ManualAnalysis | undefined> {
     const [analysis] = await db.select().from(manualAnalysis)
-      .where(eq(manualAnalysis.manualId, manualId));
+      .where(and(eq(manualAnalysis.manualId, manualId), eq(manualAnalysis.organizationId, organizationId)));
     return analysis;
   }
 
@@ -2173,17 +2178,17 @@ export class DatabaseStorage implements IStorage {
     return analysis;
   }
 
-  async updateManualAnalysis(manualId: string, data: Partial<InsertManualAnalysis>): Promise<ManualAnalysis> {
+  async updateManualAnalysis(manualId: string, organizationId: string, data: Partial<InsertManualAnalysis>): Promise<ManualAnalysis> {
     const [analysis] = await db.update(manualAnalysis)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(manualAnalysis.manualId, manualId))
+      .where(and(eq(manualAnalysis.manualId, manualId), eq(manualAnalysis.organizationId, organizationId)))
       .returning();
     return analysis;
   }
 
-  async getTrainingByManualId(manualId: string): Promise<TrainingModule | undefined> {
+  async getTrainingByManualId(manualId: string, organizationId: string): Promise<TrainingModule | undefined> {
     const [training] = await db.select().from(trainingModules)
-      .where(eq(trainingModules.manualId, manualId));
+      .where(and(eq(trainingModules.manualId, manualId), eq(trainingModules.organizationId, organizationId)));
     return training;
   }
 
@@ -2649,7 +2654,7 @@ export class DatabaseStorage implements IStorage {
     const ministry = await this.getMinistry(ministryId, organizationId);
     if (!ministry) return undefined;
     
-    const leaderRecords = await this.getMinistryLeaders(ministryId);
+    const leaderRecords = await this.getMinistryLeaders(ministryId, organizationId);
     const leaders = await Promise.all(
       leaderRecords.map(async (leader) => {
         const user = await this.getUser(leader.userId);
@@ -2683,7 +2688,7 @@ export class DatabaseStorage implements IStorage {
       const ministry = await this.getMinistry(assignment.ministryId, organizationId);
       if (!ministry) continue;
       
-      const leaderRecords = await this.getMinistryLeaders(assignment.ministryId);
+      const leaderRecords = await this.getMinistryLeaders(assignment.ministryId, organizationId);
       
       let primaryLeader: { id: string; name: string } | null = null;
       const coLeaders: { id: string; name: string }[] = [];

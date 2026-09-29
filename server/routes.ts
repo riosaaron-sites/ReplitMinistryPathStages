@@ -1383,7 +1383,7 @@ export async function registerRoutes(
         for (const invite of pendingInvites) {
           try {
             // Mark invite as accepted
-            await storage.updateTeamInvite(invite.id, {
+            await storage.updateTeamInvite(invite.id, invite.organizationId, {
               status: 'accepted',
               acceptedAt: new Date(),
               acceptedBy: userId,
@@ -1683,7 +1683,7 @@ export async function registerRoutes(
       }
       
       // Get counts of what would be affected
-      const existingManuals = await storage.getManuals();
+      const existingManuals = await storage.getManuals(req.organizationId);
       const allAnalyses = await db.select().from(manualAnalysis);
       const allModules = await storage.getTrainingModules(req.organizationId);
       const modulesWithManualLink = allModules.filter(m => m.manualId);
@@ -1729,7 +1729,7 @@ export async function registerRoutes(
       }
       
       // Get counts before deletion
-      const existingManuals = await storage.getManuals();
+      const existingManuals = await storage.getManuals(req.organizationId);
       const allAnalyses = await db.select().from(manualAnalysis);
       const allModules = await storage.getTrainingModules(req.organizationId);
       const modulesWithManualLink = allModules.filter(m => m.manualId);
@@ -2105,7 +2105,7 @@ export async function registerRoutes(
       }
       
       const allModules = await storage.getTrainingModules(req.organizationId);
-      const allManuals = await storage.getManuals();
+      const allManuals = await storage.getManuals(req.organizationId);
       
       const fixed: { moduleId: string; moduleTitle: string; manualId: string; manualTitle: string }[] = [];
       const stillUnlinked: { moduleId: string; moduleTitle: string; reason: string }[] = [];
@@ -2198,12 +2198,12 @@ export async function registerRoutes(
         if (!module.manualId) continue;
         
         // Check if already analyzed
-        const existingAnalysis = await storage.getManualAnalysis(module.manualId);
+        const existingAnalysis = await storage.getManualAnalysis(module.manualId, req.organizationId);
         if (existingAnalysis && (existingAnalysis.status === 'completed' || existingAnalysis.status === 'processing')) {
           results.push({ manualId: module.manualId, title: module.title, status: existingAnalysis.status });
           continue;
         }
-        
+
         // Create analysis record
         if (!existingAnalysis) {
           await storage.createManualAnalysis({
@@ -2213,7 +2213,7 @@ export async function registerRoutes(
             triggeredBy: userId,
           });
         } else {
-          await storage.updateManualAnalysis(module.manualId, {
+          await storage.updateManualAnalysis(module.manualId, req.organizationId, {
             status: 'processing',
             triggeredBy: userId,
             errorMessage: null,
@@ -3052,7 +3052,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      const assignments = await storage.getRoleAssignments();
+      const assignments = await storage.getRoleAssignments(req.organizationId);
       res.json(assignments);
     } catch (error) {
       console.error("Error fetching role assignments:", error);
@@ -3127,7 +3127,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      await storage.deleteRoleAssignment(req.params.id);
+      await storage.deleteRoleAssignment(req.params.id, req.organizationId);
       res.json({ message: "Role assignment removed" });
     } catch (error) {
       console.error("Error deleting role assignment:", error);
@@ -3254,7 +3254,7 @@ export async function registerRoutes(
   app.patch('/api/leadership-assignments/:id', isAuthenticated, async (req: any, res) => {
     try {
       const requestingUserId = req.user.claims.sub;
-      const assignment = await storage.getLeadershipAssignment(req.params.id);
+      const assignment = await storage.getLeadershipAssignment(req.params.id, req.organizationId);
       
       if (!assignment) {
         return res.status(404).json({ message: "Leadership assignment not found" });
@@ -3287,7 +3287,7 @@ export async function registerRoutes(
         }
       }
       
-      const updatedAssignment = await storage.updateLeadershipAssignment(req.params.id, validated);
+      const updatedAssignment = await storage.updateLeadershipAssignment(req.params.id, req.organizationId, validated);
       res.json(updatedAssignment);
     } catch (error) {
       console.error("Error updating leadership assignment:", error);
@@ -3321,7 +3321,7 @@ export async function registerRoutes(
       });
       
       const validated = updateSchema.parse(req.body);
-      const assignment = await storage.updateRoleAssignment(req.params.id, validated);
+      const assignment = await storage.updateRoleAssignment(req.params.id, req.organizationId, validated);
       res.json(assignment);
     } catch (error) {
       console.error("Error updating role assignment:", error);
@@ -3950,7 +3950,7 @@ export async function registerRoutes(
       const ministries = await storage.getMinistries(req.organizationId);
 
       // Optimized: Get all leadership assignments in one query, then group by ministry
-      const allLeadershipAssignments = await storage.getAllActiveLeadershipAssignments();
+      const allLeadershipAssignments = await storage.getAllActiveLeadershipAssignments(req.organizationId);
       const leadershipByMinistry = new Map<string, { primaryCount: number; secondaryCount: number }>();
       
       for (const assignment of allLeadershipAssignments) {
@@ -4071,7 +4071,7 @@ export async function registerRoutes(
   // Get member counts for all ministries
   app.get('/api/ministries/member-counts', isAuthenticated, async (req: any, res) => {
     try {
-      const counts = await storage.getMinistryMemberCounts();
+      const counts = await storage.getMinistryMemberCounts(req.organizationId);
       res.json(counts);
     } catch (error) {
       console.error("Error fetching ministry member counts:", error);
@@ -4082,7 +4082,7 @@ export async function registerRoutes(
   // Get team roster for a ministry (with user details)
   app.get('/api/ministries/:id/members', isAuthenticated, async (req: any, res) => {
     try {
-      const assignments = await storage.getMinistryMembers(req.params.id);
+      const assignments = await storage.getMinistryMembers(req.params.id, req.organizationId);
       const users = await storage.getAllUsers(req.organizationId);
       const membersWithUsers = assignments.map(a => ({
         ...a,
@@ -4120,7 +4120,7 @@ export async function registerRoutes(
   // Get leaders for a ministry
   app.get('/api/ministries/:id/leaders', isAuthenticated, async (req: any, res) => {
     try {
-      const leaders = await storage.getMinistryLeaders(req.params.id);
+      const leaders = await storage.getMinistryLeaders(req.params.id, req.organizationId);
       const users = await storage.getAllUsers(req.organizationId);
       const leadersWithUsers = leaders.map(l => ({
         ...l,
@@ -4241,7 +4241,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Not authorized to view join requests" });
       }
 
-      const requests = await storage.getTeamJoinRequests(req.params.id);
+      const requests = await storage.getTeamJoinRequests(req.organizationId, req.params.id);
       const users = await storage.getAllUsers(req.organizationId);
       const requestsWithUsers = requests.map(r => ({
         ...r,
@@ -4310,7 +4310,7 @@ export async function registerRoutes(
           : requester?.email || 'Someone';
         const ministryName = ministry?.name || 'your ministry';
         
-        const leaderAssignments = await storage.getMinistryLeaders(validated.ministryId);
+        const leaderAssignments = await storage.getMinistryLeaders(validated.ministryId, req.organizationId);
         let notifiedCount = 0;
         
         for (const assignment of leaderAssignments) {
@@ -4345,7 +4345,7 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      const request = await storage.getTeamJoinRequest(req.params.id);
+      const request = await storage.getTeamJoinRequest(req.params.id, req.organizationId);
 
       if (!request) {
         return res.status(404).json({ message: "Request not found" });
@@ -4371,7 +4371,7 @@ export async function registerRoutes(
 
       const validated = updateSchema.parse(req.body);
 
-      const updated = await storage.updateTeamJoinRequest(req.params.id, {
+      const updated = await storage.updateTeamJoinRequest(req.params.id, req.organizationId, {
         status: validated.status,
         reviewedBy: userId,
         reviewedAt: new Date(),
@@ -4424,7 +4424,7 @@ export async function registerRoutes(
           });
 
           // Notify all ministry leaders about the new team member
-          const leaderAssignments = await storage.getMinistryLeaders(request.ministryId);
+          const leaderAssignments = await storage.getMinistryLeaders(request.ministryId, req.organizationId);
           let notifiedCount = 0;
           for (const assignment of leaderAssignments) {
             const leaderUser = await storage.getUser(assignment.userId);
@@ -4473,7 +4473,7 @@ export async function registerRoutes(
   app.delete('/api/team-join-requests/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const request = await storage.getTeamJoinRequest(req.params.id);
+      const request = await storage.getTeamJoinRequest(req.params.id, req.organizationId);
 
       if (!request) {
         return res.status(404).json({ message: "Request not found" });
@@ -4483,7 +4483,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Not authorized to withdraw this request" });
       }
 
-      await storage.updateTeamJoinRequest(req.params.id, {
+      await storage.updateTeamJoinRequest(req.params.id, req.organizationId, {
         status: 'withdrawn',
       });
 
@@ -4753,7 +4753,7 @@ export async function registerRoutes(
       let studyQuestions = module.studyQuestions as any[] || [];
       
       if ((!lessonSummary || lessonSummary.trim() === '') && module.manualId) {
-        const manualAnalysis = await storage.getManualAnalysis(module.manualId);
+        const manualAnalysis = await storage.getManualAnalysis(module.manualId, req.organizationId);
         if (manualAnalysis && manualAnalysis.summary) {
           lessonSummary = manualAnalysis.summary;
           if (manualAnalysis.studyQuestions && Array.isArray(manualAnalysis.studyQuestions)) {
@@ -5234,7 +5234,7 @@ export async function registerRoutes(
           if (trainingModule.ministryId) {
             const ministry = await storage.getMinistry(trainingModule.ministryId, req.organizationId);
             ministryName = ministry?.name || 'your ministry';
-            const leaderAssignments = await storage.getMinistryLeaders(trainingModule.ministryId);
+            const leaderAssignments = await storage.getMinistryLeaders(trainingModule.ministryId, req.organizationId);
             
             for (const assignment of leaderAssignments) {
               const leaderUser = await storage.getUser(assignment.userId);
@@ -5300,7 +5300,7 @@ export async function registerRoutes(
         // Award XP for training completion
         if (trainingModule && trainingModule.xpReward && trainingModule.xpReward > 0) {
           // Check if XP was already awarded for this training
-          const existingLogs = await storage.getXpLogs(userId);
+          const existingLogs = await storage.getXpLogs(userId, req.organizationId);
           const alreadyAwarded = existingLogs.some(log => 
             log.sourceType === 'training' && log.sourceId === trainingModule.id
           );
@@ -5321,10 +5321,10 @@ export async function registerRoutes(
             
             if (completedTrainings === 1) {
               // Award "Learner" badge for first training completion
-              const allBadges = await storage.getBadges();
+              const allBadges = await storage.getBadges(req.organizationId);
               const learnerBadge = allBadges.find(b => b.slug === 'learner');
               if (learnerBadge) {
-                const userBadges = await storage.getUserBadges(userId);
+                const userBadges = await storage.getUserBadges(userId, req.organizationId);
                 const hasBadge = userBadges.some(ub => ub.badgeId === learnerBadge.id);
                 if (!hasBadge) {
                   await storage.awardBadge({
@@ -5484,8 +5484,8 @@ export async function registerRoutes(
       }
       
       // Get all pending invites for this user's email
-      const allInvites = await storage.getTeamInvites();
-      const myInvites = allInvites.filter(invite => 
+      const allInvites = await storage.getTeamInvites(req.organizationId);
+      const myInvites = allInvites.filter(invite =>
         invite.email === user.email && 
         invite.status === 'pending' &&
         (!invite.expiresAt || new Date(invite.expiresAt) > new Date())
@@ -5681,10 +5681,10 @@ export async function registerRoutes(
       ).length;
       
       if (completedCount === 1) {
-        const allBadges = await storage.getBadges();
+        const allBadges = await storage.getBadges(req.organizationId);
         const learnerBadge = allBadges.find(b => b.slug === 'learner');
         if (learnerBadge) {
-          const userBadges = await storage.getUserBadges(progress.userId);
+          const userBadges = await storage.getUserBadges(progress.userId, req.organizationId);
           const hasBadge = userBadges.some(ub => ub.badgeId === learnerBadge.id);
           if (!hasBadge) {
             await storage.awardBadge({ organizationId: req.organizationId, userId: progress.userId, badgeId: learnerBadge.id });
@@ -5884,7 +5884,7 @@ export async function registerRoutes(
       
       // Fetch data for milestone derivation
       const [badges, trainingProgress, roleAssignments] = await Promise.all([
-        storage.getUserBadges(userId),
+        storage.getUserBadges(userId, req.organizationId),
         storage.getUserTrainingProgress(userId),
         storage.getUserRoleAssignments(userId),
       ]);
@@ -6007,7 +6007,7 @@ export async function registerRoutes(
 
   app.get('/api/gamification/badges', isAuthenticated, async (req: any, res) => {
     try {
-      const badges = await storage.getBadges();
+      const badges = await storage.getBadges(req.organizationId);
       res.json(badges);
     } catch (error) {
       console.error("Error fetching badges:", error);
@@ -6754,7 +6754,7 @@ export async function registerRoutes(
       
       // Get leader info for each missing ministry
       const missingWithLeaders = await Promise.all(missingMinistries.map(async (ministry) => {
-        const leaders = await storage.getMinistryLeaders(ministry.id);
+        const leaders = await storage.getMinistryLeaders(ministry.id, req.organizationId);
         const leaderUsers = await Promise.all(leaders.map(async (l) => {
           const user = await storage.getUser(l.userId);
           return user ? { id: user.id, name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email } : null;
@@ -6784,7 +6784,7 @@ export async function registerRoutes(
   app.get('/api/requests', isAuthenticated, async (req: any, res) => {
     try {
       const { status } = req.query;
-      const requests = await storage.getSupportRequests(status as string | undefined);
+      const requests = await storage.getSupportRequests(req.organizationId, status as string | undefined);
       res.json(requests);
     } catch (error) {
       console.error("Error fetching support requests:", error);
@@ -6794,7 +6794,7 @@ export async function registerRoutes(
 
   app.get('/api/requests/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const request = await storage.getSupportRequest(req.params.id);
+      const request = await storage.getSupportRequest(req.params.id, req.organizationId);
       if (!request) {
         return res.status(404).json({ message: "Request not found" });
       }
@@ -6862,7 +6862,7 @@ export async function registerRoutes(
         updateData.completedAt = new Date();
       }
 
-      const request = await storage.updateSupportRequest(req.params.id, updateData);
+      const request = await storage.updateSupportRequest(req.params.id, req.organizationId, updateData);
       res.json(request);
     } catch (error) {
       console.error("Error updating support request:", error);
@@ -6885,7 +6885,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const interns = await storage.getInternProfiles();
+      const interns = await storage.getInternProfiles(req.organizationId);
       res.json(interns);
     } catch (error) {
       console.error("Error fetching intern profiles:", error);
@@ -6896,11 +6896,11 @@ export async function registerRoutes(
   app.get('/api/interns/my-profile', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const profile = await storage.getInternProfile(userId);
+      const profile = await storage.getInternProfile(userId, req.organizationId);
       if (!profile) {
         return res.status(404).json({ message: "Intern profile not found" });
       }
-      const logs = await storage.getInternLogs(profile.id);
+      const logs = await storage.getInternLogs(profile.id, req.organizationId);
       res.json({ ...profile, logs });
     } catch (error) {
       console.error("Error fetching intern profile:", error);
@@ -7298,7 +7298,7 @@ export async function registerRoutes(
   app.get('/api/background-checks/status', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const check = await storage.getBackgroundCheck(userId);
+      const check = await storage.getBackgroundCheck(userId, req.organizationId);
       res.json(check || { status: 'not-started' });
     } catch (error) {
       console.error("Error fetching background check status:", error);
@@ -7640,13 +7640,13 @@ export async function registerRoutes(
   app.get('/api/manuals', isAuthenticated, async (req: any, res) => {
     try {
       const { ministryId } = req.query;
-      const manuals = await storage.getManuals(ministryId as string | undefined);
+      const manuals = await storage.getManuals(req.organizationId, ministryId as string | undefined);
 
       const ministries = await storage.getMinistries(req.organizationId);
-      
+
       // Get analysis status for each manual
       const manualsWithDetails = await Promise.all(manuals.map(async manual => {
-        const analysis = await storage.getManualAnalysis(manual.id);
+        const analysis = await storage.getManualAnalysis(manual.id, req.organizationId);
         return {
           ...manual,
           ministry: manual.ministryId ? ministries.find(m => m.id === manual.ministryId) : undefined,
@@ -7767,7 +7767,7 @@ export async function registerRoutes(
       
       const validatedData = manualSchema.parse(req.body);
       
-      const manual = await storage.updateManual(id, validatedData);
+      const manual = await storage.updateManual(id, req.organizationId, validatedData);
       res.json(manual);
     } catch (error) {
       console.error("Error updating manual:", error);
@@ -7782,7 +7782,7 @@ export async function registerRoutes(
   app.delete('/api/manuals/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteManual(id);
+      await storage.deleteManual(id, req.organizationId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting manual:", error);
@@ -7798,7 +7798,7 @@ export async function registerRoutes(
   app.get('/api/manuals/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const manual = await storage.getManual(id);
+      const manual = await storage.getManual(id, req.organizationId);
       if (!manual) {
         return res.status(404).json({ message: "Manual not found" });
       }
@@ -7813,7 +7813,7 @@ export async function registerRoutes(
   app.get('/api/manuals/:id/analysis', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const analysis = await storage.getManualAnalysis(id);
+      const analysis = await storage.getManualAnalysis(id, req.organizationId);
       res.json(analysis || null);
     } catch (error) {
       console.error("Error fetching manual analysis:", error);
@@ -7828,13 +7828,13 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       
       // Get manual
-      const manual = await storage.getManual(id);
+      const manual = await storage.getManual(id, req.organizationId);
       if (!manual) {
         return res.status(404).json({ message: "Manual not found" });
       }
-      
+
       // Check if already analyzing
-      const existingAnalysis = await storage.getManualAnalysis(id);
+      const existingAnalysis = await storage.getManualAnalysis(id, req.organizationId);
       if (existingAnalysis && existingAnalysis.status === 'processing') {
         return res.status(400).json({ message: "Analysis already in progress" });
       }
@@ -7867,13 +7867,13 @@ export async function registerRoutes(
       const { id } = req.params;
       
       // Get the training module linked to this manual
-      const training = await storage.getTrainingByManualId(id);
+      const training = await storage.getTrainingByManualId(id, req.organizationId);
       if (!training) {
         return res.status(404).json({ message: "No training content generated yet" });
       }
-      
+
       // Get analysis for additional content
-      const analysis = await storage.getManualAnalysis(id);
+      const analysis = await storage.getManualAnalysis(id, req.organizationId);
       
       res.json({
         training,
@@ -7940,7 +7940,7 @@ export async function registerRoutes(
   app.get('/api/team-invites', isAuthenticated, async (req: any, res) => {
     try {
       const { ministryId } = req.query;
-      const invites = await storage.getTeamInvites(ministryId as string | undefined);
+      const invites = await storage.getTeamInvites(req.organizationId, ministryId as string | undefined);
       res.json(invites);
     } catch (error) {
       console.error("Error fetching team invites:", error);
@@ -8007,12 +8007,12 @@ export async function registerRoutes(
           inviter: inviter || null,
           ministry: firstMinistry || null,
         });
-        await storage.updateTeamInvite(invite.id, { emailSentAt: new Date() });
+        await storage.updateTeamInvite(invite.id, req.organizationId, { emailSentAt: new Date() });
       } catch (emailError) {
         console.error("Failed to send invite email:", emailError);
         // Don't fail the request if email fails - invite is still created
       }
-      
+
       res.json(invite);
     } catch (error) {
       console.error("Error creating team invite:", error);
@@ -8066,7 +8066,7 @@ export async function registerRoutes(
       const failed: Array<{ email: string; reason: string; line: number }> = [];
       
       // Fetch existing invites and users once for efficiency
-      const existingInvites = await storage.getTeamInvites();
+      const existingInvites = await storage.getTeamInvites(req.organizationId);
       const pendingInviteEmails = new Set(
         existingInvites
           .filter(inv => inv.status === 'pending')
@@ -8161,7 +8161,7 @@ export async function registerRoutes(
               inviter: inviter || null,
               ministry: firstMinistry || null,
             });
-            await storage.updateTeamInvite(invite.id, { emailSentAt: new Date() });
+            await storage.updateTeamInvite(invite.id, req.organizationId, { emailSentAt: new Date() });
           } catch (emailError) {
             console.error("Failed to send invite email for:", data.email, emailError);
           }
@@ -8197,7 +8197,7 @@ export async function registerRoutes(
       
       // Check if expired
       if (new Date() > invite.expiresAt && invite.status === 'pending') {
-        await storage.updateTeamInvite(invite.id, { status: 'expired' });
+        await storage.updateTeamInvite(invite.id, invite.organizationId, { status: 'expired' });
         return res.status(400).json({ message: "This invite has expired", status: 'expired' });
       }
       
@@ -8241,11 +8241,11 @@ export async function registerRoutes(
       }
       
       if (new Date() > invite.expiresAt) {
-        await storage.updateTeamInvite(invite.id, { status: 'expired' });
+        await storage.updateTeamInvite(invite.id, invite.organizationId, { status: 'expired' });
         return res.status(400).json({ message: "This invite has expired" });
       }
-      
-      await storage.updateTeamInvite(invite.id, {
+
+      await storage.updateTeamInvite(invite.id, invite.organizationId, {
         status: 'accepted',
         acceptedAt: new Date(),
         acceptedBy: userId,
@@ -8308,16 +8308,16 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       
       // Get the invite
-      const invite = await storage.getTeamInvite(id);
+      const invite = await storage.getTeamInvite(id, req.organizationId);
       if (!invite) {
         return res.status(404).json({ message: "Invite not found" });
       }
-      
+
       // Check permissions - must be admin or the original inviter
       const user = await storage.getUser(userId);
       const isAdmin = user && (user.role === 'admin' || user.role === 'owner' || user.role === 'pastor');
       const isInviter = invite.invitedBy === userId;
-      
+
       if (!isAdmin && !isInviter) {
         return res.status(403).json({ message: "Not authorized to resend this invite" });
       }
@@ -8363,22 +8363,22 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       
       // Get the invite
-      const invite = await storage.getTeamInvite(id);
+      const invite = await storage.getTeamInvite(id, req.organizationId);
       if (!invite) {
         return res.status(404).json({ message: "Invite not found" });
       }
-      
+
       // Check permissions - must be admin or the original inviter
       const user = await storage.getUser(userId);
       const isAdmin = user && (user.role === 'admin' || user.role === 'owner' || user.role === 'pastor');
       const isInviter = invite.invitedBy === userId;
-      
+
       if (!isAdmin && !isInviter) {
         return res.status(403).json({ message: "Not authorized to cancel this invite" });
       }
-      
+
       // Delete the invite record
-      await storage.deleteTeamInvite(id);
+      await storage.deleteTeamInvite(id, req.organizationId);
       
       res.json({ success: true, message: "Invite cancelled successfully" });
     } catch (error) {
@@ -8840,7 +8840,7 @@ export async function registerRoutes(
       }
       
       // Check if user already has an active leadership assignment for this ministry
-      const existingAssignments = await storage.getMinistryLeadershipAssignments(ministryId);
+      const existingAssignments = await storage.getMinistryLeadershipAssignments(ministryId, req.organizationId);
       const existingAssignment = existingAssignments.find(a => a.userId === userId && a.isActive);
       if (existingAssignment) {
         return res.status(409).json({ 
@@ -9998,7 +9998,7 @@ export async function registerRoutes(
         if (!ministry) continue;
         
         // Get all members of this ministry
-        const ministryMembers = await storage.getMinistryMembers(assignment.ministryId);
+        const ministryMembers = await storage.getMinistryMembers(assignment.ministryId, req.organizationId);
         
         // Get user details for each member (excluding current user)
         const memberDetails = await Promise.all(
@@ -10048,7 +10048,7 @@ export async function registerRoutes(
       // Enrich with additional data
       const enrichedUsers = await Promise.all(assignedUsers.map(async (u) => {
         const trainingProgress = await storage.getUserTrainingProgress(u.id);
-        const backgroundCheck = await storage.getBackgroundCheck(u.id);
+        const backgroundCheck = await storage.getBackgroundCheck(u.id, req.organizationId);
         const assignments = await storage.getUserRoleAssignments(u.id);
         
         const requiredRemaining = trainingProgress.filter(
@@ -10827,9 +10827,6 @@ export async function registerRoutes(
 // Ministry manuals from attached_assets folder - the cornerstone of training
 async function seedSampleManuals() {
   try {
-    const existingManuals = await storage.getManuals();
-    if (existingManuals.length > 0) return;
-
     // Server-startup seed with no per-request tenant context; seed into the
     // oldest existing organization, or skip entirely on a fresh install.
     const org = await storage.getFirstOrganization();
@@ -10837,6 +10834,9 @@ async function seedSampleManuals() {
       console.log("[Seed] Skipping seedSampleManuals - no organization exists yet");
       return;
     }
+
+    const existingManuals = await storage.getManuals(org.id);
+    if (existingManuals.length > 0) return;
 
     // Get ministries to link manuals
     const ministries = await storage.getMinistries(org.id);
@@ -11122,9 +11122,6 @@ async function seedSampleManuals() {
 // Sample badges for the gamification system
 async function seedSampleBadges() {
   try {
-    const existingBadges = await storage.getBadges();
-    if (existingBadges.length > 0) return;
-
     // Server-startup seed with no per-request tenant context; seed into the
     // oldest existing organization, or skip entirely on a fresh install.
     const org = await storage.getFirstOrganization();
@@ -11132,6 +11129,9 @@ async function seedSampleBadges() {
       console.log("[Seed] Skipping seedSampleBadges - no organization exists yet");
       return;
     }
+
+    const existingBadges = await storage.getBadges(org.id);
+    if (existingBadges.length > 0) return;
 
     const sampleBadges = [
       {
