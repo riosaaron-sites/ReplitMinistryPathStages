@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   index,
+  unique,
   jsonb,
   pgTable,
   timestamp,
@@ -277,6 +278,48 @@ export const DISCIPLESHIP_STEPS = [
 
 export type DiscipleshipStepId = typeof DISCIPLESHIP_STEPS[number]['id'];
 
+// =============================================================================
+// ORGANIZATIONS (TENANTS) - Multi-tenant SaaS foundation
+// =============================================================================
+// Each organization is one ministry/church using MinistryPath as a tenant.
+// Every user belongs to exactly one organization (one-org-per-account model).
+// All church data (ministries, training, calendar, etc.) is scoped by organizationId.
+
+export const ORGANIZATION_STATUS = ['active', 'suspended'] as const;
+export type OrganizationStatus = typeof ORGANIZATION_STATUS[number];
+
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  slug: varchar("slug").notNull().unique(),
+  status: varchar("status").default('active'), // active, suspended (future: billing status)
+  ownerId: varchar("owner_id"), // set after first user is created; no FK to avoid circular reference
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type Organization = typeof organizations.$inferSelect;
+
+// Helper: turn an organization name into a URL/display-safe slug, with a random
+// suffix to avoid collisions (e.g. "Garden City Church" -> "garden-city-church-a1b2c3")
+export function slugifyOrganizationName(name: string): string {
+  const base = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50) || 'ministry';
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `${base}-${suffix}`;
+}
+
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",
@@ -291,6 +334,7 @@ export const sessions = pgTable(
 // User storage table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   // Auth fields
   username: varchar("username"),
   email: varchar("email").unique(),
@@ -385,6 +429,7 @@ export type RoleType = typeof ROLE_TYPES[number];
 
 export const roleAssignments = pgTable("role_assignments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   ministryId: varchar("ministry_id").notNull(),
   roleType: varchar("role_type").default('member'), // 'leader' or 'member'
@@ -414,6 +459,7 @@ export type RoleAssignment = typeof roleAssignments.$inferSelect;
 
 export const doctrineDocuments = pgTable("doctrine_documents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   title: varchar("title").notNull(),
   version: varchar("version").notNull(),
   content: text("content").notNull(),
@@ -439,6 +485,7 @@ export type DoctrineDocument = typeof doctrineDocuments.$inferSelect;
 
 export const doctrineAcknowledgments = pgTable("doctrine_acknowledgments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   documentId: varchar("document_id").notNull().references(() => doctrineDocuments.id),
   documentVersion: varchar("document_version").notNull(),
@@ -462,7 +509,8 @@ export type DoctrineAcknowledgment = typeof doctrineAcknowledgments.$inferSelect
 
 export const agreementContent = pgTable("agreement_content", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  stepNumber: integer("step_number").notNull().unique(), // Maps to onboarding step 1-11
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  stepNumber: integer("step_number").notNull(), // Maps to onboarding step 1-11
   title: varchar("title").notNull(),
   scripture: text("scripture").notNull(),
   scriptureRef: varchar("scripture_ref").notNull(),
@@ -474,7 +522,7 @@ export const agreementContent = pgTable("agreement_content", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   lastEditedBy: varchar("last_edited_by"),
-});
+}, (table) => [unique("agreement_content_org_step_unique").on(table.organizationId, table.stepNumber)]);
 
 export const insertAgreementContentSchema = createInsertSchema(agreementContent).omit({
   id: true,
@@ -505,6 +553,7 @@ export const ONBOARDING_STEPS = [
 
 export const onboardingProgress = pgTable("onboarding_progress", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   currentStep: integer("current_step").notNull().default(1),
   stepResponses: jsonb("step_responses").notNull().default({}),
@@ -529,6 +578,7 @@ export type OnboardingProgress = typeof onboardingProgress.$inferSelect;
 // Survey progress - allows users to save and resume
 export const surveyProgress = pgTable("survey_progress", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   currentSection: integer("current_section").notNull().default(1),
   currentQuestion: integer("current_question").notNull().default(0),
@@ -550,6 +600,7 @@ export type SurveyProgress = typeof surveyProgress.$inferSelect;
 // Survey results - stores completed survey outcomes
 export const surveyResults = pgTable("survey_results", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   spiritualGifts: jsonb("spiritual_gifts").notNull(),
   personalityProfile: jsonb("personality_profile").notNull(),
@@ -908,6 +959,7 @@ export interface SurveyAnswers {
 
 export const integrationSettings = pgTable("integration_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   integrationName: varchar("integration_name").notNull(),
   isEnabled: boolean("is_enabled").default(false),
   credentials: jsonb("credentials").default({}),
@@ -936,6 +988,7 @@ export interface PlanningCenterCredentials {
 // Service assignments cached from Planning Center
 export const serviceAssignments = pgTable("service_assignments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   planningCenterScheduleId: varchar("pc_schedule_id"),
   planningCenterServiceId: varchar("pc_service_id"),
@@ -986,8 +1039,9 @@ export type CategoryType = typeof CATEGORY_TYPES[number];
 
 export const calendarCategories = pgTable("calendar_categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   name: varchar("name").notNull(),
-  slug: varchar("slug").notNull().unique(),
+  slug: varchar("slug").notNull(),
   type: varchar("type").notNull().default('TAG'),
   color: varchar("color").default('#3B82F6'),
   description: text("description"),
@@ -996,7 +1050,7 @@ export const calendarCategories = pgTable("calendar_categories", {
   outlookCategoryName: varchar("outlook_category_name"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [unique("calendar_categories_org_slug_unique").on(table.organizationId, table.slug)]);
 
 export const insertCalendarCategorySchema = createInsertSchema(calendarCategories).omit({
   id: true,
@@ -1035,6 +1089,7 @@ export type NotificationType = typeof NOTIFICATION_TYPES[number];
 
 export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   type: varchar("type").notNull(),
   title: varchar("title").notNull(),
@@ -1062,6 +1117,7 @@ export type Notification = typeof notifications.$inferSelect;
 
 export const calendarEvents = pgTable("calendar_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   title: varchar("title").notNull(),
   description: text("description"),
   eventType: varchar("event_type").default('general'),
@@ -1174,6 +1230,7 @@ export type Permission = typeof PERMISSIONS[number];
 
 export const rolePermissions = pgTable("role_permissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   role: varchar("role").notNull(),
   permission: varchar("permission").notNull(),
   grantedBy: varchar("granted_by").references(() => users.id),
@@ -1194,8 +1251,9 @@ export type RolePermission = typeof rolePermissions.$inferSelect;
 
 export const ministries = pgTable("ministries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   name: varchar("name").notNull(),
-  slug: varchar("slug").notNull().unique(),
+  slug: varchar("slug").notNull(),
   category: varchar("category").notNull(),
   description: text("description"),
   parentMinistryId: varchar("parent_ministry_id"), // For hierarchy: Landing Team -> Greeters, First Impressions, etc.
@@ -1214,7 +1272,7 @@ export const ministries = pgTable("ministries", {
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [unique("ministries_org_slug_unique").on(table.organizationId, table.slug)]);
 
 export const insertMinistrySchema = createInsertSchema(ministries).omit({
   id: true,
@@ -1231,6 +1289,7 @@ export type Ministry = typeof ministries.$inferSelect;
 
 export const ministryLeaders = pgTable("ministry_leaders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   ministryId: varchar("ministry_id").notNull().references(() => ministries.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   role: varchar("role").default("leader"), // 'leader', 'co-leader', 'assistant'
@@ -1258,6 +1317,7 @@ export type LeadershipType = typeof LEADERSHIP_TYPES[number];
 
 export const ministryLeadershipAssignments = pgTable("ministry_leadership_assignments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   ministryId: varchar("ministry_id").notNull().references(() => ministries.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   leadershipType: varchar("leadership_type").notNull().default('primary'), // 'primary' or 'secondary'
@@ -1292,6 +1352,7 @@ export type MembershipStatus = typeof MEMBERSHIP_STATUS[number];
 
 export const ministryMemberships = pgTable("ministry_memberships", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   ministryId: varchar("ministry_id").notNull().references(() => ministries.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   status: varchar("status").notNull().default('active'), // active, inactive, pending, removed
@@ -1345,8 +1406,9 @@ export type TrainingModuleStatus = typeof TRAINING_MODULE_STATUS[number];
 
 export const trainingModules = pgTable("training_modules", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   title: varchar("title").notNull(),
-  slug: varchar("slug").notNull().unique(),
+  slug: varchar("slug").notNull(),
   ministryId: varchar("ministry_id").references(() => ministries.id),
   manualId: varchar("manual_id"),  // Links to source manual for auto-generated trainings
   manualTitle: varchar("manual_title"),  // Display title of linked manual
@@ -1383,7 +1445,7 @@ export const trainingModules = pgTable("training_modules", {
   publishedAt: timestamp("published_at"),  // When module was published live
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [unique("training_modules_org_slug_unique").on(table.organizationId, table.slug)]);
 
 export const insertTrainingModuleSchema = createInsertSchema(trainingModules).omit({
   id: true,
@@ -1449,6 +1511,7 @@ export interface IntensiveAssessmentQuestion {
 // Training assessments (questions for each module)
 export const trainingAssessments = pgTable("training_assessments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   moduleId: varchar("module_id").notNull().references(() => trainingModules.id),
   questionText: text("question_text").notNull(),
   questionType: varchar("question_type").default('multiple-choice'),
@@ -1469,6 +1532,7 @@ export type TrainingAssessment = typeof trainingAssessments.$inferSelect;
 // User training progress
 export const userTrainingProgress = pgTable("user_training_progress", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   moduleId: varchar("module_id").notNull().references(() => trainingModules.id),
   status: varchar("status").default('not-started'),
@@ -1539,8 +1603,9 @@ export const TRAINING_COMPLETED_STATUSES: TrainingStatus[] = ['completed', 'appr
 // Badges
 export const badges = pgTable("badges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   name: varchar("name").notNull(),
-  slug: varchar("slug").notNull().unique(),
+  slug: varchar("slug").notNull(),
   description: text("description"),
   iconUrl: varchar("icon_url"),
   iconName: varchar("icon_name"),
@@ -1550,7 +1615,7 @@ export const badges = pgTable("badges", {
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [unique("badges_org_slug_unique").on(table.organizationId, table.slug)]);
 
 export const insertBadgeSchema = createInsertSchema(badges).omit({
   id: true,
@@ -1563,6 +1628,7 @@ export type Badge = typeof badges.$inferSelect;
 // User Badges
 export const userBadges = pgTable("user_badges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   badgeId: varchar("badge_id").notNull().references(() => badges.id),
   earnedAt: timestamp("earned_at").defaultNow(),
@@ -1580,6 +1646,7 @@ export type UserBadge = typeof userBadges.$inferSelect;
 // XP Logs
 export const xpLogs = pgTable("xp_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   amount: integer("amount").notNull(),
   reason: varchar("reason").notNull(),
@@ -1614,6 +1681,7 @@ export type DiscipleshipLevel = typeof DISCIPLESHIP_LEVELS[number];
 
 export const rooms = pgTable("rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   name: varchar("name").notNull(),
   capacity: integer("capacity"),
   description: text("description"),
@@ -1642,6 +1710,7 @@ export type Room = typeof rooms.$inferSelect;
 // Resources (equipment, supplies)
 export const resources = pgTable("resources", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   name: varchar("name").notNull(),
   category: varchar("category").default('equipment'),
   description: text("description"),
@@ -1667,6 +1736,7 @@ export type Resource = typeof resources.$inferSelect;
 // Room Reservations
 export const roomReservations = pgTable("room_reservations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   roomId: varchar("room_id").notNull().references(() => rooms.id),
   eventId: varchar("event_id").references(() => calendarEvents.id),
   title: varchar("title").notNull(),
@@ -1710,6 +1780,7 @@ export type ReservationStatus = typeof RESERVATION_STATUS[number];
 
 export const attendanceReports = pgTable("attendance_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   eventDate: timestamp("event_date").notNull(),
   eventType: varchar("event_type").notNull(),
   ministryId: varchar("ministry_id").references(() => ministries.id),
@@ -1739,6 +1810,7 @@ export type AttendanceReport = typeof attendanceReports.$inferSelect;
 // Weekly ministry metrics (submitted per ministry per week)
 export const weeklyMinistryMetrics = pgTable("weekly_ministry_metrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   ministryId: varchar("ministry_id").notNull().references(() => ministries.id),
   weekStartDate: timestamp("week_start_date").notNull(), // Normalized to Monday
   attendanceCount: integer("attendance_count").notNull(),
@@ -1768,6 +1840,7 @@ export type WeeklyMinistryMetrics = typeof weeklyMinistryMetrics.$inferSelect;
 // Metrics reminders
 export const metricsReminders = pgTable("metrics_reminders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   ministryId: varchar("ministry_id").references(() => ministries.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   eventDate: timestamp("event_date").notNull(),
@@ -1811,6 +1884,7 @@ export type RequestStatus = typeof REQUEST_STATUS[number];
 
 export const supportRequests = pgTable("support_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   requestType: varchar("request_type").notNull(),
   title: varchar("title").notNull(),
   description: text("description"),
@@ -1846,6 +1920,7 @@ export type SupportRequest = typeof supportRequests.$inferSelect;
 
 export const internProfiles = pgTable("intern_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id).unique(),
   supervisorId: varchar("supervisor_id").references(() => users.id),
   startDate: timestamp("start_date"),
@@ -1873,6 +1948,7 @@ export type InternProfile = typeof internProfiles.$inferSelect;
 // Intern logs (activities, learnings)
 export const internLogs = pgTable("intern_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   internProfileId: varchar("intern_profile_id").notNull().references(() => internProfiles.id),
   date: timestamp("date").notNull(),
   hoursWorked: integer("hours_worked"),
@@ -1897,6 +1973,7 @@ export type InternLog = typeof internLogs.$inferSelect;
 
 export const meetings = pgTable("meetings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   title: varchar("title").notNull(),
   description: text("description"),
   ministryId: varchar("ministry_id").references(() => ministries.id),
@@ -1926,6 +2003,7 @@ export type Meeting = typeof meetings.$inferSelect;
 // Meeting notes and minutes
 export const meetingNotes = pgTable("meeting_notes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   meetingId: varchar("meeting_id").notNull().references(() => meetings.id),
   content: text("content"),
   actionItems: jsonb("action_items").default([]),
@@ -1949,6 +2027,7 @@ export type MeetingNotes = typeof meetingNotes.$inferSelect;
 // Meeting feedback (anonymous option)
 export const meetingFeedback = pgTable("meeting_feedback", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   meetingId: varchar("meeting_id").references(() => meetings.id),
   ministryId: varchar("ministry_id").references(() => ministries.id),
   topic: varchar("topic"),
@@ -1972,6 +2051,7 @@ export type MeetingFeedback = typeof meetingFeedback.$inferSelect;
 
 export const meetingActionItems = pgTable("meeting_action_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   meetingId: varchar("meeting_id").notNull().references(() => meetings.id),
   title: varchar("title").notNull(),
   description: text("description"),
@@ -2001,6 +2081,7 @@ export type MeetingActionItem = typeof meetingActionItems.$inferSelect;
 
 export const meetingAttendance = pgTable("meeting_attendance", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   meetingId: varchar("meeting_id").notNull().references(() => meetings.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   status: varchar("status").default('invited'),  // invited, confirmed, attended, absent, excused
@@ -2034,6 +2115,7 @@ export type BackgroundCheckStatus = typeof BACKGROUND_CHECK_STATUS[number];
 
 export const backgroundChecks = pgTable("background_checks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   status: varchar("status").default('not-started'),
   initiatedAt: timestamp("initiated_at"),
@@ -2109,6 +2191,7 @@ export type TeamRequestStatus = typeof TEAM_REQUEST_STATUS[number];
 
 export const teamJoinRequests = pgTable("team_join_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   ministryId: varchar("ministry_id").notNull().references(() => ministries.id),
   message: text("message"),
@@ -2147,6 +2230,7 @@ export type MessageType = typeof MESSAGE_TYPE[number];
 
 export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   senderId: varchar("sender_id").notNull().references(() => users.id),
   recipientId: varchar("recipient_id").references(() => users.id),
   ministryId: varchar("ministry_id").references(() => ministries.id),
@@ -2190,6 +2274,7 @@ export const MANUAL_CATEGORY_LABELS: Record<ManualCategory, string> = {
 
 export const manuals = pgTable("manuals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   title: varchar("title").notNull(),
   description: text("description"),
   ministryId: varchar("ministry_id").references(() => ministries.id),
@@ -2223,6 +2308,7 @@ export type Manual = typeof manuals.$inferSelect;
 
 export const userAvailability = pgTable("user_availability", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   dayOfWeek: integer("day_of_week").notNull(),
   timeSlot: varchar("time_slot"),
@@ -2263,6 +2349,7 @@ export interface InviteMinistryAssignment {
 
 export const teamInvites = pgTable("team_invites", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   firstName: varchar("first_name").notNull(),
   lastName: varchar("last_name").notNull(),
   email: varchar("email").notNull(),
@@ -2314,6 +2401,7 @@ export type OnboardingMinistryId = typeof ONBOARDING_MINISTRIES[number]['id'];
 
 export const ministrySelections = pgTable("ministry_selections", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   ministryId: varchar("ministry_id").notNull(),
   selectedAt: timestamp("selected_at").defaultNow(),
@@ -2353,6 +2441,7 @@ export type OnboardingStepType = typeof ONBOARDING_STEP_TYPES[number];
 
 export const onboardingSteps = pgTable("onboarding_steps", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   stepType: varchar("step_type").notNull(),
   ministryId: varchar("ministry_id"),
@@ -2388,6 +2477,7 @@ export type QuizQuestionType = typeof QUIZ_QUESTION_TYPES[number];
 
 export const quizQuestions = pgTable("quiz_questions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   manualId: varchar("manual_id").references(() => manuals.id),
   trainingId: varchar("training_id").references(() => trainingModules.id),
   quizCategory: varchar("quiz_category"),
@@ -2415,6 +2505,7 @@ export type QuizQuestion = typeof quizQuestions.$inferSelect;
 
 export const quizAttempts = pgTable("quiz_attempts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   manualId: varchar("manual_id").references(() => manuals.id),
   trainingId: varchar("training_id").references(() => trainingModules.id),
@@ -2451,6 +2542,7 @@ export type ActivityFrequency = typeof ACTIVITY_FREQUENCY[number];
 
 export const recurringActivities = pgTable("recurring_activities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   name: varchar("name").notNull(),
   ministryId: varchar("ministry_id").references(() => ministries.id),
   location: varchar("location"),
@@ -2504,6 +2596,7 @@ export type EventCancellationReason = typeof EVENT_CANCELLATION_REASONS[number];
 
 export const metricsSubmissions = pgTable("metrics_submissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   activityId: varchar("activity_id").notNull().references(() => recurringActivities.id),
   eventDate: timestamp("event_date").notNull(),
   dueDate: timestamp("due_date").notNull(),
@@ -2556,6 +2649,7 @@ export type AuditActionType = typeof AUDIT_ACTION_TYPES[number];
 
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   entityType: varchar("entity_type").notNull(),
   entityId: varchar("entity_id").notNull(),
   action: varchar("action").notNull(),
@@ -2589,6 +2683,7 @@ export type UserStatus = typeof USER_STATUS[number];
 
 export const userArchives = pgTable("user_archives", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   archivedAt: timestamp("archived_at").defaultNow(),
   archivedBy: varchar("archived_by").references(() => users.id),
@@ -2615,6 +2710,7 @@ export type UserArchive = typeof userArchives.$inferSelect;
 
 export const ministryArchives = pgTable("ministry_archives", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   ministryId: varchar("ministry_id").notNull().references(() => ministries.id),
   archivedAt: timestamp("archived_at").defaultNow(),
   archivedBy: varchar("archived_by").references(() => users.id),
@@ -2660,6 +2756,7 @@ export function getUserStatusIndicator(user: User, onboardingComplete: boolean, 
 
 export const roomLayouts = pgTable("room_layouts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   roomId: varchar("room_id").notNull().references(() => rooms.id),
   name: varchar("name").notNull(),
   description: text("description"),
@@ -2696,6 +2793,7 @@ export type AIAnalysisStatus = typeof AI_ANALYSIS_STATUS[number];
 
 export const manualAnalysis = pgTable("manual_analysis", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   manualId: varchar("manual_id").notNull().references(() => manuals.id),
   status: varchar("status").default('pending'),
   extractedText: text("extracted_text"),
@@ -2746,6 +2844,7 @@ export interface AssessmentQuestion {
 
 export const onboardingTrainingRequirements = pgTable("onboarding_training_requirements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   ministryId: varchar("ministry_id").references(() => ministries.id),
   trainingModuleId: varchar("training_module_id").notNull().references(() => trainingModules.id),
   isRequired: boolean("is_required").default(true),
@@ -2767,13 +2866,14 @@ export type OnboardingTrainingRequirement = typeof onboardingTrainingRequirement
 
 export const adminTags = pgTable("admin_tags", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull().unique(),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  name: varchar("name").notNull(),
   description: text("description"),
   color: varchar("color"),
   sortOrder: integer("sort_order").default(0),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [unique("admin_tags_org_name_unique").on(table.organizationId, table.name)]);
 
 export const insertAdminTagSchema = createInsertSchema(adminTags).omit({
   id: true,
@@ -2785,7 +2885,8 @@ export type AdminTag = typeof adminTags.$inferSelect;
 
 export const serveRoles = pgTable("serve_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull().unique(),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  name: varchar("name").notNull(),
   description: text("description"),
   ministryId: varchar("ministry_id").references(() => ministries.id),
   requiresBackgroundCheck: boolean("requires_background_check").default(false),
@@ -2793,7 +2894,7 @@ export const serveRoles = pgTable("serve_roles", {
   sortOrder: integer("sort_order").default(0),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [unique("serve_roles_org_name_unique").on(table.organizationId, table.name)]);
 
 export const insertServeRoleSchema = createInsertSchema(serveRoles).omit({
   id: true,
@@ -2805,13 +2906,14 @@ export type ServeRole = typeof serveRoles.$inferSelect;
 
 export const staffTitles = pgTable("staff_titles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull().unique(),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  name: varchar("name").notNull(),
   description: text("description"),
   isLeadershipRole: boolean("is_leadership_role").default(false),
   sortOrder: integer("sort_order").default(0),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [unique("staff_titles_org_name_unique").on(table.organizationId, table.name)]);
 
 export const insertStaffTitleSchema = createInsertSchema(staffTitles).omit({
   id: true,
@@ -2824,13 +2926,14 @@ export type StaffTitle = typeof staffTitles.$inferSelect;
 // Global Labels - Customizable system-wide labels/names
 export const globalLabels = pgTable("global_labels", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: varchar("key").notNull().unique(),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  key: varchar("key").notNull(),
   value: varchar("value").notNull(),
   description: text("description"),
   category: varchar("category"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [unique("global_labels_org_key_unique").on(table.organizationId, table.key)]);
 
 export const insertGlobalLabelSchema = createInsertSchema(globalLabels).omit({
   id: true,
@@ -2856,6 +2959,7 @@ export type QuestionStatus = typeof QUESTION_STATUS[number];
 
 export const pastoralQuestions = pgTable("pastoral_questions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   source: varchar("source").default('onboarding'), // 'onboarding', 'profile', 'direct'
   stepNumber: integer("step_number"), // For onboarding faith commitment step
@@ -2895,6 +2999,7 @@ export type JoinRequestStatus = typeof JOIN_REQUEST_STATUS[number];
 
 export const ministryJoinRequests = pgTable("ministry_join_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   ministryId: varchar("ministry_id").notNull().references(() => ministries.id),
   message: text("message"), // User's message with their request
@@ -2932,6 +3037,7 @@ export type WorkboardMode = typeof WORKBOARD_MODES[number];
 
 export const workboards = pgTable("workboards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   title: varchar("title").notNull(),
   description: text("description"),
   ministryId: varchar("ministry_id").references(() => ministries.id),
@@ -2971,6 +3077,7 @@ export type ActionItemStatus = typeof ACTION_ITEM_STATUS[number];
 
 export const actionItems = pgTable("action_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   workboardId: varchar("workboard_id").notNull().references(() => workboards.id),
   title: varchar("title").notNull(),
   description: text("description"),
@@ -2997,6 +3104,7 @@ export type ActionItem = typeof actionItems.$inferSelect;
 // Comments on Action Items
 export const actionItemComments = pgTable("action_item_comments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   actionItemId: varchar("action_item_id").notNull().references(() => actionItems.id),
   content: text("content").notNull(),
   authorId: varchar("author_id").notNull().references(() => users.id),
@@ -3028,6 +3136,7 @@ export type ServingStatus = typeof SERVING_STATUS[number];
 
 export const servingRecords = pgTable("serving_records", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   ministryId: varchar("ministry_id").notNull().references(() => ministries.id),
   serveRoleId: varchar("serve_role_id").references(() => serveRoles.id),
@@ -3059,6 +3168,7 @@ export type ServingRecord = typeof servingRecords.$inferSelect;
 
 export const leaderNotes = pgTable("leader_notes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   leaderId: varchar("leader_id").notNull().references(() => users.id),
   memberId: varchar("member_id").notNull().references(() => users.id),
   note: text("note").notNull(),
@@ -3088,6 +3198,7 @@ export type FeedbackType = typeof FEEDBACK_TYPES[number];
 
 export const memberFeedback = pgTable("member_feedback", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   memberId: varchar("member_id").notNull().references(() => users.id),
   leaderId: varchar("leader_id").notNull().references(() => users.id),
   feedbackType: varchar("feedback_type").notNull(), // 'encouragement', 'acknowledgment', 'training_complete', etc.
@@ -3113,6 +3224,7 @@ export type MemberFeedback = typeof memberFeedback.$inferSelect;
 
 export const orgSettings = pgTable("org_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   // Basic Info
   organizationName: varchar("organization_name").default('Garden City Church'),
   tagline: varchar("tagline"),
@@ -3160,7 +3272,7 @@ export const orgSettings = pgTable("org_settings", {
   updatedBy: varchar("updated_by").references(() => users.id),
   updatedAt: timestamp("updated_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [unique("org_settings_org_unique").on(table.organizationId)]);
 
 export const insertOrgSettingsSchema = createInsertSchema(orgSettings).omit({
   id: true,

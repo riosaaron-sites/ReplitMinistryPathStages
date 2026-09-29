@@ -232,6 +232,7 @@ export async function registerRoutes(
   app.post('/api/bootstrap/seed-ministries', async (req, res) => {
     try {
       // Check if ministries already exist
+      // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (which org do seeded ministries belong to?)
       const existingMinistries = await storage.getMinistries();
       if (existingMinistries.length > 0) {
         return res.status(400).json({ 
@@ -307,6 +308,7 @@ export async function registerRoutes(
       const created: string[] = [];
       
       for (const parent of ministryHierarchy) {
+        // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (which org do seeded ministries belong to?)
         const parentMinistry = await storage.createMinistry({
           name: parent.name,
           slug: generateSlug(parent.name),
@@ -318,6 +320,7 @@ export async function registerRoutes(
         
         if (parentMinistry && parent.children) {
           for (const child of parent.children) {
+            // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (which org do seeded ministries belong to?)
             await storage.createMinistry({
               name: child.name,
               slug: generateSlug(child.name),
@@ -604,6 +607,7 @@ export async function registerRoutes(
       }
       
       // Check if any admin/owner users exist
+      // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (is this global bootstrap or per-org?)
       const existingAdmins = await storage.getAllUsers();
       const hasExistingAdmin = existingAdmins.some(u => 
         u.role === 'admin' || u.role === 'owner'
@@ -853,13 +857,89 @@ export async function registerRoutes(
     lastName: z.string().min(1),
   });
 
+  // Creates a brand new tenant (ministry/organization) plus its first user, who
+  // becomes that organization's owner. This is the primary "sign up as a SaaS
+  // tenant" entry point.
+  const registerOrganizationSchema = z.object({
+    organizationName: z.string().min(2, "Ministry name is required"),
+    email: z.string().email(),
+    password: z.string().min(6),
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
+  });
+
+  app.post('/api/auth/register-organization', async (req: any, res) => {
+    try {
+      const parseResult = registerOrganizationSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid registration data",
+          errors: parseResult.error.errors,
+        });
+      }
+
+      const { organizationName, email, password, firstName, lastName } = parseResult.data;
+
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: "An account with this email already exists" });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const userId = randomUUID();
+
+      // Create the organization first, then its owner user, then link them.
+      const organization = await storage.createOrganization(organizationName, userId);
+
+      await storage.upsertUser({
+        id: userId,
+        organizationId: organization.id,
+        email,
+        firstName,
+        lastName,
+        passwordHash,
+        authProvider: 'local',
+        onboardingState: 'PROFILE',
+        role: 'owner',
+      });
+
+      const user = {
+        claims: { sub: userId, email, first_name: firstName, last_name: lastName },
+        expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 1 week
+      };
+
+      req.login(user, (err: any) => {
+        if (err) {
+          console.error("Organization registration session error:", err);
+          return handleApiError(err, res);
+        }
+        req.session.save((saveErr: any) => {
+          if (saveErr) {
+            console.error("Organization registration session save error:", saveErr);
+            return handleApiError(saveErr, res);
+          }
+          console.log(`New organization "${organizationName}" (${organization.id}) created by ${email}`);
+          res.json({
+            message: "Organization created successfully",
+            userId,
+            organizationId: organization.id,
+            organizationName: organization.name,
+          });
+        });
+      });
+    } catch (error) {
+      console.error("Organization registration error:", error);
+      return handleApiError(error, res);
+    }
+  });
+
   app.post('/api/auth/register', async (req: any, res) => {
     try {
       const parseResult = registerSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({ 
-          message: "Invalid registration data", 
-          errors: parseResult.error.errors 
+        return res.status(400).json({
+          message: "Invalid registration data",
+          errors: parseResult.error.errors
         });
       }
 
@@ -871,15 +951,31 @@ export async function registerRoutes(
         return res.status(409).json({ message: "An account with this email already exists" });
       }
 
+      // Plain /api/auth/register only lets someone JOIN an existing ministry
+      // via a pending invite (matched by email) — it no longer creates a new
+      // tenant on its own. To create a new ministry, use
+      // /api/auth/register-organization instead.
+      const pendingInvites = await storage.getPendingInvitesByEmail(email);
+      const validInvite = pendingInvites.find(
+        invite => !invite.expiresAt || new Date(invite.expiresAt) > new Date()
+      );
+      if (!validInvite) {
+        return res.status(400).json({
+          message: "No pending invitation found for this email. Ask your ministry leader for an invite link, or create a new ministry account.",
+          code: "NO_PENDING_INVITE",
+        });
+      }
+
       // Hash password
       const passwordHash = await bcrypt.hash(password, 10);
-      
+
       // Generate unique ID
       const userId = randomUUID();
 
-      // Create user
+      // Create user in the inviting organization
       await storage.upsertUser({
         id: userId,
+        organizationId: validInvite.organizationId,
         email,
         firstName,
         lastName,
@@ -894,7 +990,7 @@ export async function registerRoutes(
         claims: { sub: userId, email, first_name: firstName, last_name: lastName },
         expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 1 week
       };
-      
+
       req.login(user, (err: any) => {
         if (err) {
           console.error("Session login error:", err);
@@ -1582,9 +1678,9 @@ export async function registerRoutes(
       // Get counts of what would be affected
       const existingManuals = await storage.getManuals();
       const allAnalyses = await db.select().from(manualAnalysis);
-      const allModules = await storage.getTrainingModules();
+      const allModules = await storage.getTrainingModules(req.organizationId);
       const modulesWithManualLink = allModules.filter(m => m.manualId);
-      
+
       res.json({
         mode: 'DRY_RUN',
         warning: 'This is a preview. No data will be deleted.',
@@ -1628,9 +1724,9 @@ export async function registerRoutes(
       // Get counts before deletion
       const existingManuals = await storage.getManuals();
       const allAnalyses = await db.select().from(manualAnalysis);
-      const allModules = await storage.getTrainingModules();
+      const allModules = await storage.getTrainingModules(req.organizationId);
       const modulesWithManualLink = allModules.filter(m => m.manualId);
-      
+
       // Step 1: Clear manualId from all training modules
       for (const module of modulesWithManualLink) {
         await db.update(trainingModules)
@@ -1676,7 +1772,7 @@ export async function registerRoutes(
       }
       
       // Get all users except protected email
-      const allUsers = await storage.getAllUsers();
+      const allUsers = await storage.getAllUsers(req.organizationId);
       const usersToRemove = allUsers.filter((u: { email: string | null }) => u.email !== PROTECTED_EMAIL);
       const protectedUser = allUsers.find((u: { email: string | null }) => u.email === PROTECTED_EMAIL);
       
@@ -1760,9 +1856,9 @@ export async function registerRoutes(
       }
       
       // Get all users except protected email
-      const allUsers = await storage.getAllUsers();
+      const allUsers = await storage.getAllUsers(req.organizationId);
       const usersToRemove = allUsers.filter((u: { email: string | null }) => u.email !== PROTECTED_EMAIL);
-      
+
       let removed = {
         users: 0,
         surveyResults: 0,
@@ -1848,7 +1944,7 @@ export async function registerRoutes(
       const pagesFiles = files.filter(f => f.toLowerCase().endsWith('.pages'));
       
       // Get existing ministries for linking
-      const ministries = await storage.getMinistries();
+      const ministries = await storage.getMinistries(req.organizationId);
       
       // Categorization rules based on filename patterns
       const categorizeManual = (filename: string): { 
@@ -2000,7 +2096,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
       
-      const allModules = await storage.getTrainingModules();
+      const allModules = await storage.getTrainingModules(req.organizationId);
       const allManuals = await storage.getManuals();
       
       const fixed: { moduleId: string; moduleTitle: string; manualId: string; manualTitle: string }[] = [];
@@ -2082,7 +2178,7 @@ export async function registerRoutes(
       }
       
       // Get all training modules with linked manuals that lack lesson content
-      const allModules = await storage.getTrainingModules();
+      const allModules = await storage.getTrainingModules(req.organizationId);
       const modulesNeedingAnalysis = allModules.filter(m => 
         m.manualId && (!m.lessonSummary || m.lessonSummary.trim() === '')
       );
@@ -2349,7 +2445,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      const existingMinistries = await storage.getMinistries();
+      const existingMinistries = await storage.getMinistries(req.organizationId);
       const existingNames = existingMinistries.map(m => m.name.toLowerCase());
       
       // Define ministry hierarchy
@@ -2432,6 +2528,7 @@ export async function registerRoutes(
             description: parent.description,
             category: parent.category,
             isActive: true,
+            organizationId: req.organizationId,
           });
           created.push(parent.name);
         }
@@ -2449,6 +2546,7 @@ export async function registerRoutes(
                 category: child.category,
                 parentMinistryId: parentMinistry.id,
                 isActive: true,
+                organizationId: req.organizationId,
               });
               created.push(child.name);
             }
@@ -2840,7 +2938,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllUsers(req.organizationId);
       res.json(users);
     } catch (error) {
       return handleApiError(error, res);
@@ -2864,7 +2962,7 @@ export async function registerRoutes(
       
       // Leaders can see all users
       if (isLeader(requestingUser.role)) {
-        const allUsers = await storage.getAllUsers();
+        const allUsers = await storage.getAllUsers(req.organizationId);
         const safeUsers = allUsers.map(user => ({
           id: user.id,
           firstName: user.firstName,
@@ -2897,7 +2995,7 @@ export async function registerRoutes(
       }
       
       // Get all users and filter to those who share at least one ministry
-      const allUsers = await storage.getAllUsers();
+      const allUsers = await storage.getAllUsers(req.organizationId);
       const visibleUsers = allUsers.filter(user => {
         // Always include yourself
         if (user.id === requestingUserId) return true;
@@ -3036,14 +3134,14 @@ export async function registerRoutes(
       // Enrich each assignment with ministry details and leader info
       const enrichedAssignments = await Promise.all(
         assignments.map(async (assignment: any) => {
-          const ministry = await storage.getMinistry(assignment.ministryId);
+          const ministry = await storage.getMinistry(assignment.ministryId, req.organizationId);
           let leader = null;
-          
+
           const reportsToId = assignment.reportsToUserId || ministry?.leaderId;
           if (reportsToId) {
             leader = await storage.getUser(reportsToId);
           }
-          
+
           return {
             ...assignment,
             ministry: ministry ? {
@@ -3061,7 +3159,7 @@ export async function registerRoutes(
           };
         })
       );
-      
+
       res.json(enrichedAssignments);
     } catch (error) {
       console.error("Error fetching my role assignments:", error);
@@ -3074,11 +3172,11 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const assignments = await storage.getUserRoleAssignments(userId);
-      
+
       // Enrich each assignment with ministry details and leader info
       const enrichedAssignments = await Promise.all(
         assignments.map(async (assignment: any) => {
-          const ministry = await storage.getMinistry(assignment.ministryId);
+          const ministry = await storage.getMinistry(assignment.ministryId, req.organizationId);
           let leader = null;
           
           // Get the person they report to (either from assignment or ministry leader)
@@ -3121,7 +3219,7 @@ export async function registerRoutes(
       // Enrich with ministry details
       const enrichedAssignments = await Promise.all(
         assignments.map(async (assignment) => {
-          const ministry = await storage.getMinistry(assignment.ministryId);
+          const ministry = await storage.getMinistry(assignment.ministryId, req.organizationId);
           return {
             ...assignment,
             ministry: ministry ? {
@@ -3439,7 +3537,7 @@ export async function registerRoutes(
         updates.onboardingState = 'FAITH_COMMITMENT';
         
         // Get ministry names for audit log and notifications
-        const ministryList = await storage.getMinistries();
+        const ministryList = await storage.getMinistries(req.organizationId);
         const selectedMinistryNames = ministryList
           .filter(m => ministryIds.includes(m.id))
           .map(m => m.name);
@@ -3833,8 +3931,8 @@ export async function registerRoutes(
 
   app.get('/api/ministries', isAuthenticated, async (req: any, res) => {
     try {
-      const ministries = await storage.getMinistries();
-      
+      const ministries = await storage.getMinistries(req.organizationId);
+
       // Optimized: Get all leadership assignments in one query, then group by ministry
       const allLeadershipAssignments = await storage.getAllActiveLeadershipAssignments();
       const leadershipByMinistry = new Map<string, { primaryCount: number; secondaryCount: number }>();
@@ -3869,7 +3967,7 @@ export async function registerRoutes(
 
   app.get('/api/ministries/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const ministry = await storage.getMinistry(req.params.id);
+      const ministry = await storage.getMinistry(req.params.id, req.organizationId);
       if (!ministry) {
         return res.status(404).json({ message: "Ministry not found" });
       }
@@ -3901,7 +3999,7 @@ export async function registerRoutes(
       });
 
       const validated = ministrySchema.parse(req.body);
-      const ministry = await storage.createMinistry(validated);
+      const ministry = await storage.createMinistry({ ...validated, organizationId: req.organizationId });
       res.json(ministry);
     } catch (error) {
       console.error("Error creating ministry:", error);
@@ -3936,7 +4034,7 @@ export async function registerRoutes(
       });
 
       const validated = ministrySchema.parse(req.body);
-      const ministry = await storage.updateMinistry(req.params.id, validated);
+      const ministry = await storage.updateMinistry(req.params.id, req.organizationId, validated);
       if (!ministry) {
         return res.status(404).json({ message: "Ministry not found" });
       }
@@ -3969,7 +4067,7 @@ export async function registerRoutes(
   app.get('/api/ministries/:id/members', isAuthenticated, async (req: any, res) => {
     try {
       const assignments = await storage.getMinistryMembers(req.params.id);
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllUsers(req.organizationId);
       const membersWithUsers = assignments.map(a => ({
         ...a,
         user: users.find(u => u.id === a.userId),
@@ -3995,7 +4093,7 @@ export async function registerRoutes(
   // Get child ministries for a parent ministry
   app.get('/api/ministries/:id/children', isAuthenticated, async (req: any, res) => {
     try {
-      const children = await storage.getChildMinistries(req.params.id);
+      const children = await storage.getChildMinistries(req.params.id, req.organizationId);
       res.json(children);
     } catch (error) {
       console.error("Error fetching child ministries:", error);
@@ -4007,7 +4105,7 @@ export async function registerRoutes(
   app.get('/api/ministries/:id/leaders', isAuthenticated, async (req: any, res) => {
     try {
       const leaders = await storage.getMinistryLeaders(req.params.id);
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllUsers(req.organizationId);
       const leadersWithUsers = leaders.map(l => ({
         ...l,
         user: users.find(u => u.id === l.userId),
@@ -4094,7 +4192,7 @@ export async function registerRoutes(
 
       const validated = schema.parse(req.body);
       
-      const ministry = await storage.updateMinistry(req.params.id, {
+      const ministry = await storage.updateMinistry(req.params.id, req.organizationId, {
         parentMinistryId: validated.parentMinistryId,
       });
       res.json(ministry);
@@ -4112,8 +4210,8 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      const ministry = await storage.getMinistry(req.params.id);
-      
+      const ministry = await storage.getMinistry(req.params.id, req.organizationId);
+
       if (!ministry) {
         return res.status(404).json({ message: "Ministry not found" });
       }
@@ -4121,13 +4219,13 @@ export async function registerRoutes(
       // Only ministry leader or admin can view requests
       const isAdmin = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
       const isLeader = ministry.leaderId === userId;
-      
+
       if (!isAdmin && !isLeader) {
         return res.status(403).json({ message: "Not authorized to view join requests" });
       }
 
       const requests = await storage.getTeamJoinRequests(req.params.id);
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllUsers(req.organizationId);
       const requestsWithUsers = requests.map(r => ({
         ...r,
         user: users.find(u => u.id === r.userId),
@@ -4188,7 +4286,7 @@ export async function registerRoutes(
       // Notify ministry leaders about new join request
       try {
         const requester = await storage.getUser(userId);
-        const ministry = await storage.getMinistry(validated.ministryId);
+        const ministry = await storage.getMinistry(validated.ministryId, req.organizationId);
         const requesterName = requester?.firstName && requester?.lastName
           ? `${requester.firstName} ${requester.lastName}`
           : requester?.email || 'Someone';
@@ -4234,7 +4332,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Request not found" });
       }
 
-      const ministry = await storage.getMinistry(request.ministryId);
+      const ministry = await storage.getMinistry(request.ministryId, req.organizationId);
       if (!ministry) {
         return res.status(404).json({ message: "Ministry not found" });
       }
@@ -4271,7 +4369,7 @@ export async function registerRoutes(
         });
 
         // Auto-enroll user in ministry-specific training modules
-        const ministryTrainings = await storage.getTrainingModules(request.ministryId);
+        const ministryTrainings = await storage.getTrainingModules(req.organizationId, request.ministryId);
         for (const training of ministryTrainings) {
           // Check if user is already enrolled
           const existingProgress = await storage.getUserModuleProgress(request.userId, training.id);
@@ -4402,7 +4500,7 @@ export async function registerRoutes(
       
       // When includeAll is true (admin view), also include inactive modules
       const includeInactive = includeAll === 'true';
-      let modules = await storage.getTrainingModules(ministryId as string | undefined, includeInactive);
+      let modules = await storage.getTrainingModules(req.organizationId, ministryId as string | undefined, includeInactive);
       
       // Define leader/admin roles
       const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
@@ -4517,7 +4615,7 @@ export async function registerRoutes(
       const allUserMinistryIds = Array.from(new Set([...userMinistryIds, ...assignedMinistryIds]));
       
       // Get all LIVE training modules
-      let modules = await storage.getTrainingModules(undefined, false);
+      let modules = await storage.getTrainingModules(req.organizationId, undefined, false);
       modules = modules.filter(m => (m.moduleStatus || 'draft') === 'live');
       
       // Define role requirements
@@ -4587,11 +4685,11 @@ export async function registerRoutes(
 
   app.get('/api/training/modules/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const module = await storage.getTrainingModule(req.params.id);
+      const module = await storage.getTrainingModule(req.params.id, req.organizationId);
       if (!module) {
         return res.status(404).json({ message: "Training module not found" });
       }
-      
+
       // SERVER-SIDE SECURITY: Check if non-leader is trying to access non-live module
       const user = await storage.getUser(req.user.claims.sub);
       const userRole = user?.role || 'member';
@@ -4699,7 +4797,7 @@ export async function registerRoutes(
       });
 
       const validated = schema.parse(req.body);
-      const training = await storage.createTrainingModule(validated);
+      const training = await storage.createTrainingModule({ ...validated, organizationId: req.organizationId });
       res.json(training);
     } catch (error) {
       console.error("Error creating training module:", error);
@@ -4717,7 +4815,7 @@ export async function registerRoutes(
       }
 
       const { id } = req.params;
-      const existing = await storage.getTrainingModule(id);
+      const existing = await storage.getTrainingModule(id, req.organizationId);
       if (!existing) {
         return res.status(404).json({ message: "Training module not found" });
       }
@@ -4772,7 +4870,7 @@ export async function registerRoutes(
       const isPublishing = validated.moduleStatus === 'live' && 
         (existing as any).moduleStatus !== 'live';
       
-      const training = await storage.updateTrainingModule(id, updateData);
+      const training = await storage.updateTrainingModule(id, req.organizationId, updateData);
       console.log("Training module updated successfully:", training.id);
       
       // Send notifications when training goes LIVE
@@ -4791,14 +4889,14 @@ export async function registerRoutes(
             targetUserIds = memberships.map(m => m.userId);
           } else if (audience === 'leader') {
             // Leader-only training: notify all leaders
-            const allUsers = await storage.getAllUsers();
+            const allUsers = await storage.getAllUsers(req.organizationId);
             const leaderRoles = ['owner', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
             targetUserIds = allUsers
               .filter(u => u.role && leaderRoles.includes(u.role))
               .map(u => u.id);
           } else {
             // General training for 'all': notify all active users
-            const allUsers = await storage.getAllUsers();
+            const allUsers = await storage.getAllUsers(req.organizationId);
             targetUserIds = allUsers
               .filter(u => u.status === 'active' || !u.status)
               .map(u => u.id);
@@ -4844,7 +4942,7 @@ export async function registerRoutes(
       }
 
       const { id } = req.params;
-      const existing = await storage.getTrainingModule(id);
+      const existing = await storage.getTrainingModule(id, req.organizationId);
       if (!existing) {
         return res.status(404).json({ message: "Training module not found" });
       }
@@ -4961,7 +5059,7 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const progress = await storage.getUserTrainingProgress(userId);
-      const modules = await storage.getTrainingModules();
+      const modules = await storage.getTrainingModules(req.organizationId);
       
       const progressWithModules = progress.map(p => ({
         ...p,
@@ -5028,7 +5126,7 @@ export async function registerRoutes(
         });
       }
       
-      const trainingModule = await storage.getTrainingModule(validated.moduleId);
+      const trainingModule = await storage.getTrainingModule(validated.moduleId, req.organizationId);
       let finalStatus = normalizedStatus;
       let submittedAt: Date | undefined;
       
@@ -5107,7 +5205,7 @@ export async function registerRoutes(
           let notifiedCount = 0;
           
           if (trainingModule.ministryId) {
-            const ministry = await storage.getMinistry(trainingModule.ministryId);
+            const ministry = await storage.getMinistry(trainingModule.ministryId, req.organizationId);
             ministryName = ministry?.name || 'your ministry';
             const leaderAssignments = await storage.getMinistryLeaders(trainingModule.ministryId);
             
@@ -5281,9 +5379,9 @@ export async function registerRoutes(
       }
       
       // Get all users and their training progress
-      const allUsers = await storage.getAllUsers();
-      const modules = await storage.getTrainingModules();
-      
+      const allUsers = await storage.getAllUsers(req.organizationId);
+      const modules = await storage.getTrainingModules(req.organizationId);
+
       const progressData = await Promise.all(
         allUsers.map(async (user) => {
           const progress = await storage.getUserTrainingProgress(user.id);
@@ -5318,7 +5416,7 @@ export async function registerRoutes(
       }
       
       // Get all training modules
-      const allModules = await storage.getTrainingModules();
+      const allModules = await storage.getTrainingModules(req.organizationId);
       const userProgress = await storage.getUserTrainingProgress(userId);
       const userMinistries = [...(user.ledMinistryIds || []), ...(user.servedMinistryIds || [])];
       
@@ -5365,7 +5463,7 @@ export async function registerRoutes(
       // Enrich with ministry details
       const invitedMinistries = await Promise.all(
         myInvites.map(async (invite) => {
-          const ministry = invite.ministryId ? await storage.getMinistry(invite.ministryId) : null;
+          const ministry = invite.ministryId ? await storage.getMinistry(invite.ministryId, req.organizationId) : null;
           return {
             inviteId: invite.id,
             ministryId: invite.ministryId,
@@ -5398,9 +5496,9 @@ export async function registerRoutes(
   app.get('/api/training/submissions', isAuthenticated, requireLeader, async (req: any, res) => {
     try {
       const leader = req.authenticatedUser;
-      const allModules = await storage.getTrainingModules();
-      const allUsers = await storage.getAllUsers();
-      const allMinistries = await storage.getMinistries();
+      const allModules = await storage.getTrainingModules(req.organizationId);
+      const allUsers = await storage.getAllUsers(req.organizationId);
+      const allMinistries = await storage.getMinistries(req.organizationId);
       
       // Get all training progress with 'submitted' status
       let submissions: any[] = [];
@@ -5492,8 +5590,8 @@ export async function registerRoutes(
       }
       
       // Get the training module to check ministry association
-      const module = await storage.getTrainingModule(progress.moduleId);
-      
+      const module = await storage.getTrainingModule(progress.moduleId, req.organizationId);
+
       // TRAINING HARDENING: Ministry-scoped leader approval
       // Leaders can ONLY approve trainings for ministries they lead
       let canApprove = false;
@@ -5523,8 +5621,8 @@ export async function registerRoutes(
       }
       
       if (!canApprove) {
-        const ministryName = module?.ministryId ? 
-          (await storage.getMinistry(module.ministryId))?.name || 'this ministry' : 
+        const ministryName = module?.ministryId ?
+          (await storage.getMinistry(module.ministryId, req.organizationId))?.name || 'this ministry' :
           'general trainings';
         console.log(`[Training Hardening] Blocked approval attempt by ${leader.id} for training ${progressId} (ministry: ${module?.ministryId})`);
         return res.status(403).json({ 
@@ -5662,8 +5760,8 @@ export async function registerRoutes(
       }
       
       // Get the training module to check ministry association
-      const module = await storage.getTrainingModule(progress.moduleId);
-      
+      const module = await storage.getTrainingModule(progress.moduleId, req.organizationId);
+
       // TRAINING HARDENING: Ministry-scoped leader rejection
       // Leaders can ONLY reject trainings for ministries they lead
       let canReject = false;
@@ -5689,8 +5787,8 @@ export async function registerRoutes(
       }
       
       if (!canReject) {
-        const ministryName = module?.ministryId ? 
-          (await storage.getMinistry(module.ministryId))?.name || 'this ministry' : 
+        const ministryName = module?.ministryId ?
+          (await storage.getMinistry(module.ministryId, req.organizationId))?.name || 'this ministry' :
           'general trainings';
         console.log(`[Training Hardening] Blocked rejection attempt by ${leader.id} for training ${progressId} (ministry: ${module?.ministryId})`);
         return res.status(403).json({ 
@@ -6481,9 +6579,9 @@ export async function registerRoutes(
       const weekStartDate = getWeekStartDate();
       
       // Get ministries based on user role
-      const allMinistries = await storage.getMinistries();
+      const allMinistries = await storage.getMinistries(req.organizationId);
       const activeMinistries = allMinistries.filter(m => m.isActive && !m.isArchived);
-      
+
       // Leaders see only their overseen ministries, admin/pastor see all
       let scopedMinistries = activeMinistries;
       if (!isAdmin(user.role) && !isPastor(user.role)) {
@@ -6603,7 +6701,7 @@ export async function registerRoutes(
       const week = weekStartDate ? new Date(weekStartDate as string) : getWeekStartDate();
       
       // Get all active ministries
-      const allMinistries = await storage.getMinistries();
+      const allMinistries = await storage.getMinistries(req.organizationId);
       const activeMinistries = allMinistries.filter(m => m.isActive && !m.isArchived);
       
       // Get submitted metrics for this week
@@ -7269,7 +7367,7 @@ export async function registerRoutes(
       }
 
       // Get all training modules and user's progress
-      const modules = await storage.getTrainingModules();
+      const modules = await storage.getTrainingModules(req.organizationId);
       const userProgress = await storage.getUserTrainingProgress(userId);
       
       // Get user's ministry selections (from onboarding)
@@ -7423,9 +7521,9 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const messages = await storage.getMessages(userId);
       
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllUsers(req.organizationId);
       const activeUsers = users.filter(u => !u.isArchived);
-      const ministries = await storage.getMinistries();
+      const ministries = await storage.getMinistries(req.organizationId);
       
       const messagesWithDetails = messages.map(message => ({
         ...message,
@@ -7492,8 +7590,8 @@ export async function registerRoutes(
     try {
       const { ministryId } = req.query;
       const manuals = await storage.getManuals(ministryId as string | undefined);
-      
-      const ministries = await storage.getMinistries();
+
+      const ministries = await storage.getMinistries(req.organizationId);
       
       // Get analysis status for each manual
       const manualsWithDetails = await Promise.all(manuals.map(async manual => {
@@ -7830,6 +7928,7 @@ export async function registerRoutes(
       }));
       
       const invite = await storage.createTeamInvite({
+        organizationId: req.organizationId,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
         email: normalizedEmail,
@@ -7845,8 +7944,8 @@ export async function registerRoutes(
       
       // Send invite email
       const inviter = await storage.getUser(userId);
-      const firstMinistry = validatedData.ministryIds?.length 
-        ? await storage.getMinistry(validatedData.ministryIds[0])
+      const firstMinistry = validatedData.ministryIds?.length
+        ? await storage.getMinistry(validatedData.ministryIds[0], req.organizationId)
         : null;
       
       try {
@@ -7986,6 +8085,7 @@ export async function registerRoutes(
           }));
           
           const invite = await storage.createTeamInvite({
+            organizationId: currentUser.organizationId,
             firstName: data.firstName || data.email.split('@')[0],
             lastName: data.lastName || '',
             email: emailLower, // Normalized to lowercase
@@ -8002,7 +8102,7 @@ export async function registerRoutes(
           // Send email (don't fail on email error)
           try {
             const firstMinistry = effectiveMinistryIds.length > 0
-              ? await storage.getMinistry(effectiveMinistryIds[0])
+              ? await storage.getMinistry(effectiveMinistryIds[0], req.organizationId)
               : null;
             await sendInviteEmail({
               invite,
@@ -8050,6 +8150,7 @@ export async function registerRoutes(
       }
       
       // Get ministry details if applicable
+      // TODO(multi-tenant): this route has no auth middleware (public invite-lookup page) and no req.organizationId; consider using invite.organizationId (already scoped via the unique token) once storage.getMinistry's org check is confirmed safe for this public path
       const ministry = invite.ministryId ? await storage.getMinistry(invite.ministryId) : null;
       const inviter = await storage.getUser(invite.invitedBy);
       
@@ -8174,8 +8275,8 @@ export async function registerRoutes(
       
       // Get related data for the email
       const inviter = await storage.getUser(invite.invitedBy);
-      const ministry = invite.ministryId ? await storage.getMinistry(invite.ministryId) : null;
-      
+      const ministry = invite.ministryId ? await storage.getMinistry(invite.ministryId, req.organizationId) : null;
+
       // Resend the email
       const { sendInviteEmail } = await import('./emailService');
       const emailResult = await sendInviteEmail({
@@ -8609,12 +8710,12 @@ export async function registerRoutes(
       const { reason } = req.body;
       
       // Check if ministry can be deleted (within 7 days of creation)
-      const ministry = await storage.getMinistry(ministryId);
+      const ministry = await storage.getMinistry(ministryId, req.organizationId);
       if (!ministry) {
         return res.status(404).json({ message: "Ministry not found" });
       }
       
-      const archive = await storage.archiveMinistry(ministryId, adminId, reason);
+      const archive = await storage.archiveMinistry(ministryId, req.organizationId, adminId, reason);
       res.json(archive);
     } catch (error) {
       console.error("Error archiving ministry:", error);
@@ -8647,7 +8748,7 @@ export async function registerRoutes(
       }
       
       // Get ministry to verify it exists
-      const ministry = await storage.getMinistry(ministryId);
+      const ministry = await storage.getMinistry(ministryId, req.organizationId);
       if (!ministry) {
         return res.status(404).json({ message: "Ministry not found" });
       }
@@ -9097,7 +9198,7 @@ export async function registerRoutes(
       
       const pendingQuestions = await storage.getPastoralQuestions('pending');
       const resolvedQuestions = await storage.getPastoralQuestions('resolved');
-      const allUsers = await storage.getAllUsers();
+      const allUsers = await storage.getAllUsers(req.organizationId);
       
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -9261,7 +9362,7 @@ export async function registerRoutes(
       // Enrich with user and ministry details
       const enrichedRequests = await Promise.all(requests.map(async (r) => {
         const requestUser = await storage.getUser(r.userId);
-        const ministry = await storage.getMinistry(r.ministryId);
+        const ministry = await storage.getMinistry(r.ministryId, req.organizationId);
         return {
           ...r,
           userName: requestUser ? `${requestUser.firstName} ${requestUser.lastName}` : 'Unknown',
@@ -9547,7 +9648,7 @@ export async function registerRoutes(
       // Get ministry name if applicable
       let ministryName: string | undefined;
       if (workboard.ministryId) {
-        const ministry = await storage.getMinistry(workboard.ministryId);
+        const ministry = await storage.getMinistry(workboard.ministryId, req.organizationId);
         ministryName = ministry?.name;
       }
 
@@ -9557,12 +9658,12 @@ export async function registerRoutes(
       // Build email data
       const emailData: MeetingEmailData = {
         meetingTitle: workboard.title,
-        meetingDate: workboard.meetingDate 
-          ? new Date(workboard.meetingDate).toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+        meetingDate: workboard.meetingDate
+          ? new Date(workboard.meetingDate).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })
           : 'TBD',
         location: workboard.location || undefined,
@@ -9632,7 +9733,7 @@ export async function registerRoutes(
       // Get ministry name if applicable
       let ministryName: string | undefined;
       if (workboard.ministryId) {
-        const ministry = await storage.getMinistry(workboard.ministryId);
+        const ministry = await storage.getMinistry(workboard.ministryId, req.organizationId);
         ministryName = ministry?.name;
       }
 
@@ -9642,10 +9743,10 @@ export async function registerRoutes(
       // Build email data
       const emailData: MeetingEmailData = {
         meetingTitle: workboard.title,
-        meetingDate: workboard.meetingDate 
-          ? new Date(workboard.meetingDate).toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
+        meetingDate: workboard.meetingDate
+          ? new Date(workboard.meetingDate).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
               month: 'long', 
               day: 'numeric' 
             })
@@ -9823,7 +9924,7 @@ export async function registerRoutes(
       }
       
       // Get all ministries and their members
-      const ministries = await storage.getMinistries();
+      const ministries = await storage.getMinistries(req.organizationId);
       const result: Array<{
         ministryId: string;
         ministryName: string;
@@ -9918,7 +10019,7 @@ export async function registerRoutes(
       }
       
       // Get all leaders with their people counts
-      const allUsers = await storage.getAllUsers();
+      const allUsers = await storage.getAllUsers(req.organizationId);
       const leaders = allUsers.filter(u => isLeader(u.role));
       
       const leaderStats = await Promise.all(leaders.map(async (leader) => {
@@ -9966,15 +10067,27 @@ export async function registerRoutes(
   // ==========================================================================
 
   // Get organization settings (public - for branding display)
-  app.get('/api/org/settings', async (req, res) => {
+  app.get('/api/org/settings', async (req: any, res) => {
     try {
-      let settings = await storage.getOrgSettings();
-      
+      // This endpoint is intentionally public (used for branding display before
+      // login). If the visitor is authenticated, return their organization's
+      // settings; otherwise fall back to generic MinistryPath defaults, since
+      // in the single-domain multi-tenant model there's no way to know which
+      // organization an unauthenticated visitor belongs to.
+      let settings: Awaited<ReturnType<typeof storage.getOrgSettings>> | undefined;
+      if (req.isAuthenticated?.() && req.user?.claims) {
+        const email = req.user.claims.email;
+        const authUser = email ? await storage.getUserByEmail(email) : await storage.getUser(req.user.claims.sub);
+        if (authUser?.organizationId) {
+          settings = await storage.getOrgSettings(authUser.organizationId);
+        }
+      }
+
       // If no settings exist, return defaults
       if (!settings) {
         settings = {
           id: 'default',
-          organizationName: 'Garden City Church',
+          organizationName: 'MinistryPath',
           tagline: null,
           primaryColor: '#3B82F6',
           secondaryColor: '#10B981',
@@ -10045,11 +10158,11 @@ export async function registerRoutes(
       });
 
       const validated = settingsSchema.parse(req.body);
-      const settings = await storage.upsertOrgSettings({
+      const settings = await storage.upsertOrgSettings(req.organizationId, {
         ...validated,
         updatedBy: admin.id,
       });
-      
+
       console.log(`[Org Settings] Admin ${admin.id} updated organization settings`);
       res.json(settings);
     } catch (error) {
@@ -10062,10 +10175,17 @@ export async function registerRoutes(
   });
 
   // Get feature flags (for frontend feature visibility)
-  app.get('/api/org/features', async (req, res) => {
+  app.get('/api/org/features', async (req: any, res) => {
     try {
-      const settings = await storage.getOrgSettings();
-      
+      let settings: Awaited<ReturnType<typeof storage.getOrgSettings>> | undefined;
+      if (req.isAuthenticated?.() && req.user?.claims) {
+        const email = req.user.claims.email;
+        const authUser = email ? await storage.getUserByEmail(email) : await storage.getUser(req.user.claims.sub);
+        if (authUser?.organizationId) {
+          settings = await storage.getOrgSettings(authUser.organizationId);
+        }
+      }
+
       res.json({
         onboarding: settings?.enableOnboarding ?? true,
         training: settings?.enableTraining ?? true,
@@ -10088,8 +10208,8 @@ export async function registerRoutes(
   // Get Outlook integration settings (admin only)
   app.get('/api/org/outlook-settings', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
-      const settings = await storage.getOrgSettings();
-      
+      const settings = await storage.getOrgSettings(req.organizationId);
+
       // Return Outlook-specific settings (never expose client secret)
       res.json({
         enabled: settings?.outlookIntegrationEnabled ?? false,
@@ -10123,11 +10243,11 @@ export async function registerRoutes(
       });
 
       const validated = outlookSchema.parse(req.body);
-      const settings = await storage.upsertOrgSettings({
+      const settings = await storage.upsertOrgSettings(req.organizationId, {
         ...validated,
         updatedBy: admin.id,
       });
-      
+
       console.log(`[Outlook Settings] Admin ${admin.id} updated Outlook integration settings`);
       
       res.json({
@@ -10152,8 +10272,8 @@ export async function registerRoutes(
   // Test Outlook connection (admin only)
   app.post('/api/org/outlook-test', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
-      const settings = await storage.getOrgSettings();
-      
+      const settings = await storage.getOrgSettings(req.organizationId);
+
       if (!settings?.outlookTenantId || !settings?.outlookClientId) {
         return res.status(400).json({ 
           success: false, 
@@ -10648,6 +10768,7 @@ async function seedSampleManuals() {
     if (existingManuals.length > 0) return;
 
     // Get ministries to link manuals
+    // TODO(multi-tenant): this is a server-startup seed function (no request/auth context); needs a design decision on which org seeded manuals/ministries belong to
     const ministries = await storage.getMinistries();
     const getMinistryId = (name: string) => ministries.find(m => 
       m.name.toLowerCase().includes(name.toLowerCase())

@@ -33,11 +33,19 @@ const signupSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+const createOrganizationSchema = z.object({
+  organizationName: z.string().min(2, "Ministry name is required"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
 type EmailFormData = z.infer<typeof emailSchema>;
 type PasswordFormData = z.infer<typeof passwordSchema>;
 type SignupFormData = z.infer<typeof signupSchema>;
+type CreateOrganizationFormData = z.infer<typeof createOrganizationSchema>;
 
-type LoginStep = 'email' | 'password' | 'google' | 'signup';
+type LoginStep = 'email' | 'password' | 'google' | 'signup' | 'create-organization';
 
 interface AccountStatus {
   exists: boolean;
@@ -66,6 +74,13 @@ export default function AuthPage() {
     resolver: zodResolver(signupSchema),
     defaultValues: { firstName: "", lastName: "", password: "" },
   });
+
+  const createOrgForm = useForm<CreateOrganizationFormData>({
+    resolver: zodResolver(createOrganizationSchema),
+    defaultValues: { organizationName: "", firstName: "", lastName: "", password: "" },
+  });
+
+  const [noInviteFound, setNoInviteFound] = useState(false);
 
   // Check account status by email
   const accountStatusMutation = useMutation({
@@ -110,7 +125,7 @@ export default function AuthPage() {
     },
   });
 
-  // Register new account
+  // Register new account (join an existing ministry via a pending invite)
   const registerMutation = useMutation({
     mutationFn: async (data: { email: string; firstName: string; lastName: string; password: string }) => {
       return apiRequest("POST", "/api/auth/register", data);
@@ -119,9 +134,30 @@ export default function AuthPage() {
       window.location.href = "/";
     },
     onError: (error: any) => {
+      if (typeof error?.message === "string" && error.message.includes("NO_PENDING_INVITE")) {
+        setNoInviteFound(true);
+        return;
+      }
       toast({
         title: "Registration Failed",
         description: error.message || "Could not create account",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create a brand new ministry (organization) and its first (owner) account
+  const registerOrgMutation = useMutation({
+    mutationFn: async (data: { organizationName: string; email: string; firstName: string; lastName: string; password: string }) => {
+      return apiRequest("POST", "/api/auth/register-organization", data);
+    },
+    onSuccess: () => {
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Could Not Create Ministry Account",
+        description: error.message || "Something went wrong",
         variant: "destructive",
       });
     },
@@ -145,6 +181,16 @@ export default function AuthPage() {
     });
   };
 
+  const handleCreateOrganizationSubmit = (data: CreateOrganizationFormData) => {
+    registerOrgMutation.mutate({
+      organizationName: data.organizationName,
+      email: userEmail,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      password: data.password,
+    });
+  };
+
   const handleOAuthLogin = () => {
     window.location.href = "/api/login";
   };
@@ -153,9 +199,16 @@ export default function AuthPage() {
     setLoginStep('email');
     setUserEmail('');
     setUserName('');
+    setNoInviteFound(false);
     emailForm.reset();
     passwordForm.reset();
     signupForm.reset();
+    createOrgForm.reset();
+  };
+
+  const switchToCreateOrganization = () => {
+    setNoInviteFound(false);
+    setLoginStep('create-organization');
   };
 
   const renderContent = () => {
@@ -229,6 +282,18 @@ export default function AuthPage() {
                 <SiGoogle className="h-4 w-4 mr-2" />
                 Continue with Google
               </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Starting a new ministry on MinistryPath?{" "}
+                <button
+                  type="button"
+                  className="text-primary underline underline-offset-2"
+                  onClick={() => setLoginStep('create-organization')}
+                  data-testid="link-create-organization"
+                >
+                  Create a ministry account
+                </button>
+              </p>
             </CardContent>
           </>
         );
@@ -353,6 +418,23 @@ export default function AuthPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {noInviteFound && (
+                <div className="text-sm rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-4 space-y-2">
+                  <p>
+                    We couldn't find a pending invitation for <strong>{userEmail}</strong>.
+                    Ask your ministry leader for an invite link, or start a brand new ministry account.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={switchToCreateOrganization}
+                    data-testid="button-switch-create-organization"
+                  >
+                    Create a New Ministry Instead
+                  </Button>
+                </div>
+              )}
               <Form {...signupForm}>
                 <form onSubmit={signupForm.handleSubmit(handleSignupSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -442,6 +524,133 @@ export default function AuthPage() {
                 <SiGoogle className="h-4 w-4 mr-2" />
                 Sign Up with Google
               </Button>
+            </CardContent>
+          </>
+        );
+
+      case 'create-organization':
+        return (
+          <>
+            <CardHeader className="text-center space-y-2 relative">
+              <button
+                onClick={resetLogin}
+                className="absolute left-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+                data-testid="button-back-to-email-from-org"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <CardTitle className="font-serif-display text-3xl">Create Your Ministry</CardTitle>
+              <CardDescription className="text-base flex items-center justify-center gap-2">
+                <Mail className="h-4 w-4" />
+                {userEmail || "Set up a new MinistryPath account"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {!userEmail && (
+                <Form {...emailForm}>
+                  <FormField
+                    control={emailForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Address</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="your@email.com"
+                            data-testid="input-org-email"
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              setUserEmail(e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </Form>
+              )}
+              <Form {...createOrgForm}>
+                <form onSubmit={createOrgForm.handleSubmit(handleCreateOrganizationSubmit)} className="space-y-4">
+                  <FormField
+                    control={createOrgForm.control}
+                    name="organizationName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ministry Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g. Garden City Church"
+                            data-testid="input-organization-name"
+                            autoFocus
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={createOrgForm.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>First Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="First" data-testid="input-org-first-name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={createOrgForm.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Last Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Last" data-testid="input-org-last-name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={createOrgForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Create Password</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="At least 6 characters"
+                            data-testid="input-org-password"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={registerOrgMutation.isPending || !userEmail}
+                    data-testid="button-create-organization"
+                  >
+                    {registerOrgMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    {registerOrgMutation.isPending ? "Creating Ministry..." : "Create Ministry Account"}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </>
         );

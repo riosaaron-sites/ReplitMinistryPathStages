@@ -67,11 +67,33 @@ async function upsertUser(
 ) {
   const email = claims["email"];
   const isOwnerEmail = email && email.toLowerCase() === OWNER_EMAIL.toLowerCase();
-  
+
+  // Every user belongs to exactly one organization. If this email already has
+  // an account, storage.upsertUser will update it in place (organizationId
+  // untouched). If it's a brand new account, we need to know which
+  // organization to place it in — the only way that's possible via this OIDC
+  // path is a pending invite matching the email (the "create a new ministry"
+  // flow goes through /api/auth/register-organization instead).
+  const existingUser = email ? await storage.getUserByEmail(email) : undefined;
+  let organizationId = existingUser?.organizationId;
+  if (!organizationId) {
+    const pendingInvites = email ? await storage.getPendingInvitesByEmail(email) : [];
+    const validInvite = pendingInvites.find(
+      invite => !invite.expiresAt || new Date(invite.expiresAt) > new Date()
+    );
+    if (validInvite) {
+      organizationId = validInvite.organizationId;
+    }
+  }
+  if (!organizationId) {
+    throw new Error("NO_PENDING_INVITE: No ministry account or pending invitation found for this email.");
+  }
+
   // First, upsert the user with basic info
   // This will update existing user by email (case-insensitive) or create new
   const upsertedUser = await storage.upsertUser({
     id: claims["sub"],
+    organizationId,
     email: email,
     firstName: claims["first_name"],
     lastName: claims["last_name"],
@@ -166,6 +188,9 @@ export async function setupAuth(app: Express) {
     passport.authenticate(`replitauth:${req.hostname}`, (err: any, user: any, info: any) => {
       if (err) {
         console.error("[auth] Callback error:", err);
+        if (typeof err?.message === "string" && err.message.startsWith("NO_PENDING_INVITE")) {
+          return res.redirect("/auth?error=no_pending_invite");
+        }
         return res.redirect("/auth?error=callback_error");
       }
       if (!user) {
@@ -222,6 +247,25 @@ export async function setupAuth(app: Express) {
   });
 }
 
+// Loads the authenticated user row once per request and attaches it (plus their
+// organizationId) to req, so downstream middleware/handlers don't each do their
+// own independent lookup. Every tenant-scoped query in storage/routes should use
+// req.organizationId (never trust a client-supplied org id).
+async function attachCurrentUser(req: any): Promise<void> {
+  if (req.currentUser) return; // already resolved earlier in this request
+  const claims = req.user?.claims;
+  if (!claims?.sub) return;
+
+  let user = claims.email ? await storage.getUserByEmail(claims.email) : null;
+  if (!user) {
+    user = await storage.getUser(claims.sub);
+  }
+  if (user) {
+    req.currentUser = user;
+    req.organizationId = user.organizationId;
+  }
+}
+
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
@@ -240,9 +284,18 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
+  const proceed = async () => {
+    try {
+      await attachCurrentUser(req);
+    } catch (error) {
+      console.error("[auth] Failed to attach current user:", error);
+    }
+    next();
+  };
+
   const now = Math.floor(Date.now() / 1000);
   if (now <= user.expires_at) {
-    return next();
+    return proceed();
   }
 
   // For local auth users (no refresh token), extend session on activity
@@ -250,7 +303,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   if (!refreshToken) {
     // Local user session expired - extend it for 1 more week
     user.expires_at = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-    return next();
+    return proceed();
   }
 
   // For OIDC users, try to refresh the token
@@ -258,7 +311,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     const config = await getOidcConfig();
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
-    return next();
+    return proceed();
   } catch (error) {
     res.status(401).json({ message: "Unauthorized" });
     return;
@@ -269,24 +322,21 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 // PHASE 2: CENTRALIZED PERMISSION MIDDLEWARE HELPERS
 // =============================================================================
 
+// Ensures req.currentUser/req.organizationId are populated even when a route uses
+// requireLeader/requireAdmin/requirePastor without isAuthenticated running first
+// (they're independent middlewares historically), then returns the resolved user.
+async function resolveCurrentUser(req: any): Promise<any | null> {
+  await attachCurrentUser(req);
+  return req.currentUser ?? null;
+}
+
 // Require the user to have leader-level access or above
 export const requireLeader: RequestHandler = async (req: any, res, next) => {
   try {
-    const claims = req.user?.claims;
-    if (!claims?.sub) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    
-    // Look up by email first (case-insensitive) to handle Replit OIDC sub mismatches
-    let user = claims.email ? await storage.getUserByEmail(claims.email) : null;
-    if (!user) {
-      user = await storage.getUser(claims.sub);
-    }
-    
+    const user = await resolveCurrentUser(req);
     if (!user || !isLeader(user.role)) {
       return res.status(403).json({ message: "Leader access required" });
     }
-    
     // Attach user to request for easy access in route handlers
     req.authenticatedUser = user;
     next();
@@ -299,25 +349,13 @@ export const requireLeader: RequestHandler = async (req: any, res, next) => {
 // Require the user to have admin-level access or above
 export const requireAdmin: RequestHandler = async (req: any, res, next) => {
   try {
-    const claims = req.user?.claims;
-    if (!claims?.sub) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    
-    // Look up by email first (case-insensitive) to handle Replit OIDC sub mismatches
-    let user = claims.email ? await storage.getUserByEmail(claims.email) : null;
-    if (!user) {
-      user = await storage.getUser(claims.sub);
-    }
-    
+    const user = await resolveCurrentUser(req);
     if (!user) {
       return res.status(403).json({ message: "Admin access required" });
     }
-    
     if (!isAdmin(user.role)) {
       return res.status(403).json({ message: "Admin access required" });
     }
-    
     req.authenticatedUser = user;
     next();
   } catch (error) {
@@ -329,21 +367,10 @@ export const requireAdmin: RequestHandler = async (req: any, res, next) => {
 // Require the user to have pastoral-level access
 export const requirePastor: RequestHandler = async (req: any, res, next) => {
   try {
-    const claims = req.user?.claims;
-    if (!claims?.sub) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    
-    // Look up by email first (case-insensitive) to handle Replit OIDC sub mismatches
-    let user = claims.email ? await storage.getUserByEmail(claims.email) : null;
-    if (!user) {
-      user = await storage.getUser(claims.sub);
-    }
-    
+    const user = await resolveCurrentUser(req);
     if (!user || !isPastor(user.role)) {
       return res.status(403).json({ message: "Pastoral access required" });
     }
-    
     req.authenticatedUser = user;
     next();
   } catch (error) {
@@ -356,42 +383,37 @@ export const requirePastor: RequestHandler = async (req: any, res, next) => {
 export const requireMinistryLeader = (ministryIdParam: string = 'ministryId'): RequestHandler => {
   return async (req: any, res, next) => {
     try {
-      const userId = req.user?.claims?.sub;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const user = await storage.getUser(userId);
+      const user = await resolveCurrentUser(req);
       if (!user) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
+
       // Admins and pastors can access all ministries
       if (isAdmin(user.role) || isPastor(user.role)) {
         req.authenticatedUser = user;
         return next();
       }
-      
+
       // Get the ministry ID from route params or body
       const ministryId = req.params[ministryIdParam] || req.body?.ministryId;
       if (!ministryId) {
         return res.status(400).json({ message: "Ministry ID required" });
       }
-      
+
       // Check if user leads this ministry
       const userLedMinistries = user.ledMinistryIds || [];
       if (!userLedMinistries.includes(ministryId)) {
         // Also check ministry leadership assignments
-        const leadershipAssignments = await storage.getUserLeadershipAssignments(userId);
+        const leadershipAssignments = await storage.getUserLeadershipAssignments(user.id);
         const isMinistryLeader = leadershipAssignments.some(
           a => a.ministryId === ministryId && a.isActive
         );
-        
+
         if (!isMinistryLeader) {
           return res.status(403).json({ message: "Ministry leader access required" });
         }
       }
-      
+
       req.authenticatedUser = user;
       next();
     } catch (error) {

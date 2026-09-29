@@ -1,4 +1,8 @@
 import {
+  organizations,
+  type Organization,
+  type InsertOrganization,
+  slugifyOrganizationName,
   users,
   surveyProgress,
   surveyResults,
@@ -200,13 +204,19 @@ import { db } from "./db";
 import { eq, gte, lte, lt, gt, and, desc, sql, ilike, or } from "drizzle-orm";
 
 export interface IStorage {
+  // Organization (tenant) operations
+  getOrganization(id: string): Promise<Organization | undefined>;
+  getOrganizationBySlug(slug: string): Promise<Organization | undefined>;
+  createOrganization(name: string, ownerId?: string): Promise<Organization>;
+  updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
+
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<UpsertUser>): Promise<User>;
-  getAllUsers(): Promise<User[]>;
+  getAllUsers(organizationId: string): Promise<User[]>;
   updateUserRole(userId: string, role: UserRole): Promise<void>;
   updateUserOnboardingStatus(userId: string, status: OnboardingStatus): Promise<void>;
   
@@ -254,11 +264,11 @@ export interface IStorage {
   deleteCalendarEvent(id: string): Promise<void>;
   
   // Ministries operations
-  getMinistries(): Promise<Ministry[]>;
-  getMinistry(id: string): Promise<Ministry | undefined>;
+  getMinistries(organizationId: string): Promise<Ministry[]>;
+  getMinistry(id: string, organizationId: string): Promise<Ministry | undefined>;
   createMinistry(ministry: InsertMinistry): Promise<Ministry>;
-  updateMinistry(id: string, ministry: Partial<InsertMinistry>): Promise<Ministry>;
-  getChildMinistries(parentMinistryId: string): Promise<Ministry[]>;
+  updateMinistry(id: string, organizationId: string, ministry: Partial<InsertMinistry>): Promise<Ministry>;
+  getChildMinistries(parentMinistryId: string, organizationId: string): Promise<Ministry[]>;
   
   // Ministry leaders operations
   getMinistryLeaders(ministryId: string): Promise<MinistryLeader[]>;
@@ -282,10 +292,10 @@ export interface IStorage {
   deleteRoleAssignment(id: string): Promise<void>;
   
   // Training modules operations
-  getTrainingModules(ministryId?: string): Promise<TrainingModule[]>;
-  getTrainingModule(id: string): Promise<TrainingModule | undefined>;
+  getTrainingModules(organizationId: string, ministryId?: string): Promise<TrainingModule[]>;
+  getTrainingModule(id: string, organizationId: string): Promise<TrainingModule | undefined>;
   createTrainingModule(module: InsertTrainingModule): Promise<TrainingModule>;
-  updateTrainingModule(id: string, module: Partial<InsertTrainingModule>): Promise<TrainingModule>;
+  updateTrainingModule(id: string, organizationId: string, module: Partial<InsertTrainingModule>): Promise<TrainingModule>;
   deleteTrainingModule(id: string): Promise<void>;
   getTrainingAssessments(moduleId: string): Promise<TrainingAssessment[]>;
   createTrainingAssessment(assessment: InsertTrainingAssessment): Promise<TrainingAssessment>;
@@ -455,7 +465,7 @@ export interface IStorage {
   getArchivedUsers(): Promise<UserArchive[]>;
   
   // Ministry archive operations
-  archiveMinistry(ministryId: string, archivedBy: string, reason?: string): Promise<MinistryArchive>;
+  archiveMinistry(ministryId: string, organizationId: string, archivedBy: string, reason?: string): Promise<MinistryArchive>;
   restoreMinistry(archiveId: string, restoredBy: string): Promise<void>;
   
   // Room layout operations
@@ -501,8 +511,8 @@ export interface IStorage {
   deleteGlobalLabel(id: string): Promise<void>;
   
   // Phase 7: Organization settings operations
-  getOrgSettings(): Promise<OrgSettings | undefined>;
-  upsertOrgSettings(settings: InsertOrgSettings): Promise<OrgSettings>;
+  getOrgSettings(organizationId: string): Promise<OrgSettings | undefined>;
+  upsertOrgSettings(organizationId: string, data: Partial<InsertOrgSettings>): Promise<OrgSettings>;
   
   // Phase 9: Help center operations
   getHelpArticles(category?: string): Promise<HelpArticle[]>;
@@ -529,6 +539,35 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Organization (tenant) operations
+  async getOrganization(id: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    return org;
+  }
+
+  async getOrganizationBySlug(slug: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.slug, slug));
+    return org;
+  }
+
+  async createOrganization(name: string, ownerId?: string): Promise<Organization> {
+    const slug = slugifyOrganizationName(name);
+    const [org] = await db
+      .insert(organizations)
+      .values({ name, slug, ownerId })
+      .returning();
+    return org;
+  }
+
+  async updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization> {
+    const [org] = await db
+      .update(organizations)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(organizations.id, id))
+      .returning();
+    return org;
+  }
+
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -691,9 +730,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Additional user operations
-  async getAllUsers(): Promise<User[]> {
+  async getAllUsers(organizationId: string): Promise<User[]> {
     return await db.select().from(users)
-      .where(eq(users.isArchived, false));
+      .where(and(eq(users.organizationId, organizationId), eq(users.isArchived, false)));
   }
 
   async updateUserRole(userId: string, role: UserRole): Promise<void> {
@@ -911,12 +950,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Ministries operations
-  async getMinistries(): Promise<Ministry[]> {
-    return await db.select().from(ministries).where(eq(ministries.isActive, true));
+  async getMinistries(organizationId: string): Promise<Ministry[]> {
+    return await db.select().from(ministries)
+      .where(and(eq(ministries.organizationId, organizationId), eq(ministries.isActive, true)));
   }
 
-  async getMinistry(id: string): Promise<Ministry | undefined> {
-    const [ministry] = await db.select().from(ministries).where(eq(ministries.id, id));
+  async getMinistry(id: string, organizationId: string): Promise<Ministry | undefined> {
+    const [ministry] = await db.select().from(ministries)
+      .where(and(eq(ministries.id, id), eq(ministries.organizationId, organizationId)));
     return ministry;
   }
 
@@ -925,16 +966,17 @@ export class DatabaseStorage implements IStorage {
     return ministry;
   }
 
-  async updateMinistry(id: string, data: Partial<InsertMinistry>): Promise<Ministry> {
+  async updateMinistry(id: string, organizationId: string, data: Partial<InsertMinistry>): Promise<Ministry> {
     const [ministry] = await db.update(ministries).set({ ...data, updatedAt: new Date() })
-      .where(eq(ministries.id, id)).returning();
+      .where(and(eq(ministries.id, id), eq(ministries.organizationId, organizationId))).returning();
     return ministry;
   }
 
-  async getChildMinistries(parentMinistryId: string): Promise<Ministry[]> {
+  async getChildMinistries(parentMinistryId: string, organizationId: string): Promise<Ministry[]> {
     return await db.select().from(ministries)
       .where(and(
         eq(ministries.parentMinistryId, parentMinistryId),
+        eq(ministries.organizationId, organizationId),
         eq(ministries.isActive, true)
       ));
   }
@@ -1032,23 +1074,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Training modules operations
-  async getTrainingModules(ministryId?: string, includeInactive?: boolean): Promise<TrainingModule[]> {
+  async getTrainingModules(organizationId: string, ministryId?: string, includeInactive?: boolean): Promise<TrainingModule[]> {
     if (ministryId) {
       if (includeInactive) {
         return await db.select().from(trainingModules)
-          .where(eq(trainingModules.ministryId, ministryId));
+          .where(and(eq(trainingModules.organizationId, organizationId), eq(trainingModules.ministryId, ministryId)));
       }
       return await db.select().from(trainingModules)
-        .where(and(eq(trainingModules.ministryId, ministryId), eq(trainingModules.isActive, true)));
+        .where(and(eq(trainingModules.organizationId, organizationId), eq(trainingModules.ministryId, ministryId), eq(trainingModules.isActive, true)));
     }
     if (includeInactive) {
-      return await db.select().from(trainingModules);
+      return await db.select().from(trainingModules).where(eq(trainingModules.organizationId, organizationId));
     }
-    return await db.select().from(trainingModules).where(eq(trainingModules.isActive, true));
+    return await db.select().from(trainingModules)
+      .where(and(eq(trainingModules.organizationId, organizationId), eq(trainingModules.isActive, true)));
   }
 
-  async getTrainingModule(id: string): Promise<TrainingModule | undefined> {
-    const [module] = await db.select().from(trainingModules).where(eq(trainingModules.id, id));
+  async getTrainingModule(id: string, organizationId: string): Promise<TrainingModule | undefined> {
+    const [module] = await db.select().from(trainingModules)
+      .where(and(eq(trainingModules.id, id), eq(trainingModules.organizationId, organizationId)));
     return module;
   }
 
@@ -1057,9 +1101,9 @@ export class DatabaseStorage implements IStorage {
     return module;
   }
 
-  async updateTrainingModule(id: string, data: Partial<InsertTrainingModule>): Promise<TrainingModule> {
+  async updateTrainingModule(id: string, organizationId: string, data: Partial<InsertTrainingModule>): Promise<TrainingModule> {
     const [module] = await db.update(trainingModules).set({ ...data, updatedAt: new Date() })
-      .where(eq(trainingModules.id, id)).returning();
+      .where(and(eq(trainingModules.id, id), eq(trainingModules.organizationId, organizationId))).returning();
     return module;
   }
 
@@ -1936,25 +1980,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Ministry archive operations
-  async archiveMinistry(ministryId: string, archivedBy: string, reason?: string): Promise<MinistryArchive> {
-    const ministry = await this.getMinistry(ministryId);
+  async archiveMinistry(ministryId: string, organizationId: string, archivedBy: string, reason?: string): Promise<MinistryArchive> {
+    const ministry = await this.getMinistry(ministryId, organizationId);
     if (!ministry) throw new Error('Ministry not found');
-    
+
     // Mark ministry as archived
     await db.update(ministries)
       .set({ isArchived: true, archivedAt: new Date(), archivedBy, isActive: false })
-      .where(eq(ministries.id, ministryId));
-    
+      .where(and(eq(ministries.id, ministryId), eq(ministries.organizationId, organizationId)));
+
     // Create archive record
     const [archive] = await db.insert(ministryArchives).values({
+      organizationId,
       ministryId,
       archivedBy,
       reason,
       ministryData: ministry as any,
     }).returning();
-    
+
     // Create audit log
     await this.createAuditLog({
+      organizationId,
       entityType: 'ministry',
       entityId: ministryId,
       action: 'archive',
@@ -1963,7 +2009,7 @@ export class DatabaseStorage implements IStorage {
       reason,
       performedBy: archivedBy,
     });
-    
+
     return archive;
   }
 
@@ -2542,11 +2588,11 @@ export class DatabaseStorage implements IStorage {
   // MINISTRY LEADER ENRICHED DATA
   // ==========================================================================
 
-  async getMinistryWithLeaders(ministryId: string): Promise<{
+  async getMinistryWithLeaders(ministryId: string, organizationId: string): Promise<{
     ministry: Ministry;
     leaders: { user: User; role: string; isPrimary: boolean }[];
   } | undefined> {
-    const ministry = await this.getMinistry(ministryId);
+    const ministry = await this.getMinistry(ministryId, organizationId);
     if (!ministry) return undefined;
     
     const leaderRecords = await this.getMinistryLeaders(ministryId);
@@ -2571,13 +2617,16 @@ export class DatabaseStorage implements IStorage {
     coLeaders: { id: string; name: string }[];
     expectation: string | null;
   }[]> {
+    const actingUser = await this.getUser(userId);
+    const organizationId = actingUser?.organizationId;
     const assignments = await db.select().from(roleAssignments)
       .where(and(eq(roleAssignments.userId, userId), eq(roleAssignments.isActive, true)));
-    
+
     const results = [];
-    
+
     for (const assignment of assignments) {
-      const ministry = await this.getMinistry(assignment.ministryId);
+      if (!organizationId) continue;
+      const ministry = await this.getMinistry(assignment.ministryId, organizationId);
       if (!ministry) continue;
       
       const leaderRecords = await this.getMinistryLeaders(assignment.ministryId);
@@ -2836,11 +2885,12 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Get recent records with ministry names
+    const actingUser = await this.getUser(userId);
     const recentRecords = await Promise.all(
       records.slice(0, 5).map(async (r) => {
         let ministryName: string | null = null;
-        if (r.ministryId) {
-          const ministry = await this.getMinistry(r.ministryId);
+        if (r.ministryId && actingUser?.organizationId) {
+          const ministry = await this.getMinistry(r.ministryId, actingUser.organizationId);
           ministryName = ministry?.name || null;
         }
         return {
@@ -2966,14 +3016,15 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  // Phase 7: Organization settings
-  async getOrgSettings(): Promise<OrgSettings | undefined> {
-    const [settings] = await db.select().from(orgSettings).limit(1);
+  // Phase 7: Organization settings (branding/config, one row per organization)
+  async getOrgSettings(organizationId: string): Promise<OrgSettings | undefined> {
+    const [settings] = await db.select().from(orgSettings)
+      .where(eq(orgSettings.organizationId, organizationId)).limit(1);
     return settings;
   }
 
-  async upsertOrgSettings(data: InsertOrgSettings): Promise<OrgSettings> {
-    const existing = await this.getOrgSettings();
+  async upsertOrgSettings(organizationId: string, data: Partial<InsertOrgSettings>): Promise<OrgSettings> {
+    const existing = await this.getOrgSettings(organizationId);
     if (existing) {
       const [updated] = await db
         .update(orgSettings)
@@ -2982,7 +3033,9 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     }
-    const [created] = await db.insert(orgSettings).values(data).returning();
+    const [created] = await db.insert(orgSettings)
+      .values({ ...data, organizationId } as InsertOrgSettings)
+      .returning();
     return created;
   }
 

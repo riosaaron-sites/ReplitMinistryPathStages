@@ -204,7 +204,7 @@ export default function InviteAccept() {
           />
           <Badge variant="secondary" className="gap-1 mb-4">
             <Church className="h-3 w-3" />
-            Garden City Church
+            {invite.ministryName || "Ministry Invitation"}
           </Badge>
         </div>
 
@@ -336,7 +336,7 @@ export default function InviteAccept() {
         </Card>
 
         <p className="text-center text-sm text-muted-foreground mt-8">
-          Have questions? Contact us at info@gardencitychurch.net
+          Have questions? Contact {invite.inviterName} for details about this invitation.
         </p>
       </div>
     </div>
