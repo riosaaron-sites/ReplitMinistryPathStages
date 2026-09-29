@@ -29,7 +29,7 @@ import {
   TRAINING_STATUS,
   type TrainingStatus,
 } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { 
   calculateGiftScores, 
   calculateDISCProfile, 
@@ -2701,11 +2701,27 @@ export async function registerRoutes(
   // AGREEMENT CONTENT ROUTES - Editable faith commitment content
   // =============================================================================
   
-  // GET all agreement content (public - used by OnboardingWizard)
+  // GET all agreement content (used by OnboardingWizard right after signup/invite,
+  // so the visitor is authenticated by the time this loads in practice; falls back
+  // to the first organization if somehow called before login)
   app.get('/api/agreement-content', async (req: any, res) => {
     try {
+      let organizationId: string | undefined;
+      if (req.isAuthenticated?.() && req.user?.claims) {
+        const email = req.user.claims.email;
+        const authUser = email ? await storage.getUserByEmail(email) : await storage.getUser(req.user.claims.sub);
+        organizationId = authUser?.organizationId;
+      }
+      if (!organizationId) {
+        const firstOrg = await storage.getFirstOrganization();
+        organizationId = firstOrg?.id;
+      }
+      if (!organizationId) {
+        return res.json([]);
+      }
+
       const content = await db.query.agreementContent.findMany({
-        where: (table, { eq }) => eq(table.isActive, true),
+        where: (table, { eq, and }) => and(eq(table.organizationId, organizationId!), eq(table.isActive, true)),
         orderBy: (table, { asc }) => asc(table.stepNumber),
       });
       res.json(content);
@@ -2714,7 +2730,7 @@ export async function registerRoutes(
       return handleApiError(error, res);
     }
   });
-  
+
   // GET single agreement step
   app.get('/api/agreement-content/:stepNumber', async (req: any, res) => {
     try {
@@ -2722,48 +2738,62 @@ export async function registerRoutes(
       if (isNaN(stepNumber)) {
         return res.status(400).json({ message: "Invalid step number" });
       }
-      
+
+      let organizationId: string | undefined;
+      if (req.isAuthenticated?.() && req.user?.claims) {
+        const email = req.user.claims.email;
+        const authUser = email ? await storage.getUserByEmail(email) : await storage.getUser(req.user.claims.sub);
+        organizationId = authUser?.organizationId;
+      }
+      if (!organizationId) {
+        const firstOrg = await storage.getFirstOrganization();
+        organizationId = firstOrg?.id;
+      }
+      if (!organizationId) {
+        return res.status(404).json({ message: "Agreement step not found" });
+      }
+
       const content = await db.query.agreementContent.findFirst({
-        where: (table, { eq }) => eq(table.stepNumber, stepNumber),
+        where: (table, { eq, and }) => and(eq(table.stepNumber, stepNumber), eq(table.organizationId, organizationId!)),
       });
-      
+
       if (!content) {
         return res.status(404).json({ message: "Agreement step not found" });
       }
-      
+
       res.json(content);
     } catch (error) {
       console.error("Error fetching agreement step:", error);
       return handleApiError(error, res);
     }
   });
-  
+
   // UPDATE agreement step (leadership only)
   app.patch('/api/agreement-content/:stepNumber', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       // Only admins, pastors, and owners can edit agreement content
       if (!user || !isAdmin(user.role)) {
         return res.status(403).json({ message: "Leadership access required to edit agreement content" });
       }
-      
+
       const stepNumber = parseInt(req.params.stepNumber);
       if (isNaN(stepNumber)) {
         return res.status(400).json({ message: "Invalid step number" });
       }
-      
+
       const existing = await db.query.agreementContent.findFirst({
-        where: (table, { eq }) => eq(table.stepNumber, stepNumber),
+        where: (table, { eq, and }) => and(eq(table.stepNumber, stepNumber), eq(table.organizationId, req.organizationId)),
       });
-      
+
       if (!existing) {
         return res.status(404).json({ message: "Agreement step not found" });
       }
-      
+
       const { title, scripture, scriptureRef, content, question, isRequired } = req.body;
-      
+
       const [updated] = await db
         .update(agreementContent)
         .set({
@@ -2777,42 +2807,42 @@ export async function registerRoutes(
           updatedAt: new Date(),
           lastEditedBy: userId,
         })
-        .where(eq(agreementContent.stepNumber, stepNumber))
+        .where(and(eq(agreementContent.stepNumber, stepNumber), eq(agreementContent.organizationId, req.organizationId)))
         .returning();
-      
+
       res.json(updated);
     } catch (error) {
       console.error("Error updating agreement step:", error);
       return handleApiError(error, res);
     }
   });
-  
+
   // BULK UPDATE all agreement content (leadership only)
   app.put('/api/agreement-content', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       // Only admins, pastors, and owners can edit agreement content
       if (!user || !isAdmin(user.role)) {
         return res.status(403).json({ message: "Leadership access required to edit agreement content" });
       }
-      
+
       const { steps } = req.body;
       if (!Array.isArray(steps)) {
         return res.status(400).json({ message: "Steps array is required" });
       }
-      
+
       const updated = [];
       for (const step of steps) {
         if (!step.stepNumber) continue;
-        
+
         const existing = await db.query.agreementContent.findFirst({
-          where: (table, { eq }) => eq(table.stepNumber, step.stepNumber),
+          where: (table, { eq, and }) => and(eq(table.stepNumber, step.stepNumber), eq(table.organizationId, req.organizationId)),
         });
-        
+
         if (!existing) continue;
-        
+
         const [result] = await db
           .update(agreementContent)
           .set({
@@ -2826,12 +2856,12 @@ export async function registerRoutes(
             updatedAt: new Date(),
             lastEditedBy: userId,
           })
-          .where(eq(agreementContent.stepNumber, step.stepNumber))
+          .where(and(eq(agreementContent.stepNumber, step.stepNumber), eq(agreementContent.organizationId, req.organizationId)))
           .returning();
-        
+
         updated.push(result);
       }
-      
+
       res.json({ message: "Agreement content updated", updated });
     } catch (error) {
       console.error("Error bulk updating agreement content:", error);
@@ -4930,6 +4960,7 @@ export async function registerRoutes(
           for (let i = 0; i < notifyLimit; i++) {
             const userId = targetUserIds[i];
             await storage.createNotification({
+              organizationId: training.organizationId,
               userId,
               type: 'training_published',
               title: 'New Training Available',
@@ -8479,6 +8510,7 @@ export async function registerRoutes(
     try {
       const { manualId, trainingId, category } = req.query;
       const questions = await storage.getQuizQuestions(
+        req.organizationId,
         manualId as string,
         trainingId as string,
         category as string
@@ -8522,7 +8554,7 @@ export async function registerRoutes(
       const { manualId, trainingId, quizCategory, answers } = req.body;
       
       // Get questions for this quiz
-      const questions = await storage.getQuizQuestions(manualId, trainingId, quizCategory);
+      const questions = await storage.getQuizQuestions(req.organizationId, manualId, trainingId, quizCategory);
       
       // Calculate score
       let correctCount = 0;
@@ -8607,7 +8639,7 @@ export async function registerRoutes(
 
   app.post('/api/recurring-activities', isAuthenticated, async (req: any, res) => {
     try {
-      const activity = await storage.createRecurringActivity(req.body);
+      const activity = await storage.createRecurringActivity({ ...req.body, organizationId: req.organizationId });
       res.json(activity);
     } catch (error) {
       console.error("Error creating recurring activity:", error);
@@ -8674,6 +8706,7 @@ export async function registerRoutes(
         status: data.status || 'pending',
         submittedBy: userId,
         ...data,
+        organizationId: req.organizationId,
       });
       
       res.json(submission);
@@ -8724,7 +8757,7 @@ export async function registerRoutes(
   
   app.get('/api/archived-users', isAuthenticated, async (req: any, res) => {
     try {
-      const archives = await storage.getArchivedUsers();
+      const archives = await storage.getArchivedUsers(req.organizationId);
       res.json(archives);
     } catch (error) {
       console.error("Error fetching archived users:", error);
@@ -8862,6 +8895,7 @@ export async function registerRoutes(
       
       // Write audit log entry
       await storage.createAuditLog({
+        organizationId: req.organizationId,
         entityType: 'ministry_leadership',
         entityId: assignment.id,
         action: 'leader_added',
@@ -8925,6 +8959,7 @@ export async function registerRoutes(
       const layout = await storage.createRoomLayout({
         roomId: req.params.roomId,
         ...req.body,
+        organizationId: req.organizationId,
       });
       res.json(layout);
     } catch (error) {
@@ -8972,7 +9007,7 @@ export async function registerRoutes(
   app.get('/api/audit-logs/:entityType/:entityId', isAuthenticated, async (req: any, res) => {
     try {
       const { entityType, entityId } = req.params;
-      const logs = await storage.getAuditLogs(entityType, entityId);
+      const logs = await storage.getAuditLogs(req.organizationId, entityType, entityId);
       res.json(logs);
     } catch (error) {
       console.error("Error fetching audit logs:", error);
@@ -8987,7 +9022,7 @@ export async function registerRoutes(
   // Admin Tags
   app.get('/api/config/tags', isAuthenticated, async (req: any, res) => {
     try {
-      const tags = await storage.getAdminTags();
+      const tags = await storage.getAdminTags(req.organizationId);
       res.json(tags);
     } catch (error) {
       console.error("Error fetching admin tags:", error);
@@ -8997,7 +9032,7 @@ export async function registerRoutes(
 
   app.post('/api/config/tags', isAuthenticated, async (req: any, res) => {
     try {
-      const tag = await storage.createAdminTag(req.body);
+      const tag = await storage.createAdminTag({ ...req.body, organizationId: req.organizationId });
       res.status(201).json(tag);
     } catch (error) {
       console.error("Error creating admin tag:", error);
@@ -9007,7 +9042,7 @@ export async function registerRoutes(
 
   app.patch('/api/config/tags/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const tag = await storage.updateAdminTag(req.params.id, req.body);
+      const tag = await storage.updateAdminTag(req.params.id, req.organizationId, req.body);
       res.json(tag);
     } catch (error) {
       console.error("Error updating admin tag:", error);
@@ -9017,7 +9052,7 @@ export async function registerRoutes(
 
   app.delete('/api/config/tags/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteAdminTag(req.params.id);
+      await storage.deleteAdminTag(req.params.id, req.organizationId);
       res.json({ message: "Tag deleted successfully" });
     } catch (error) {
       console.error("Error deleting admin tag:", error);
@@ -9028,7 +9063,7 @@ export async function registerRoutes(
   // Serve Roles
   app.get('/api/config/serve-roles', isAuthenticated, async (req: any, res) => {
     try {
-      const roles = await storage.getServeRoles();
+      const roles = await storage.getServeRoles(req.organizationId);
       res.json(roles);
     } catch (error) {
       console.error("Error fetching serve roles:", error);
@@ -9038,7 +9073,7 @@ export async function registerRoutes(
 
   app.post('/api/config/serve-roles', isAuthenticated, async (req: any, res) => {
     try {
-      const role = await storage.createServeRole(req.body);
+      const role = await storage.createServeRole({ ...req.body, organizationId: req.organizationId });
       res.status(201).json(role);
     } catch (error) {
       console.error("Error creating serve role:", error);
@@ -9048,7 +9083,7 @@ export async function registerRoutes(
 
   app.patch('/api/config/serve-roles/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const role = await storage.updateServeRole(req.params.id, req.body);
+      const role = await storage.updateServeRole(req.params.id, req.organizationId, req.body);
       res.json(role);
     } catch (error) {
       console.error("Error updating serve role:", error);
@@ -9058,7 +9093,7 @@ export async function registerRoutes(
 
   app.delete('/api/config/serve-roles/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteServeRole(req.params.id);
+      await storage.deleteServeRole(req.params.id, req.organizationId);
       res.json({ message: "Serve role deleted successfully" });
     } catch (error) {
       console.error("Error deleting serve role:", error);
@@ -9069,7 +9104,7 @@ export async function registerRoutes(
   // Staff Titles
   app.get('/api/config/staff-titles', isAuthenticated, async (req: any, res) => {
     try {
-      const titles = await storage.getStaffTitles();
+      const titles = await storage.getStaffTitles(req.organizationId);
       res.json(titles);
     } catch (error) {
       console.error("Error fetching staff titles:", error);
@@ -9079,7 +9114,7 @@ export async function registerRoutes(
 
   app.post('/api/config/staff-titles', isAuthenticated, async (req: any, res) => {
     try {
-      const title = await storage.createStaffTitle(req.body);
+      const title = await storage.createStaffTitle({ ...req.body, organizationId: req.organizationId });
       res.status(201).json(title);
     } catch (error) {
       console.error("Error creating staff title:", error);
@@ -9089,7 +9124,7 @@ export async function registerRoutes(
 
   app.patch('/api/config/staff-titles/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const title = await storage.updateStaffTitle(req.params.id, req.body);
+      const title = await storage.updateStaffTitle(req.params.id, req.organizationId, req.body);
       res.json(title);
     } catch (error) {
       console.error("Error updating staff title:", error);
@@ -9099,7 +9134,7 @@ export async function registerRoutes(
 
   app.delete('/api/config/staff-titles/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteStaffTitle(req.params.id);
+      await storage.deleteStaffTitle(req.params.id, req.organizationId);
       res.json({ message: "Staff title deleted successfully" });
     } catch (error) {
       console.error("Error deleting staff title:", error);
@@ -9110,7 +9145,7 @@ export async function registerRoutes(
   // Global Labels
   app.get('/api/config/labels', isAuthenticated, async (req: any, res) => {
     try {
-      const labels = await storage.getGlobalLabels();
+      const labels = await storage.getGlobalLabels(req.organizationId);
       res.json(labels);
     } catch (error) {
       console.error("Error fetching global labels:", error);
@@ -9120,7 +9155,7 @@ export async function registerRoutes(
 
   app.post('/api/config/labels', isAuthenticated, async (req: any, res) => {
     try {
-      const label = await storage.createGlobalLabel(req.body);
+      const label = await storage.createGlobalLabel({ ...req.body, organizationId: req.organizationId });
       res.status(201).json(label);
     } catch (error) {
       console.error("Error creating global label:", error);
@@ -9130,7 +9165,7 @@ export async function registerRoutes(
 
   app.patch('/api/config/labels/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const label = await storage.updateGlobalLabel(req.params.id, req.body);
+      const label = await storage.updateGlobalLabel(req.params.id, req.organizationId, req.body);
       res.json(label);
     } catch (error) {
       console.error("Error updating global label:", error);
@@ -9140,7 +9175,7 @@ export async function registerRoutes(
 
   app.delete('/api/config/labels/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteGlobalLabel(req.params.id);
+      await storage.deleteGlobalLabel(req.params.id, req.organizationId);
       res.json({ message: "Global label deleted successfully" });
     } catch (error) {
       console.error("Error deleting global label:", error);
@@ -9164,7 +9199,7 @@ export async function registerRoutes(
       }
       
       const { status } = req.query;
-      const questions = await storage.getPastoralQuestions(status as string | undefined);
+      const questions = await storage.getPastoralQuestions(req.organizationId, status as string | undefined);
       
       // Enrich with user details
       const enrichedQuestions = await Promise.all(questions.map(async (q) => {
@@ -9193,7 +9228,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized - pastoral access required" });
       }
       
-      const question = await storage.getPastoralQuestion(req.params.id);
+      const question = await storage.getPastoralQuestion(req.params.id, req.organizationId);
       if (!question) {
         return res.status(404).json({ message: "Question not found" });
       }
@@ -9215,6 +9250,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const question = await storage.createPastoralQuestion({
         ...req.body,
+        organizationId: req.organizationId,
         userId,
       });
       res.status(201).json(question);
@@ -9233,7 +9269,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized - pastoral access required" });
       }
       
-      const question = await storage.updatePastoralQuestion(req.params.id, {
+      const question = await storage.updatePastoralQuestion(req.params.id, req.organizationId, {
         ...req.body,
         resolvedBy: req.body.status === 'resolved' ? userId : undefined,
         resolvedAt: req.body.status === 'resolved' ? new Date() : undefined,
@@ -9356,6 +9392,7 @@ export async function registerRoutes(
       
       const feedback = await storage.createMemberFeedback({
         ...req.body,
+        organizationId: req.organizationId,
         leaderId: userId,
       });
       res.status(201).json(feedback);
@@ -9414,7 +9451,7 @@ export async function registerRoutes(
         return res.json(userRequests);
       }
       
-      let requests = await storage.getMinistryJoinRequests(status as string | undefined);
+      let requests = await storage.getMinistryJoinRequests(req.organizationId, status as string | undefined);
       
       // Filter by ministry if specified
       if (ministryId) {
@@ -9454,6 +9491,7 @@ export async function registerRoutes(
         // Create request with auto-approved status
         const request = await storage.createMinistryJoinRequest({
           ...req.body,
+          organizationId: req.organizationId,
           userId,
           status: 'approved',
           reviewedBy: userId,
@@ -9477,6 +9515,7 @@ export async function registerRoutes(
         // Regular flow - create pending request
         const request = await storage.createMinistryJoinRequest({
           ...req.body,
+          organizationId: req.organizationId,
           userId,
         });
         res.status(201).json(request);
@@ -9496,7 +9535,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized - leadership access required" });
       }
       
-      const request = await storage.updateMinistryJoinRequest(req.params.id, {
+      const request = await storage.updateMinistryJoinRequest(req.params.id, req.organizationId, {
         ...req.body,
         reviewedBy: userId,
         reviewedAt: new Date(),
@@ -9587,6 +9626,7 @@ export async function registerRoutes(
       const workboard = await storage.createWorkboard({
         ...req.body,
         createdBy: userId,
+        organizationId: req.organizationId,
       });
       res.status(201).json(workboard);
     } catch (error) {
@@ -9633,6 +9673,7 @@ export async function registerRoutes(
         ...req.body,
         workboardId: req.params.workboardId,
         createdBy: userId,
+        organizationId: req.organizationId,
       });
       res.status(201).json(item);
     } catch (error) {
@@ -9679,6 +9720,7 @@ export async function registerRoutes(
         ...req.body,
         actionItemId: req.params.itemId,
         authorId: userId,
+        organizationId: req.organizationId,
       });
       res.status(201).json(comment);
     } catch (error) {
@@ -9882,6 +9924,7 @@ export async function registerRoutes(
       
       const record = await storage.createServingRecord({
         ...req.body,
+        organizationId: req.organizationId,
         scheduledBy: userId,
       });
       res.status(201).json(record);
@@ -9893,7 +9936,7 @@ export async function registerRoutes(
 
   app.patch('/api/serving/records/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const record = await storage.updateServingRecord(req.params.id, req.body);
+      const record = await storage.updateServingRecord(req.params.id, req.organizationId, req.body);
       res.json(record);
     } catch (error) {
       console.error("Error updating serving record:", error);
@@ -9928,6 +9971,7 @@ export async function registerRoutes(
       
       const note = await storage.createLeaderNote({
         ...req.body,
+        organizationId: req.organizationId,
         leaderId: userId,
       });
       res.status(201).json(note);
@@ -9939,7 +9983,7 @@ export async function registerRoutes(
 
   app.patch('/api/leader-notes/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const note = await storage.updateLeaderNote(req.params.id, req.body);
+      const note = await storage.updateLeaderNote(req.params.id, req.organizationId, req.body);
       res.json(note);
     } catch (error) {
       console.error("Error updating leader note:", error);
@@ -9949,7 +9993,7 @@ export async function registerRoutes(
 
   app.delete('/api/leader-notes/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteLeaderNote(req.params.id);
+      await storage.deleteLeaderNote(req.params.id, req.organizationId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting leader note:", error);
@@ -10095,10 +10139,10 @@ export async function registerRoutes(
       }));
       
       // Get pending pastoral questions
-      const pendingQuestions = await storage.getPastoralQuestions('pending');
-      
+      const pendingQuestions = await storage.getPastoralQuestions(req.organizationId, 'pending');
+
       // Get pending join requests
-      const pendingRequests = await storage.getMinistryJoinRequests('pending');
+      const pendingRequests = await storage.getMinistryJoinRequests(req.organizationId, 'pending');
       
       // Get users stuck in onboarding
       const stuckUsers = allUsers.filter(u => 

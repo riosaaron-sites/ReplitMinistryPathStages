@@ -439,7 +439,7 @@ export interface IStorage {
   upsertOnboardingStep(step: InsertOnboardingStep): Promise<OnboardingStep>;
   
   // Quiz operations
-  getQuizQuestions(manualId?: string, trainingId?: string, category?: string): Promise<QuizQuestion[]>;
+  getQuizQuestions(organizationId: string, manualId?: string, trainingId?: string, category?: string): Promise<QuizQuestion[]>;
   createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
   getUserQuizAttempts(userId: string, manualId?: string, trainingId?: string): Promise<QuizAttempt[]>;
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
@@ -458,12 +458,12 @@ export interface IStorage {
   
   // Audit log operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
-  getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]>;
+  getAuditLogs(organizationId: string, entityType: string, entityId: string): Promise<AuditLog[]>;
   
   // User archive operations
   archiveUser(userId: string, archivedBy: string, reason?: string): Promise<UserArchive>;
   restoreUser(archiveId: string, restoredBy: string): Promise<void>;
-  getArchivedUsers(): Promise<UserArchive[]>;
+  getArchivedUsers(organizationId: string): Promise<UserArchive[]>;
   
   // Ministry archive operations
   archiveMinistry(ministryId: string, organizationId: string, archivedBy: string, reason?: string): Promise<MinistryArchive>;
@@ -491,25 +491,25 @@ export interface IStorage {
   getTrainingByManualId(manualId: string, organizationId: string): Promise<TrainingModule | undefined>;
   
   // Config Bank / Field Bank operations
-  getAdminTags(): Promise<AdminTag[]>;
+  getAdminTags(organizationId: string): Promise<AdminTag[]>;
   createAdminTag(tag: InsertAdminTag): Promise<AdminTag>;
-  updateAdminTag(id: string, data: Partial<InsertAdminTag>): Promise<AdminTag>;
-  deleteAdminTag(id: string): Promise<void>;
-  
-  getServeRoles(): Promise<ServeRole[]>;
+  updateAdminTag(id: string, organizationId: string, data: Partial<InsertAdminTag>): Promise<AdminTag>;
+  deleteAdminTag(id: string, organizationId: string): Promise<void>;
+
+  getServeRoles(organizationId: string): Promise<ServeRole[]>;
   createServeRole(role: InsertServeRole): Promise<ServeRole>;
-  updateServeRole(id: string, data: Partial<InsertServeRole>): Promise<ServeRole>;
-  deleteServeRole(id: string): Promise<void>;
-  
-  getStaffTitles(): Promise<StaffTitle[]>;
+  updateServeRole(id: string, organizationId: string, data: Partial<InsertServeRole>): Promise<ServeRole>;
+  deleteServeRole(id: string, organizationId: string): Promise<void>;
+
+  getStaffTitles(organizationId: string): Promise<StaffTitle[]>;
   createStaffTitle(title: InsertStaffTitle): Promise<StaffTitle>;
-  updateStaffTitle(id: string, data: Partial<InsertStaffTitle>): Promise<StaffTitle>;
-  deleteStaffTitle(id: string): Promise<void>;
-  
-  getGlobalLabels(): Promise<GlobalLabel[]>;
+  updateStaffTitle(id: string, organizationId: string, data: Partial<InsertStaffTitle>): Promise<StaffTitle>;
+  deleteStaffTitle(id: string, organizationId: string): Promise<void>;
+
+  getGlobalLabels(organizationId: string): Promise<GlobalLabel[]>;
   createGlobalLabel(label: InsertGlobalLabel): Promise<GlobalLabel>;
-  updateGlobalLabel(id: string, data: Partial<InsertGlobalLabel>): Promise<GlobalLabel>;
-  deleteGlobalLabel(id: string): Promise<void>;
+  updateGlobalLabel(id: string, organizationId: string, data: Partial<InsertGlobalLabel>): Promise<GlobalLabel>;
+  deleteGlobalLabel(id: string, organizationId: string): Promise<void>;
   
   // Phase 7: Organization settings operations
   getOrgSettings(organizationId: string): Promise<OrgSettings | undefined>;
@@ -1826,25 +1826,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Quiz operations
-  async getQuizQuestions(manualId?: string, trainingId?: string, category?: string): Promise<QuizQuestion[]> {
-    let query = db.select().from(quizQuestions).where(eq(quizQuestions.isActive, true));
+  async getQuizQuestions(organizationId: string, manualId?: string, trainingId?: string, category?: string): Promise<QuizQuestion[]> {
     if (manualId) {
       return await db.select().from(quizQuestions)
-        .where(and(eq(quizQuestions.isActive, true), eq(quizQuestions.manualId, manualId)))
+        .where(and(eq(quizQuestions.organizationId, organizationId), eq(quizQuestions.isActive, true), eq(quizQuestions.manualId, manualId)))
         .orderBy(quizQuestions.sortOrder);
     }
     if (trainingId) {
       return await db.select().from(quizQuestions)
-        .where(and(eq(quizQuestions.isActive, true), eq(quizQuestions.trainingId, trainingId)))
+        .where(and(eq(quizQuestions.organizationId, organizationId), eq(quizQuestions.isActive, true), eq(quizQuestions.trainingId, trainingId)))
         .orderBy(quizQuestions.sortOrder);
     }
     if (category) {
       return await db.select().from(quizQuestions)
-        .where(and(eq(quizQuestions.isActive, true), eq(quizQuestions.quizCategory, category)))
+        .where(and(eq(quizQuestions.organizationId, organizationId), eq(quizQuestions.isActive, true), eq(quizQuestions.quizCategory, category)))
         .orderBy(quizQuestions.sortOrder);
     }
     return await db.select().from(quizQuestions)
-      .where(eq(quizQuestions.isActive, true))
+      .where(and(eq(quizQuestions.organizationId, organizationId), eq(quizQuestions.isActive, true)))
       .orderBy(quizQuestions.sortOrder);
   }
 
@@ -1946,9 +1945,13 @@ export class DatabaseStorage implements IStorage {
     return log;
   }
 
-  async getAuditLogs(entityType: string, entityId: string): Promise<AuditLog[]> {
+  async getAuditLogs(organizationId: string, entityType: string, entityId: string): Promise<AuditLog[]> {
     return await db.select().from(auditLogs)
-      .where(and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId)))
+      .where(and(
+        eq(auditLogs.organizationId, organizationId),
+        eq(auditLogs.entityType, entityType),
+        eq(auditLogs.entityId, entityId)
+      ))
       .orderBy(desc(auditLogs.performedAt));
   }
 
@@ -2018,9 +2021,9 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getArchivedUsers(): Promise<UserArchive[]> {
+  async getArchivedUsers(organizationId: string): Promise<UserArchive[]> {
     return await db.select().from(userArchives)
-      .where(eq(userArchives.isRestored, false))
+      .where(and(eq(userArchives.organizationId, organizationId), eq(userArchives.isRestored, false)))
       .orderBy(desc(userArchives.archivedAt));
   }
 
@@ -2193,8 +2196,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Config Bank / Field Bank operations
-  async getAdminTags(): Promise<AdminTag[]> {
-    return await db.select().from(adminTags).orderBy(adminTags.sortOrder);
+  async getAdminTags(organizationId: string): Promise<AdminTag[]> {
+    return await db.select().from(adminTags)
+      .where(eq(adminTags.organizationId, organizationId))
+      .orderBy(adminTags.sortOrder);
   }
 
   async createAdminTag(data: InsertAdminTag): Promise<AdminTag> {
@@ -2202,20 +2207,22 @@ export class DatabaseStorage implements IStorage {
     return tag;
   }
 
-  async updateAdminTag(id: string, data: Partial<InsertAdminTag>): Promise<AdminTag> {
+  async updateAdminTag(id: string, organizationId: string, data: Partial<InsertAdminTag>): Promise<AdminTag> {
     const [tag] = await db.update(adminTags)
       .set(data)
-      .where(eq(adminTags.id, id))
+      .where(and(eq(adminTags.id, id), eq(adminTags.organizationId, organizationId)))
       .returning();
     return tag;
   }
 
-  async deleteAdminTag(id: string): Promise<void> {
-    await db.delete(adminTags).where(eq(adminTags.id, id));
+  async deleteAdminTag(id: string, organizationId: string): Promise<void> {
+    await db.delete(adminTags).where(and(eq(adminTags.id, id), eq(adminTags.organizationId, organizationId)));
   }
 
-  async getServeRoles(): Promise<ServeRole[]> {
-    return await db.select().from(serveRoles).orderBy(serveRoles.sortOrder);
+  async getServeRoles(organizationId: string): Promise<ServeRole[]> {
+    return await db.select().from(serveRoles)
+      .where(eq(serveRoles.organizationId, organizationId))
+      .orderBy(serveRoles.sortOrder);
   }
 
   async createServeRole(data: InsertServeRole): Promise<ServeRole> {
@@ -2223,20 +2230,22 @@ export class DatabaseStorage implements IStorage {
     return role;
   }
 
-  async updateServeRole(id: string, data: Partial<InsertServeRole>): Promise<ServeRole> {
+  async updateServeRole(id: string, organizationId: string, data: Partial<InsertServeRole>): Promise<ServeRole> {
     const [role] = await db.update(serveRoles)
       .set(data)
-      .where(eq(serveRoles.id, id))
+      .where(and(eq(serveRoles.id, id), eq(serveRoles.organizationId, organizationId)))
       .returning();
     return role;
   }
 
-  async deleteServeRole(id: string): Promise<void> {
-    await db.delete(serveRoles).where(eq(serveRoles.id, id));
+  async deleteServeRole(id: string, organizationId: string): Promise<void> {
+    await db.delete(serveRoles).where(and(eq(serveRoles.id, id), eq(serveRoles.organizationId, organizationId)));
   }
 
-  async getStaffTitles(): Promise<StaffTitle[]> {
-    return await db.select().from(staffTitles).orderBy(staffTitles.sortOrder);
+  async getStaffTitles(organizationId: string): Promise<StaffTitle[]> {
+    return await db.select().from(staffTitles)
+      .where(eq(staffTitles.organizationId, organizationId))
+      .orderBy(staffTitles.sortOrder);
   }
 
   async createStaffTitle(data: InsertStaffTitle): Promise<StaffTitle> {
@@ -2244,20 +2253,20 @@ export class DatabaseStorage implements IStorage {
     return title;
   }
 
-  async updateStaffTitle(id: string, data: Partial<InsertStaffTitle>): Promise<StaffTitle> {
+  async updateStaffTitle(id: string, organizationId: string, data: Partial<InsertStaffTitle>): Promise<StaffTitle> {
     const [title] = await db.update(staffTitles)
       .set(data)
-      .where(eq(staffTitles.id, id))
+      .where(and(eq(staffTitles.id, id), eq(staffTitles.organizationId, organizationId)))
       .returning();
     return title;
   }
 
-  async deleteStaffTitle(id: string): Promise<void> {
-    await db.delete(staffTitles).where(eq(staffTitles.id, id));
+  async deleteStaffTitle(id: string, organizationId: string): Promise<void> {
+    await db.delete(staffTitles).where(and(eq(staffTitles.id, id), eq(staffTitles.organizationId, organizationId)));
   }
 
-  async getGlobalLabels(): Promise<GlobalLabel[]> {
-    return await db.select().from(globalLabels);
+  async getGlobalLabels(organizationId: string): Promise<GlobalLabel[]> {
+    return await db.select().from(globalLabels).where(eq(globalLabels.organizationId, organizationId));
   }
 
   async createGlobalLabel(data: InsertGlobalLabel): Promise<GlobalLabel> {
@@ -2265,32 +2274,33 @@ export class DatabaseStorage implements IStorage {
     return label;
   }
 
-  async updateGlobalLabel(id: string, data: Partial<InsertGlobalLabel>): Promise<GlobalLabel> {
+  async updateGlobalLabel(id: string, organizationId: string, data: Partial<InsertGlobalLabel>): Promise<GlobalLabel> {
     const [label] = await db.update(globalLabels)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(globalLabels.id, id))
+      .where(and(eq(globalLabels.id, id), eq(globalLabels.organizationId, organizationId)))
       .returning();
     return label;
   }
 
-  async deleteGlobalLabel(id: string): Promise<void> {
-    await db.delete(globalLabels).where(eq(globalLabels.id, id));
+  async deleteGlobalLabel(id: string, organizationId: string): Promise<void> {
+    await db.delete(globalLabels).where(and(eq(globalLabels.id, id), eq(globalLabels.organizationId, organizationId)));
   }
 
   // Pastoral Questions operations
-  async getPastoralQuestions(status?: string): Promise<PastoralQuestion[]> {
+  async getPastoralQuestions(organizationId: string, status?: string): Promise<PastoralQuestion[]> {
     if (status) {
       return await db.select().from(pastoralQuestions)
-        .where(eq(pastoralQuestions.status, status))
+        .where(and(eq(pastoralQuestions.organizationId, organizationId), eq(pastoralQuestions.status, status)))
         .orderBy(desc(pastoralQuestions.createdAt));
     }
     return await db.select().from(pastoralQuestions)
+      .where(eq(pastoralQuestions.organizationId, organizationId))
       .orderBy(desc(pastoralQuestions.createdAt));
   }
 
-  async getPastoralQuestion(id: string): Promise<PastoralQuestion | undefined> {
+  async getPastoralQuestion(id: string, organizationId: string): Promise<PastoralQuestion | undefined> {
     const [question] = await db.select().from(pastoralQuestions)
-      .where(eq(pastoralQuestions.id, id));
+      .where(and(eq(pastoralQuestions.id, id), eq(pastoralQuestions.organizationId, organizationId)));
     return question;
   }
 
@@ -2305,28 +2315,29 @@ export class DatabaseStorage implements IStorage {
     return question;
   }
 
-  async updatePastoralQuestion(id: string, data: Partial<InsertPastoralQuestion>): Promise<PastoralQuestion> {
+  async updatePastoralQuestion(id: string, organizationId: string, data: Partial<InsertPastoralQuestion>): Promise<PastoralQuestion> {
     const [question] = await db.update(pastoralQuestions)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(pastoralQuestions.id, id))
+      .where(and(eq(pastoralQuestions.id, id), eq(pastoralQuestions.organizationId, organizationId)))
       .returning();
     return question;
   }
 
   // Ministry Join Requests operations
-  async getMinistryJoinRequests(status?: string): Promise<MinistryJoinRequest[]> {
+  async getMinistryJoinRequests(organizationId: string, status?: string): Promise<MinistryJoinRequest[]> {
     if (status) {
       return await db.select().from(ministryJoinRequests)
-        .where(eq(ministryJoinRequests.status, status))
+        .where(and(eq(ministryJoinRequests.organizationId, organizationId), eq(ministryJoinRequests.status, status)))
         .orderBy(desc(ministryJoinRequests.createdAt));
     }
     return await db.select().from(ministryJoinRequests)
+      .where(eq(ministryJoinRequests.organizationId, organizationId))
       .orderBy(desc(ministryJoinRequests.createdAt));
   }
 
-  async getMinistryJoinRequest(id: string): Promise<MinistryJoinRequest | undefined> {
+  async getMinistryJoinRequest(id: string, organizationId: string): Promise<MinistryJoinRequest | undefined> {
     const [request] = await db.select().from(ministryJoinRequests)
-      .where(eq(ministryJoinRequests.id, id));
+      .where(and(eq(ministryJoinRequests.id, id), eq(ministryJoinRequests.organizationId, organizationId)));
     return request;
   }
 
@@ -2336,10 +2347,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(ministryJoinRequests.createdAt));
   }
 
-  async getMinistryPendingRequests(ministryId: string): Promise<MinistryJoinRequest[]> {
+  async getMinistryPendingRequests(ministryId: string, organizationId: string): Promise<MinistryJoinRequest[]> {
     return await db.select().from(ministryJoinRequests)
       .where(and(
         eq(ministryJoinRequests.ministryId, ministryId),
+        eq(ministryJoinRequests.organizationId, organizationId),
         eq(ministryJoinRequests.status, 'pending')
       ))
       .orderBy(desc(ministryJoinRequests.createdAt));
@@ -2350,10 +2362,10 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
-  async updateMinistryJoinRequest(id: string, data: Partial<InsertMinistryJoinRequest>): Promise<MinistryJoinRequest> {
+  async updateMinistryJoinRequest(id: string, organizationId: string, data: Partial<InsertMinistryJoinRequest>): Promise<MinistryJoinRequest> {
     const [request] = await db.update(ministryJoinRequests)
       .set(data)
-      .where(eq(ministryJoinRequests.id, id))
+      .where(and(eq(ministryJoinRequests.id, id), eq(ministryJoinRequests.organizationId, organizationId)))
       .returning();
     return request;
   }
@@ -2537,13 +2549,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(servingRecords.serviceDate));
   }
 
-  async getServingRecordsByMinistry(ministryId: string, daysBack: number = 90): Promise<ServingRecord[]> {
+  async getServingRecordsByMinistry(ministryId: string, organizationId: string, daysBack: number = 90): Promise<ServingRecord[]> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-    
+
     return await db.select().from(servingRecords)
       .where(and(
         eq(servingRecords.ministryId, ministryId),
+        eq(servingRecords.organizationId, organizationId),
         gte(servingRecords.serviceDate, cutoffDate)
       ))
       .orderBy(desc(servingRecords.serviceDate));
@@ -2554,16 +2567,16 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
-  async updateServingRecord(id: string, data: Partial<InsertServingRecord>): Promise<ServingRecord> {
+  async updateServingRecord(id: string, organizationId: string, data: Partial<InsertServingRecord>): Promise<ServingRecord> {
     const [record] = await db.update(servingRecords)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(servingRecords.id, id))
+      .where(and(eq(servingRecords.id, id), eq(servingRecords.organizationId, organizationId)))
       .returning();
     return record;
   }
 
-  async deleteServingRecord(id: string): Promise<void> {
-    await db.delete(servingRecords).where(eq(servingRecords.id, id));
+  async deleteServingRecord(id: string, organizationId: string): Promise<void> {
+    await db.delete(servingRecords).where(and(eq(servingRecords.id, id), eq(servingRecords.organizationId, organizationId)));
   }
 
   async getServingMetrics(userId: string, daysBack: number = 90): Promise<{
@@ -2631,16 +2644,16 @@ export class DatabaseStorage implements IStorage {
     return note;
   }
 
-  async updateLeaderNote(id: string, data: Partial<InsertLeaderNote>): Promise<LeaderNote> {
+  async updateLeaderNote(id: string, organizationId: string, data: Partial<InsertLeaderNote>): Promise<LeaderNote> {
     const [note] = await db.update(leaderNotes)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(leaderNotes.id, id))
+      .where(and(eq(leaderNotes.id, id), eq(leaderNotes.organizationId, organizationId)))
       .returning();
     return note;
   }
 
-  async deleteLeaderNote(id: string): Promise<void> {
-    await db.delete(leaderNotes).where(eq(leaderNotes.id, id));
+  async deleteLeaderNote(id: string, organizationId: string): Promise<void> {
+    await db.delete(leaderNotes).where(and(eq(leaderNotes.id, id), eq(leaderNotes.organizationId, organizationId)));
   }
 
   // ==========================================================================
