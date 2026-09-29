@@ -258,11 +258,11 @@ export interface IStorage {
   deleteServiceAssignmentsByUser(userId: string): Promise<void>;
   
   // Calendar events operations
-  getCalendarEvents(startDate: Date, endDate?: Date): Promise<CalendarEvent[]>;
-  getUserCalendarEvents(userId: string, startDate: Date): Promise<CalendarEvent[]>;
+  getCalendarEvents(organizationId: string, startDate: Date, endDate?: Date): Promise<CalendarEvent[]>;
+  getUserCalendarEvents(organizationId: string, userId: string, startDate: Date): Promise<CalendarEvent[]>;
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
-  updateCalendarEvent(id: string, event: Partial<InsertCalendarEvent>): Promise<CalendarEvent>;
-  deleteCalendarEvent(id: string): Promise<void>;
+  updateCalendarEvent(id: string, organizationId: string, event: Partial<InsertCalendarEvent>): Promise<CalendarEvent>;
+  deleteCalendarEvent(id: string, organizationId: string): Promise<void>;
   
   // Ministries operations
   getMinistries(organizationId: string): Promise<Ministry[]>;
@@ -321,35 +321,35 @@ export interface IStorage {
   awardXp(organizationId: string, userId: string, amount: number, sourceType: string, reason: string): Promise<XpLog>;  // Phase 3 convenience method
   
   // Rooms operations
-  getRooms(): Promise<Room[]>;
-  getRoom(id: string): Promise<Room | undefined>;
+  getRooms(organizationId: string): Promise<Room[]>;
+  getRoom(id: string, organizationId: string): Promise<Room | undefined>;
   createRoom(room: InsertRoom): Promise<Room>;
-  updateRoom(id: string, room: Partial<InsertRoom>): Promise<Room>;
-  deleteRoom(id: string): Promise<void>;
-  
+  updateRoom(id: string, organizationId: string, room: Partial<InsertRoom>): Promise<Room>;
+  deleteRoom(id: string, organizationId: string): Promise<void>;
+
   // Resources operations
-  getResources(): Promise<Resource[]>;
+  getResources(organizationId: string): Promise<Resource[]>;
   createResource(resource: InsertResource): Promise<Resource>;
-  updateResource(id: string, resource: Partial<InsertResource>): Promise<Resource>;
-  deleteResource(id: string): Promise<void>;
-  
+  updateResource(id: string, organizationId: string, resource: Partial<InsertResource>): Promise<Resource>;
+  deleteResource(id: string, organizationId: string): Promise<void>;
+
   // Room reservations operations
-  getRoomReservations(startDate: Date, endDate?: Date): Promise<RoomReservation[]>;
-  getRoomReservationsForConflictCheck(roomId: string, startTime: Date, endTime: Date): Promise<RoomReservation[]>;
-  getRoomReservationsByUser(userId: string): Promise<RoomReservation[]>;
-  getRoomReservation(id: string): Promise<RoomReservation | undefined>;
+  getRoomReservations(organizationId: string, startDate: Date, endDate?: Date): Promise<RoomReservation[]>;
+  getRoomReservationsForConflictCheck(organizationId: string, roomId: string, startTime: Date, endTime: Date): Promise<RoomReservation[]>;
+  getRoomReservationsByUser(organizationId: string, userId: string): Promise<RoomReservation[]>;
+  getRoomReservation(id: string, organizationId: string): Promise<RoomReservation | undefined>;
   createRoomReservation(reservation: InsertRoomReservation): Promise<RoomReservation>;
-  updateRoomReservation(id: string, reservation: Partial<InsertRoomReservation>): Promise<RoomReservation>;
-  
+  updateRoomReservation(id: string, organizationId: string, reservation: Partial<InsertRoomReservation>): Promise<RoomReservation>;
+
   // Attendance reports operations
-  getAttendanceReports(startDate: Date, endDate?: Date): Promise<AttendanceReport[]>;
+  getAttendanceReports(organizationId: string, startDate: Date, endDate?: Date): Promise<AttendanceReport[]>;
   createAttendanceReport(report: InsertAttendanceReport): Promise<AttendanceReport>;
-  
+
   // Weekly ministry metrics operations
-  getWeeklyMetrics(weekStartDate: Date, ministryIds?: string[]): Promise<WeeklyMinistryMetrics[]>;
-  getWeeklyMetricsByRange(startDate: Date, endDate: Date, ministryIds?: string[]): Promise<WeeklyMinistryMetrics[]>;
+  getWeeklyMetrics(organizationId: string, weekStartDate: Date, ministryIds?: string[]): Promise<WeeklyMinistryMetrics[]>;
+  getWeeklyMetricsByRange(organizationId: string, startDate: Date, endDate: Date, ministryIds?: string[]): Promise<WeeklyMinistryMetrics[]>;
   upsertWeeklyMetrics(metrics: InsertWeeklyMinistryMetrics): Promise<WeeklyMinistryMetrics>;
-  getWeeklyMetric(ministryId: string, weekStartDate: Date): Promise<WeeklyMinistryMetrics | undefined>;
+  getWeeklyMetric(organizationId: string, ministryId: string, weekStartDate: Date): Promise<WeeklyMinistryMetrics | undefined>;
   
   // Support requests operations
   getSupportRequests(status?: string): Promise<SupportRequest[]>;
@@ -366,25 +366,25 @@ export interface IStorage {
   createInternLog(log: InsertInternLog): Promise<InternLog>;
   
   // Meetings operations
-  getMeetings(startDate?: Date): Promise<Meeting[]>;
-  getMeeting(id: string): Promise<Meeting | undefined>;
+  getMeetings(organizationId: string, startDate?: Date): Promise<Meeting[]>;
+  getMeeting(id: string, organizationId: string): Promise<Meeting | undefined>;
   createMeeting(meeting: InsertMeeting): Promise<Meeting>;
-  updateMeeting(id: string, meeting: Partial<InsertMeeting>): Promise<Meeting>;
-  getMeetingNotes(meetingId: string): Promise<MeetingNotes | undefined>;
+  updateMeeting(id: string, organizationId: string, meeting: Partial<InsertMeeting>): Promise<Meeting>;
+  getMeetingNotes(organizationId: string, meetingId: string): Promise<MeetingNotes | undefined>;
   upsertMeetingNotes(notes: InsertMeetingNotes): Promise<MeetingNotes>;
   createMeetingFeedback(feedback: InsertMeetingFeedback): Promise<MeetingFeedback>;
-  
+
   // Phase 5: Meeting action items operations
-  getMeetingActionItems(meetingId: string): Promise<MeetingActionItem[]>;
-  getActionItemsByAssignee(userId: string): Promise<MeetingActionItem[]>;
+  getMeetingActionItems(organizationId: string, meetingId: string): Promise<MeetingActionItem[]>;
+  getActionItemsByAssignee(organizationId: string, userId: string): Promise<MeetingActionItem[]>;
   createMeetingActionItem(item: InsertMeetingActionItem): Promise<MeetingActionItem>;
-  updateMeetingActionItem(id: string, data: Partial<MeetingActionItem>): Promise<MeetingActionItem>;
-  deleteMeetingActionItem(id: string): Promise<void>;
-  
+  updateMeetingActionItem(id: string, organizationId: string, data: Partial<MeetingActionItem>): Promise<MeetingActionItem>;
+  deleteMeetingActionItem(id: string, organizationId: string): Promise<void>;
+
   // Phase 5: Meeting attendance operations
-  getMeetingAttendance(meetingId: string): Promise<MeetingAttendance[]>;
+  getMeetingAttendance(organizationId: string, meetingId: string): Promise<MeetingAttendance[]>;
   upsertMeetingAttendance(data: InsertMeetingAttendance): Promise<MeetingAttendance>;
-  updateMeetingAttendance(id: string, data: Partial<MeetingAttendance>): Promise<MeetingAttendance>;
+  updateMeetingAttendance(id: string, organizationId: string, data: Partial<MeetingAttendance>): Promise<MeetingAttendance>;
   
   // Background check operations
   getBackgroundCheck(userId: string): Promise<BackgroundCheck | undefined>;
@@ -407,10 +407,10 @@ export interface IStorage {
   getMinistryMemberCounts(): Promise<{ ministryId: string; count: number }[]>;
   
   // Messages operations
-  getMessages(userId: string): Promise<Message[]>;
-  getMessage(id: string): Promise<Message | undefined>;
+  getMessages(organizationId: string, userId: string): Promise<Message[]>;
+  getMessage(id: string, organizationId: string): Promise<Message | undefined>;
   createMessage(message: InsertMessage): Promise<Message>;
-  markMessageRead(id: string): Promise<void>;
+  markMessageRead(id: string, organizationId: string): Promise<void>;
   
   // Manuals operations
   getManuals(ministryId?: string): Promise<Manual[]>;
@@ -445,16 +445,16 @@ export interface IStorage {
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   
   // Recurring activities operations
-  getRecurringActivities(ministryId?: string): Promise<RecurringActivity[]>;
-  getRecurringActivity(id: string): Promise<RecurringActivity | undefined>;
+  getRecurringActivities(organizationId: string, ministryId?: string): Promise<RecurringActivity[]>;
+  getRecurringActivity(id: string, organizationId: string): Promise<RecurringActivity | undefined>;
   createRecurringActivity(activity: InsertRecurringActivity): Promise<RecurringActivity>;
-  updateRecurringActivity(id: string, activity: Partial<InsertRecurringActivity>): Promise<RecurringActivity>;
-  
+  updateRecurringActivity(id: string, organizationId: string, activity: Partial<InsertRecurringActivity>): Promise<RecurringActivity>;
+
   // Metrics submissions operations
-  getMetricsSubmissions(activityId?: string, status?: string): Promise<MetricsSubmission[]>;
-  getMetricsSubmission(id: string): Promise<MetricsSubmission | undefined>;
+  getMetricsSubmissions(organizationId: string, activityId?: string, status?: string): Promise<MetricsSubmission[]>;
+  getMetricsSubmission(id: string, organizationId: string): Promise<MetricsSubmission | undefined>;
   createMetricsSubmission(submission: InsertMetricsSubmission): Promise<MetricsSubmission>;
-  updateMetricsSubmission(id: string, submission: Partial<InsertMetricsSubmission>): Promise<MetricsSubmission>;
+  updateMetricsSubmission(id: string, organizationId: string, submission: Partial<InsertMetricsSubmission>): Promise<MetricsSubmission>;
   
   // Audit log operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
@@ -470,19 +470,19 @@ export interface IStorage {
   restoreMinistry(archiveId: string, restoredBy: string): Promise<void>;
   
   // Room layout operations
-  getRoomLayouts(roomId: string): Promise<RoomLayout[]>;
+  getRoomLayouts(organizationId: string, roomId: string): Promise<RoomLayout[]>;
   createRoomLayout(layout: InsertRoomLayout): Promise<RoomLayout>;
-  updateRoomLayout(id: string, layout: Partial<InsertRoomLayout>): Promise<RoomLayout>;
-  deleteRoomLayout(id: string): Promise<void>;
+  updateRoomLayout(id: string, organizationId: string, layout: Partial<InsertRoomLayout>): Promise<RoomLayout>;
+  deleteRoomLayout(id: string, organizationId: string): Promise<void>;
   
   // Archive room operation
   archiveRoom(roomId: string, archivedBy: string): Promise<Room>;
   
   // Notification operations
-  getNotifications(userId: string, unreadOnly?: boolean): Promise<Notification[]>;
+  getNotifications(organizationId: string, userId: string, unreadOnly?: boolean): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
-  markNotificationRead(id: string): Promise<void>;
-  markAllNotificationsRead(userId: string): Promise<void>;
+  markNotificationRead(id: string, organizationId: string): Promise<void>;
+  markAllNotificationsRead(organizationId: string, userId: string): Promise<void>;
   
   // Manual analysis operations
   getManualAnalysis(manualId: string): Promise<ManualAnalysis | undefined>;
@@ -902,12 +902,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Calendar events operations
-  async getCalendarEvents(startDate: Date, endDate?: Date): Promise<CalendarEvent[]> {
+  async getCalendarEvents(organizationId: string, startDate: Date, endDate?: Date): Promise<CalendarEvent[]> {
     if (endDate) {
       return await db
         .select()
         .from(calendarEvents)
         .where(and(
+          eq(calendarEvents.organizationId, organizationId),
           gte(calendarEvents.startDate, startDate),
           lte(calendarEvents.startDate, endDate)
         ))
@@ -916,15 +917,19 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(calendarEvents)
-      .where(gte(calendarEvents.startDate, startDate))
+      .where(and(
+        eq(calendarEvents.organizationId, organizationId),
+        gte(calendarEvents.startDate, startDate)
+      ))
       .orderBy(calendarEvents.startDate);
   }
 
-  async getUserCalendarEvents(userId: string, startDate: Date): Promise<CalendarEvent[]> {
+  async getUserCalendarEvents(organizationId: string, userId: string, startDate: Date): Promise<CalendarEvent[]> {
     return await db
       .select()
       .from(calendarEvents)
       .where(and(
+        eq(calendarEvents.organizationId, organizationId),
         eq(calendarEvents.createdBy, userId),
         gte(calendarEvents.startDate, startDate)
       ))
@@ -939,22 +944,22 @@ export class DatabaseStorage implements IStorage {
     return event;
   }
 
-  async updateCalendarEvent(id: string, eventData: Partial<InsertCalendarEvent>): Promise<CalendarEvent> {
+  async updateCalendarEvent(id: string, organizationId: string, eventData: Partial<InsertCalendarEvent>): Promise<CalendarEvent> {
     const [event] = await db
       .update(calendarEvents)
       .set({
         ...eventData,
         updatedAt: new Date(),
       })
-      .where(eq(calendarEvents.id, id))
+      .where(and(eq(calendarEvents.id, id), eq(calendarEvents.organizationId, organizationId)))
       .returning();
     return event;
   }
 
-  async deleteCalendarEvent(id: string): Promise<void> {
+  async deleteCalendarEvent(id: string, organizationId: string): Promise<void> {
     await db
       .delete(calendarEvents)
-      .where(eq(calendarEvents.id, id));
+      .where(and(eq(calendarEvents.id, id), eq(calendarEvents.organizationId, organizationId)));
   }
 
   // Ministries operations
@@ -1225,12 +1230,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Rooms operations
-  async getRooms(): Promise<Room[]> {
-    return await db.select().from(rooms).where(eq(rooms.isActive, true));
+  async getRooms(organizationId: string): Promise<Room[]> {
+    return await db.select().from(rooms).where(and(eq(rooms.organizationId, organizationId), eq(rooms.isActive, true)));
   }
 
-  async getRoom(id: string): Promise<Room | undefined> {
-    const [room] = await db.select().from(rooms).where(eq(rooms.id, id));
+  async getRoom(id: string, organizationId: string): Promise<Room | undefined> {
+    const [room] = await db.select().from(rooms).where(and(eq(rooms.id, id), eq(rooms.organizationId, organizationId)));
     return room;
   }
 
@@ -1239,20 +1244,20 @@ export class DatabaseStorage implements IStorage {
     return room;
   }
 
-  async updateRoom(id: string, data: Partial<InsertRoom>): Promise<Room> {
+  async updateRoom(id: string, organizationId: string, data: Partial<InsertRoom>): Promise<Room> {
     const [room] = await db.update(rooms).set({ ...data, updatedAt: new Date() })
-      .where(eq(rooms.id, id)).returning();
+      .where(and(eq(rooms.id, id), eq(rooms.organizationId, organizationId))).returning();
     return room;
   }
 
-  async deleteRoom(id: string): Promise<void> {
+  async deleteRoom(id: string, organizationId: string): Promise<void> {
     await db.update(rooms).set({ isActive: false, updatedAt: new Date() })
-      .where(eq(rooms.id, id));
+      .where(and(eq(rooms.id, id), eq(rooms.organizationId, organizationId)));
   }
 
   // Resources operations
-  async getResources(): Promise<Resource[]> {
-    return await db.select().from(resources).where(eq(resources.isActive, true));
+  async getResources(organizationId: string): Promise<Resource[]> {
+    return await db.select().from(resources).where(and(eq(resources.organizationId, organizationId), eq(resources.isActive, true)));
   }
 
   async createResource(data: InsertResource): Promise<Resource> {
@@ -1260,33 +1265,39 @@ export class DatabaseStorage implements IStorage {
     return resource;
   }
 
-  async updateResource(id: string, data: Partial<InsertResource>): Promise<Resource> {
+  async updateResource(id: string, organizationId: string, data: Partial<InsertResource>): Promise<Resource> {
     const [resource] = await db.update(resources).set({ ...data, updatedAt: new Date() })
-      .where(eq(resources.id, id)).returning();
+      .where(and(eq(resources.id, id), eq(resources.organizationId, organizationId))).returning();
     return resource;
   }
 
-  async deleteResource(id: string): Promise<void> {
+  async deleteResource(id: string, organizationId: string): Promise<void> {
     await db.update(resources).set({ isActive: false, updatedAt: new Date() })
-      .where(eq(resources.id, id));
+      .where(and(eq(resources.id, id), eq(resources.organizationId, organizationId)));
   }
 
   // Room reservations operations
-  async getRoomReservations(startDate: Date, endDate?: Date): Promise<RoomReservation[]> {
+  async getRoomReservations(organizationId: string, startDate: Date, endDate?: Date): Promise<RoomReservation[]> {
     if (endDate) {
       return await db.select().from(roomReservations)
-        .where(and(gte(roomReservations.startTime, startDate), lte(roomReservations.startTime, endDate)))
+        .where(and(
+          eq(roomReservations.organizationId, organizationId),
+          gte(roomReservations.startTime, startDate),
+          lte(roomReservations.startTime, endDate)
+        ))
         .orderBy(roomReservations.startTime);
     }
     return await db.select().from(roomReservations)
-      .where(gte(roomReservations.startTime, startDate)).orderBy(roomReservations.startTime);
+      .where(and(eq(roomReservations.organizationId, organizationId), gte(roomReservations.startTime, startDate)))
+      .orderBy(roomReservations.startTime);
   }
 
   // Get room reservations that overlap with a given time range (for conflict detection)
   // Overlap occurs when: existingStart < newEnd AND existingEnd > newStart
-  async getRoomReservationsForConflictCheck(roomId: string, startTime: Date, endTime: Date): Promise<RoomReservation[]> {
+  async getRoomReservationsForConflictCheck(organizationId: string, roomId: string, startTime: Date, endTime: Date): Promise<RoomReservation[]> {
     return await db.select().from(roomReservations)
       .where(and(
+        eq(roomReservations.organizationId, organizationId),
         eq(roomReservations.roomId, roomId),
         // Filter for overlap: existingStart < newEnd AND existingEnd > newStart
         lt(roomReservations.startTime, endTime),
@@ -1295,15 +1306,15 @@ export class DatabaseStorage implements IStorage {
       .orderBy(roomReservations.startTime);
   }
 
-  async getRoomReservationsByUser(userId: string): Promise<RoomReservation[]> {
+  async getRoomReservationsByUser(organizationId: string, userId: string): Promise<RoomReservation[]> {
     return await db.select().from(roomReservations)
-      .where(eq(roomReservations.requestedBy, userId))
+      .where(and(eq(roomReservations.organizationId, organizationId), eq(roomReservations.requestedBy, userId)))
       .orderBy(desc(roomReservations.createdAt));
   }
 
-  async getRoomReservation(id: string): Promise<RoomReservation | undefined> {
+  async getRoomReservation(id: string, organizationId: string): Promise<RoomReservation | undefined> {
     const [reservation] = await db.select().from(roomReservations)
-      .where(eq(roomReservations.id, id));
+      .where(and(eq(roomReservations.id, id), eq(roomReservations.organizationId, organizationId)));
     return reservation;
   }
 
@@ -1312,21 +1323,27 @@ export class DatabaseStorage implements IStorage {
     return reservation;
   }
 
-  async updateRoomReservation(id: string, data: Partial<InsertRoomReservation>): Promise<RoomReservation> {
+  async updateRoomReservation(id: string, organizationId: string, data: Partial<InsertRoomReservation>): Promise<RoomReservation> {
     const [reservation] = await db.update(roomReservations)
-      .set({ ...data, updatedAt: new Date() }).where(eq(roomReservations.id, id)).returning();
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(roomReservations.id, id), eq(roomReservations.organizationId, organizationId))).returning();
     return reservation;
   }
 
   // Attendance reports operations
-  async getAttendanceReports(startDate: Date, endDate?: Date): Promise<AttendanceReport[]> {
+  async getAttendanceReports(organizationId: string, startDate: Date, endDate?: Date): Promise<AttendanceReport[]> {
     if (endDate) {
       return await db.select().from(attendanceReports)
-        .where(and(gte(attendanceReports.eventDate, startDate), lte(attendanceReports.eventDate, endDate)))
+        .where(and(
+          eq(attendanceReports.organizationId, organizationId),
+          gte(attendanceReports.eventDate, startDate),
+          lte(attendanceReports.eventDate, endDate)
+        ))
         .orderBy(desc(attendanceReports.eventDate));
     }
     return await db.select().from(attendanceReports)
-      .where(gte(attendanceReports.eventDate, startDate)).orderBy(desc(attendanceReports.eventDate));
+      .where(and(eq(attendanceReports.organizationId, organizationId), gte(attendanceReports.eventDate, startDate)))
+      .orderBy(desc(attendanceReports.eventDate));
   }
 
   async createAttendanceReport(data: InsertAttendanceReport): Promise<AttendanceReport> {
@@ -1335,22 +1352,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Weekly ministry metrics operations
-  async getWeeklyMetrics(weekStartDate: Date, ministryIds?: string[]): Promise<WeeklyMinistryMetrics[]> {
+  async getWeeklyMetrics(organizationId: string, weekStartDate: Date, ministryIds?: string[]): Promise<WeeklyMinistryMetrics[]> {
     if (ministryIds && ministryIds.length > 0) {
       return await db.select().from(weeklyMinistryMetrics)
         .where(and(
+          eq(weeklyMinistryMetrics.organizationId, organizationId),
           eq(weeklyMinistryMetrics.weekStartDate, weekStartDate),
           sql`${weeklyMinistryMetrics.ministryId} = ANY(${ministryIds})`
         ))
         .orderBy(desc(weeklyMinistryMetrics.submittedAt));
     }
     return await db.select().from(weeklyMinistryMetrics)
-      .where(eq(weeklyMinistryMetrics.weekStartDate, weekStartDate))
+      .where(and(eq(weeklyMinistryMetrics.organizationId, organizationId), eq(weeklyMinistryMetrics.weekStartDate, weekStartDate)))
       .orderBy(desc(weeklyMinistryMetrics.submittedAt));
   }
 
-  async getWeeklyMetricsByRange(startDate: Date, endDate: Date, ministryIds?: string[]): Promise<WeeklyMinistryMetrics[]> {
+  async getWeeklyMetricsByRange(organizationId: string, startDate: Date, endDate: Date, ministryIds?: string[]): Promise<WeeklyMinistryMetrics[]> {
     const conditions = [
+      eq(weeklyMinistryMetrics.organizationId, organizationId),
       gte(weeklyMinistryMetrics.weekStartDate, startDate),
       lte(weeklyMinistryMetrics.weekStartDate, endDate)
     ];
@@ -1363,7 +1382,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertWeeklyMetrics(data: InsertWeeklyMinistryMetrics): Promise<WeeklyMinistryMetrics> {
-    const existing = await this.getWeeklyMetric(data.ministryId, data.weekStartDate);
+    const existing = await this.getWeeklyMetric(data.organizationId, data.ministryId, data.weekStartDate);
     if (existing) {
       const [updated] = await db.update(weeklyMinistryMetrics)
         .set({ ...data, updatedAt: new Date() })
@@ -1375,9 +1394,10 @@ export class DatabaseStorage implements IStorage {
     return inserted;
   }
 
-  async getWeeklyMetric(ministryId: string, weekStartDate: Date): Promise<WeeklyMinistryMetrics | undefined> {
+  async getWeeklyMetric(organizationId: string, ministryId: string, weekStartDate: Date): Promise<WeeklyMinistryMetrics | undefined> {
     const [metric] = await db.select().from(weeklyMinistryMetrics)
       .where(and(
+        eq(weeklyMinistryMetrics.organizationId, organizationId),
         eq(weeklyMinistryMetrics.ministryId, ministryId),
         eq(weeklyMinistryMetrics.weekStartDate, weekStartDate)
       ));
@@ -1442,16 +1462,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Meetings operations
-  async getMeetings(startDate?: Date): Promise<Meeting[]> {
+  async getMeetings(organizationId: string, startDate?: Date): Promise<Meeting[]> {
     if (startDate) {
       return await db.select().from(meetings)
-        .where(gte(meetings.scheduledDate, startDate)).orderBy(meetings.scheduledDate);
+        .where(and(eq(meetings.organizationId, organizationId), gte(meetings.scheduledDate, startDate)))
+        .orderBy(meetings.scheduledDate);
     }
-    return await db.select().from(meetings).orderBy(desc(meetings.scheduledDate));
+    return await db.select().from(meetings)
+      .where(eq(meetings.organizationId, organizationId))
+      .orderBy(desc(meetings.scheduledDate));
   }
 
-  async getMeeting(id: string): Promise<Meeting | undefined> {
-    const [meeting] = await db.select().from(meetings).where(eq(meetings.id, id));
+  async getMeeting(id: string, organizationId: string): Promise<Meeting | undefined> {
+    const [meeting] = await db.select().from(meetings)
+      .where(and(eq(meetings.id, id), eq(meetings.organizationId, organizationId)));
     return meeting;
   }
 
@@ -1460,20 +1484,20 @@ export class DatabaseStorage implements IStorage {
     return meeting;
   }
 
-  async updateMeeting(id: string, data: Partial<InsertMeeting>): Promise<Meeting> {
+  async updateMeeting(id: string, organizationId: string, data: Partial<InsertMeeting>): Promise<Meeting> {
     const [meeting] = await db.update(meetings).set({ ...data, updatedAt: new Date() })
-      .where(eq(meetings.id, id)).returning();
+      .where(and(eq(meetings.id, id), eq(meetings.organizationId, organizationId))).returning();
     return meeting;
   }
 
-  async getMeetingNotes(meetingId: string): Promise<MeetingNotes | undefined> {
+  async getMeetingNotes(organizationId: string, meetingId: string): Promise<MeetingNotes | undefined> {
     const [notes] = await db.select().from(meetingNotes)
-      .where(eq(meetingNotes.meetingId, meetingId));
+      .where(and(eq(meetingNotes.organizationId, organizationId), eq(meetingNotes.meetingId, meetingId)));
     return notes;
   }
 
   async upsertMeetingNotes(data: InsertMeetingNotes): Promise<MeetingNotes> {
-    const existing = await this.getMeetingNotes(data.meetingId);
+    const existing = await this.getMeetingNotes(data.organizationId, data.meetingId);
     if (existing) {
       const [notes] = await db.update(meetingNotes).set({ ...data, updatedAt: new Date() })
         .where(eq(meetingNotes.meetingId, data.meetingId)).returning();
@@ -1489,15 +1513,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Phase 5: Meeting action items operations
-  async getMeetingActionItems(meetingId: string): Promise<MeetingActionItem[]> {
+  async getMeetingActionItems(organizationId: string, meetingId: string): Promise<MeetingActionItem[]> {
     return await db.select().from(meetingActionItems)
-      .where(eq(meetingActionItems.meetingId, meetingId))
+      .where(and(eq(meetingActionItems.organizationId, organizationId), eq(meetingActionItems.meetingId, meetingId)))
       .orderBy(meetingActionItems.createdAt);
   }
 
-  async getActionItemsByAssignee(userId: string): Promise<MeetingActionItem[]> {
+  async getActionItemsByAssignee(organizationId: string, userId: string): Promise<MeetingActionItem[]> {
     return await db.select().from(meetingActionItems)
-      .where(eq(meetingActionItems.assigneeId, userId))
+      .where(and(eq(meetingActionItems.organizationId, organizationId), eq(meetingActionItems.assigneeId, userId)))
       .orderBy(desc(meetingActionItems.createdAt));
   }
 
@@ -1506,26 +1530,28 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async updateMeetingActionItem(id: string, data: Partial<MeetingActionItem>): Promise<MeetingActionItem> {
+  async updateMeetingActionItem(id: string, organizationId: string, data: Partial<MeetingActionItem>): Promise<MeetingActionItem> {
     const [item] = await db.update(meetingActionItems)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(meetingActionItems.id, id)).returning();
+      .where(and(eq(meetingActionItems.id, id), eq(meetingActionItems.organizationId, organizationId))).returning();
     return item;
   }
 
-  async deleteMeetingActionItem(id: string): Promise<void> {
-    await db.delete(meetingActionItems).where(eq(meetingActionItems.id, id));
+  async deleteMeetingActionItem(id: string, organizationId: string): Promise<void> {
+    await db.delete(meetingActionItems)
+      .where(and(eq(meetingActionItems.id, id), eq(meetingActionItems.organizationId, organizationId)));
   }
 
   // Phase 5: Meeting attendance operations
-  async getMeetingAttendance(meetingId: string): Promise<MeetingAttendance[]> {
+  async getMeetingAttendance(organizationId: string, meetingId: string): Promise<MeetingAttendance[]> {
     return await db.select().from(meetingAttendance)
-      .where(eq(meetingAttendance.meetingId, meetingId));
+      .where(and(eq(meetingAttendance.organizationId, organizationId), eq(meetingAttendance.meetingId, meetingId)));
   }
 
   async upsertMeetingAttendance(data: InsertMeetingAttendance): Promise<MeetingAttendance> {
     const [existing] = await db.select().from(meetingAttendance)
       .where(and(
+        eq(meetingAttendance.organizationId, data.organizationId),
         eq(meetingAttendance.meetingId, data.meetingId),
         eq(meetingAttendance.userId, data.userId)
       ));
@@ -1539,10 +1565,10 @@ export class DatabaseStorage implements IStorage {
     return attendance;
   }
 
-  async updateMeetingAttendance(id: string, data: Partial<MeetingAttendance>): Promise<MeetingAttendance> {
+  async updateMeetingAttendance(id: string, organizationId: string, data: Partial<MeetingAttendance>): Promise<MeetingAttendance> {
     const [attendance] = await db.update(meetingAttendance)
       .set(data)
-      .where(eq(meetingAttendance.id, id)).returning();
+      .where(and(eq(meetingAttendance.id, id), eq(meetingAttendance.organizationId, organizationId))).returning();
     return attendance;
   }
 
@@ -1637,14 +1663,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Messages operations
-  async getMessages(userId: string): Promise<Message[]> {
+  async getMessages(organizationId: string, userId: string): Promise<Message[]> {
     return await db.select().from(messages)
-      .where(sql`${messages.recipientId} = ${userId} OR ${messages.senderId} = ${userId}`)
+      .where(and(
+        eq(messages.organizationId, organizationId),
+        sql`(${messages.recipientId} = ${userId} OR ${messages.senderId} = ${userId})`
+      ))
       .orderBy(desc(messages.createdAt));
   }
 
-  async getMessage(id: string): Promise<Message | undefined> {
-    const [message] = await db.select().from(messages).where(eq(messages.id, id));
+  async getMessage(id: string, organizationId: string): Promise<Message | undefined> {
+    const [message] = await db.select().from(messages)
+      .where(and(eq(messages.id, id), eq(messages.organizationId, organizationId)));
     return message;
   }
 
@@ -1653,8 +1683,9 @@ export class DatabaseStorage implements IStorage {
     return message;
   }
 
-  async markMessageRead(id: string): Promise<void> {
-    await db.update(messages).set({ isRead: true }).where(eq(messages.id, id));
+  async markMessageRead(id: string, organizationId: string): Promise<void> {
+    await db.update(messages).set({ isRead: true })
+      .where(and(eq(messages.id, id), eq(messages.organizationId, organizationId)));
   }
 
   // Manuals operations
@@ -1839,18 +1870,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Recurring activities operations
-  async getRecurringActivities(ministryId?: string): Promise<RecurringActivity[]> {
+  async getRecurringActivities(organizationId: string, ministryId?: string): Promise<RecurringActivity[]> {
     if (ministryId) {
       return await db.select().from(recurringActivities)
-        .where(and(eq(recurringActivities.isActive, true), eq(recurringActivities.ministryId, ministryId)));
+        .where(and(
+          eq(recurringActivities.organizationId, organizationId),
+          eq(recurringActivities.isActive, true),
+          eq(recurringActivities.ministryId, ministryId)
+        ));
     }
     return await db.select().from(recurringActivities)
-      .where(eq(recurringActivities.isActive, true));
+      .where(and(eq(recurringActivities.organizationId, organizationId), eq(recurringActivities.isActive, true)));
   }
 
-  async getRecurringActivity(id: string): Promise<RecurringActivity | undefined> {
+  async getRecurringActivity(id: string, organizationId: string): Promise<RecurringActivity | undefined> {
     const [activity] = await db.select().from(recurringActivities)
-      .where(eq(recurringActivities.id, id));
+      .where(and(eq(recurringActivities.id, id), eq(recurringActivities.organizationId, organizationId)));
     return activity;
   }
 
@@ -1859,38 +1894,31 @@ export class DatabaseStorage implements IStorage {
     return activity;
   }
 
-  async updateRecurringActivity(id: string, data: Partial<InsertRecurringActivity>): Promise<RecurringActivity> {
+  async updateRecurringActivity(id: string, organizationId: string, data: Partial<InsertRecurringActivity>): Promise<RecurringActivity> {
     const [activity] = await db.update(recurringActivities)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(recurringActivities.id, id))
+      .where(and(eq(recurringActivities.id, id), eq(recurringActivities.organizationId, organizationId)))
       .returning();
     return activity;
   }
 
   // Metrics submissions operations
-  async getMetricsSubmissions(activityId?: string, status?: string): Promise<MetricsSubmission[]> {
-    if (activityId && status) {
-      return await db.select().from(metricsSubmissions)
-        .where(and(eq(metricsSubmissions.activityId, activityId), eq(metricsSubmissions.status, status)))
-        .orderBy(desc(metricsSubmissions.eventDate));
-    }
+  async getMetricsSubmissions(organizationId: string, activityId?: string, status?: string): Promise<MetricsSubmission[]> {
+    const conditions = [eq(metricsSubmissions.organizationId, organizationId)];
     if (activityId) {
-      return await db.select().from(metricsSubmissions)
-        .where(eq(metricsSubmissions.activityId, activityId))
-        .orderBy(desc(metricsSubmissions.eventDate));
+      conditions.push(eq(metricsSubmissions.activityId, activityId));
     }
     if (status) {
-      return await db.select().from(metricsSubmissions)
-        .where(eq(metricsSubmissions.status, status))
-        .orderBy(desc(metricsSubmissions.eventDate));
+      conditions.push(eq(metricsSubmissions.status, status));
     }
     return await db.select().from(metricsSubmissions)
+      .where(and(...conditions))
       .orderBy(desc(metricsSubmissions.eventDate));
   }
 
-  async getMetricsSubmission(id: string): Promise<MetricsSubmission | undefined> {
+  async getMetricsSubmission(id: string, organizationId: string): Promise<MetricsSubmission | undefined> {
     const [submission] = await db.select().from(metricsSubmissions)
-      .where(eq(metricsSubmissions.id, id));
+      .where(and(eq(metricsSubmissions.id, id), eq(metricsSubmissions.organizationId, organizationId)));
     return submission;
   }
 
@@ -1899,10 +1927,10 @@ export class DatabaseStorage implements IStorage {
     return submission;
   }
 
-  async updateMetricsSubmission(id: string, data: Partial<InsertMetricsSubmission>): Promise<MetricsSubmission> {
+  async updateMetricsSubmission(id: string, organizationId: string, data: Partial<InsertMetricsSubmission>): Promise<MetricsSubmission> {
     const [submission] = await db.update(metricsSubmissions)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(metricsSubmissions.id, id))
+      .where(and(eq(metricsSubmissions.id, id), eq(metricsSubmissions.organizationId, organizationId)))
       .returning();
     return submission;
   }
@@ -2053,9 +2081,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Room layout operations
-  async getRoomLayouts(roomId: string): Promise<RoomLayout[]> {
+  async getRoomLayouts(organizationId: string, roomId: string): Promise<RoomLayout[]> {
     return await db.select().from(roomLayouts)
-      .where(eq(roomLayouts.roomId, roomId));
+      .where(and(eq(roomLayouts.organizationId, organizationId), eq(roomLayouts.roomId, roomId)));
   }
 
   async createRoomLayout(data: InsertRoomLayout): Promise<RoomLayout> {
@@ -2063,16 +2091,16 @@ export class DatabaseStorage implements IStorage {
     return layout;
   }
 
-  async updateRoomLayout(id: string, data: Partial<InsertRoomLayout>): Promise<RoomLayout> {
+  async updateRoomLayout(id: string, organizationId: string, data: Partial<InsertRoomLayout>): Promise<RoomLayout> {
     const [layout] = await db.update(roomLayouts)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(roomLayouts.id, id))
+      .where(and(eq(roomLayouts.id, id), eq(roomLayouts.organizationId, organizationId)))
       .returning();
     return layout;
   }
 
-  async deleteRoomLayout(id: string): Promise<void> {
-    await db.delete(roomLayouts).where(eq(roomLayouts.id, id));
+  async deleteRoomLayout(id: string, organizationId: string): Promise<void> {
+    await db.delete(roomLayouts).where(and(eq(roomLayouts.id, id), eq(roomLayouts.organizationId, organizationId)));
   }
 
   // Archive room operation
@@ -2097,14 +2125,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Notification operations
-  async getNotifications(userId: string, unreadOnly?: boolean): Promise<Notification[]> {
+  async getNotifications(organizationId: string, userId: string, unreadOnly?: boolean): Promise<Notification[]> {
     if (unreadOnly) {
       return await db.select().from(notifications)
-        .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
+        .where(and(
+          eq(notifications.organizationId, organizationId),
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, false)
+        ))
         .orderBy(desc(notifications.createdAt));
     }
     return await db.select().from(notifications)
-      .where(eq(notifications.userId, userId))
+      .where(and(eq(notifications.organizationId, organizationId), eq(notifications.userId, userId)))
       .orderBy(desc(notifications.createdAt));
   }
 
@@ -2113,16 +2145,20 @@ export class DatabaseStorage implements IStorage {
     return notification;
   }
 
-  async markNotificationRead(id: string): Promise<void> {
+  async markNotificationRead(id: string, organizationId: string): Promise<void> {
     await db.update(notifications)
       .set({ isRead: true, readAt: new Date() })
-      .where(eq(notifications.id, id));
+      .where(and(eq(notifications.id, id), eq(notifications.organizationId, organizationId)));
   }
 
-  async markAllNotificationsRead(userId: string): Promise<void> {
+  async markAllNotificationsRead(organizationId: string, userId: string): Promise<void> {
     await db.update(notifications)
       .set({ isRead: true, readAt: new Date() })
-      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+      .where(and(
+        eq(notifications.organizationId, organizationId),
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
   }
 
   // Manual analysis operations
@@ -2386,24 +2422,27 @@ export class DatabaseStorage implements IStorage {
   // WORKBOARD OPERATIONS
   // ==========================================================================
 
-  async getWorkboards(filters?: { ministryId?: string; createdBy?: string; status?: string }): Promise<Workboard[]> {
-    let query = db.select().from(workboards);
-    
+  async getWorkboards(organizationId: string, filters?: { ministryId?: string; createdBy?: string; status?: string }): Promise<Workboard[]> {
+    const conditions = [eq(workboards.organizationId, organizationId)];
+
     if (filters?.ministryId) {
-      query = query.where(eq(workboards.ministryId, filters.ministryId)) as typeof query;
+      conditions.push(eq(workboards.ministryId, filters.ministryId));
     }
     if (filters?.createdBy) {
-      query = query.where(eq(workboards.createdBy, filters.createdBy)) as typeof query;
+      conditions.push(eq(workboards.createdBy, filters.createdBy));
     }
     if (filters?.status) {
-      query = query.where(eq(workboards.status, filters.status)) as typeof query;
+      conditions.push(eq(workboards.status, filters.status));
     }
-    
-    return await query.orderBy(desc(workboards.updatedAt));
+
+    return await db.select().from(workboards)
+      .where(and(...conditions))
+      .orderBy(desc(workboards.updatedAt));
   }
 
-  async getWorkboard(id: string): Promise<Workboard | undefined> {
-    const [workboard] = await db.select().from(workboards).where(eq(workboards.id, id));
+  async getWorkboard(id: string, organizationId: string): Promise<Workboard | undefined> {
+    const [workboard] = await db.select().from(workboards)
+      .where(and(eq(workboards.id, id), eq(workboards.organizationId, organizationId)));
     return workboard;
   }
 
@@ -2412,30 +2451,31 @@ export class DatabaseStorage implements IStorage {
     return workboard;
   }
 
-  async updateWorkboard(id: string, data: Partial<InsertWorkboard>): Promise<Workboard> {
+  async updateWorkboard(id: string, organizationId: string, data: Partial<InsertWorkboard>): Promise<Workboard> {
     const [workboard] = await db.update(workboards)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(workboards.id, id))
+      .where(and(eq(workboards.id, id), eq(workboards.organizationId, organizationId)))
       .returning();
     return workboard;
   }
 
-  async deleteWorkboard(id: string): Promise<void> {
-    await db.delete(workboards).where(eq(workboards.id, id));
+  async deleteWorkboard(id: string, organizationId: string): Promise<void> {
+    await db.delete(workboards).where(and(eq(workboards.id, id), eq(workboards.organizationId, organizationId)));
   }
 
   // ==========================================================================
   // ACTION ITEM OPERATIONS
   // ==========================================================================
 
-  async getActionItems(workboardId: string): Promise<ActionItem[]> {
+  async getActionItems(organizationId: string, workboardId: string): Promise<ActionItem[]> {
     return await db.select().from(actionItems)
-      .where(eq(actionItems.workboardId, workboardId))
+      .where(and(eq(actionItems.organizationId, organizationId), eq(actionItems.workboardId, workboardId)))
       .orderBy(actionItems.sortOrder);
   }
 
-  async getActionItem(id: string): Promise<ActionItem | undefined> {
-    const [item] = await db.select().from(actionItems).where(eq(actionItems.id, id));
+  async getActionItem(id: string, organizationId: string): Promise<ActionItem | undefined> {
+    const [item] = await db.select().from(actionItems)
+      .where(and(eq(actionItems.id, id), eq(actionItems.organizationId, organizationId)));
     return item;
   }
 
@@ -2444,26 +2484,26 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async updateActionItem(id: string, data: Partial<InsertActionItem>): Promise<ActionItem> {
+  async updateActionItem(id: string, organizationId: string, data: Partial<InsertActionItem>): Promise<ActionItem> {
     const [item] = await db.update(actionItems)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(actionItems.id, id))
+      .where(and(eq(actionItems.id, id), eq(actionItems.organizationId, organizationId)))
       .returning();
     return item;
   }
 
-  async deleteActionItem(id: string): Promise<void> {
-    await db.delete(actionItemComments).where(eq(actionItemComments.actionItemId, id));
-    await db.delete(actionItems).where(eq(actionItems.id, id));
+  async deleteActionItem(id: string, organizationId: string): Promise<void> {
+    await db.delete(actionItemComments).where(and(eq(actionItemComments.actionItemId, id), eq(actionItemComments.organizationId, organizationId)));
+    await db.delete(actionItems).where(and(eq(actionItems.id, id), eq(actionItems.organizationId, organizationId)));
   }
 
   // ==========================================================================
   // ACTION ITEM COMMENTS
   // ==========================================================================
 
-  async getActionItemComments(actionItemId: string): Promise<ActionItemComment[]> {
+  async getActionItemComments(organizationId: string, actionItemId: string): Promise<ActionItemComment[]> {
     return await db.select().from(actionItemComments)
-      .where(eq(actionItemComments.actionItemId, actionItemId))
+      .where(and(eq(actionItemComments.organizationId, organizationId), eq(actionItemComments.actionItemId, actionItemId)))
       .orderBy(actionItemComments.createdAt);
   }
 
@@ -2472,8 +2512,8 @@ export class DatabaseStorage implements IStorage {
     return comment;
   }
 
-  async deleteActionItemComment(id: string): Promise<void> {
-    await db.delete(actionItemComments).where(eq(actionItemComments.id, id));
+  async deleteActionItemComment(id: string, organizationId: string): Promise<void> {
+    await db.delete(actionItemComments).where(and(eq(actionItemComments.id, id), eq(actionItemComments.organizationId, organizationId)));
   }
 
   // ==========================================================================

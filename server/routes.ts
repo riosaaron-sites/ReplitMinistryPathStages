@@ -3746,7 +3746,7 @@ export async function registerRoutes(
       const startDate = start ? new Date(start as string) : new Date();
       const endDate = end ? new Date(end as string) : undefined;
       
-      const events = await storage.getCalendarEvents(startDate, endDate);
+      const events = await storage.getCalendarEvents(req.organizationId, startDate, endDate);
       res.json(events);
     } catch (error) {
       console.error("Error fetching calendar events:", error);
@@ -3806,7 +3806,7 @@ export async function registerRoutes(
       
       const validatedData = eventSchema.parse(req.body);
       
-      const event = await storage.updateCalendarEvent(id, validatedData);
+      const event = await storage.updateCalendarEvent(id, req.organizationId, validatedData);
       res.json(event);
     } catch (error) {
       console.error("Error updating calendar event:", error);
@@ -3821,7 +3821,7 @@ export async function registerRoutes(
   app.delete('/api/calendar/events/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteCalendarEvent(id);
+      await storage.deleteCalendarEvent(id, req.organizationId);
       res.json({ message: "Event deleted successfully" });
     } catch (error) {
       console.error("Error deleting calendar event:", error);
@@ -6021,7 +6021,7 @@ export async function registerRoutes(
 
   app.get('/api/rooms', isAuthenticated, async (req: any, res) => {
     try {
-      const rooms = await storage.getRooms();
+      const rooms = await storage.getRooms(req.organizationId);
       res.json(rooms);
     } catch (error) {
       console.error("Error fetching rooms:", error);
@@ -6058,7 +6058,7 @@ export async function registerRoutes(
 
   app.get('/api/resources', isAuthenticated, async (req: any, res) => {
     try {
-      const resources = await storage.getResources();
+      const resources = await storage.getResources(req.organizationId);
       res.json(resources);
     } catch (error) {
       console.error("Error fetching resources:", error);
@@ -6099,7 +6099,7 @@ export async function registerRoutes(
       const { start, end } = req.query;
       const startDate = start ? new Date(start as string) : new Date();
       const endDate = end ? new Date(end as string) : undefined;
-      const reservations = await storage.getRoomReservations(startDate, endDate);
+      const reservations = await storage.getRoomReservations(req.organizationId, startDate, endDate);
       res.json(reservations);
     } catch (error) {
       console.error("Error fetching room reservations:", error);
@@ -6111,7 +6111,7 @@ export async function registerRoutes(
   app.get('/api/room-reservations/mine', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const reservations = await storage.getRoomReservationsByUser(userId);
+      const reservations = await storage.getRoomReservationsByUser(req.organizationId, userId);
       res.json(reservations);
     } catch (error) {
       console.error("Error fetching user room reservations:", error);
@@ -6139,6 +6139,7 @@ export async function registerRoutes(
       // *** CONFLICT DETECTION ***
       // Use dedicated overlap query: (existingStart < newEnd AND existingEnd > newStart)
       const overlappingReservations = await storage.getRoomReservationsForConflictCheck(
+        req.organizationId,
         validated.roomId,
         validated.startTime,
         validated.endTime
@@ -6192,10 +6193,10 @@ export async function registerRoutes(
       
       // Fetch all calendar data in parallel
       const [meetings, events, reservations, rooms, calendarCategoriesList] = await Promise.all([
-        storage.getMeetings(startDate),
-        storage.getCalendarEvents(startDate, endDate),
-        storage.getRoomReservations(startDate, endDate),
-        storage.getRooms(),
+        storage.getMeetings(req.organizationId, startDate),
+        storage.getCalendarEvents(req.organizationId, startDate, endDate),
+        storage.getRoomReservations(req.organizationId, startDate, endDate),
+        storage.getRooms(req.organizationId),
         storage.getCalendarCategories(true),
       ]);
       
@@ -6418,18 +6419,19 @@ export async function registerRoutes(
       const leader = req.authenticatedUser;
       const { id } = req.params;
       
-      const reservation = await storage.getRoomReservation(id);
+      const reservation = await storage.getRoomReservation(id, req.organizationId);
       if (!reservation) {
         return res.status(404).json({ message: "Reservation not found" });
       }
-      
+
       if (reservation.status !== 'pending') {
         return res.status(400).json({ message: "This reservation is not pending approval" });
       }
-      
+
       // *** CONFLICT DETECTION AT APPROVAL TIME ***
       // Re-check for conflicts to catch race conditions
       const overlappingReservations = await storage.getRoomReservationsForConflictCheck(
+        req.organizationId,
         reservation.roomId,
         new Date(reservation.startTime),
         new Date(reservation.endTime)
@@ -6454,7 +6456,7 @@ export async function registerRoutes(
         });
       }
       
-      const updated = await storage.updateRoomReservation(id, {
+      const updated = await storage.updateRoomReservation(id, req.organizationId, {
         status: 'approved',
         approvedBy: leader.id,
         approvedAt: new Date(),
@@ -6475,16 +6477,16 @@ export async function registerRoutes(
       const { id } = req.params;
       const { reason } = req.body;
       
-      const reservation = await storage.getRoomReservation(id);
+      const reservation = await storage.getRoomReservation(id, req.organizationId);
       if (!reservation) {
         return res.status(404).json({ message: "Reservation not found" });
       }
-      
+
       if (reservation.status !== 'pending') {
         return res.status(400).json({ message: "This reservation is not pending" });
       }
-      
-      const updated = await storage.updateRoomReservation(id, {
+
+      const updated = await storage.updateRoomReservation(id, req.organizationId, {
         status: 'declined',
         notes: reason ? `Declined: ${reason}` : reservation.notes,
       });
@@ -6500,11 +6502,11 @@ export async function registerRoutes(
   // Get pending room reservations (for approval queue)
   app.get('/api/room-reservations/pending', isAuthenticated, requireLeader, async (req: any, res) => {
     try {
-      const allReservations = await storage.getRoomReservations(new Date(0));
+      const allReservations = await storage.getRoomReservations(req.organizationId, new Date(0));
       const pending = allReservations.filter(r => r.status === 'pending');
-      
+
       // Enrich with room info
-      const rooms = await storage.getRooms();
+      const rooms = await storage.getRooms(req.organizationId);
       const enriched = pending.map(r => ({
         ...r,
         room: rooms.find(room => room.id === r.roomId),
@@ -6552,7 +6554,7 @@ export async function registerRoutes(
       const startDate = start ? new Date(start as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const endDate = end ? new Date(end as string) : undefined;
       
-      const reports = await storage.getAttendanceReports(startDate, endDate);
+      const reports = await storage.getAttendanceReports(req.organizationId, startDate, endDate);
       res.json(reports);
     } catch (error) {
       console.error("Error fetching attendance reports:", error);
@@ -6629,7 +6631,7 @@ export async function registerRoutes(
       
       const ministryIds = scopedMinistries.map(m => m.id);
       const metrics = ministryIds.length > 0 
-        ? await storage.getWeeklyMetrics(weekStartDate, ministryIds)
+        ? await storage.getWeeklyMetrics(req.organizationId, weekStartDate, ministryIds)
         : [];
       
       // Build response with ministry status
@@ -6675,7 +6677,7 @@ export async function registerRoutes(
         }
       }
       
-      const metrics = await storage.getWeeklyMetricsByRange(startDate, endDate, ministryIds);
+      const metrics = await storage.getWeeklyMetricsByRange(req.organizationId, startDate, endDate, ministryIds);
       res.json(metrics);
     } catch (error) {
       console.error("Error fetching weekly metrics range:", error);
@@ -6744,7 +6746,7 @@ export async function registerRoutes(
       const activeMinistries = allMinistries.filter(m => m.isActive && !m.isArchived);
       
       // Get submitted metrics for this week
-      const metrics = await storage.getWeeklyMetrics(week);
+      const metrics = await storage.getWeeklyMetrics(req.organizationId, week);
       const submittedMinistryIds = new Set(metrics.map(m => m.ministryId));
       
       // Find missing
@@ -6969,7 +6971,7 @@ export async function registerRoutes(
     try {
       const { start } = req.query;
       const startDate = start ? new Date(start as string) : undefined;
-      const meetings = await storage.getMeetings(startDate);
+      const meetings = await storage.getMeetings(req.organizationId, startDate);
       res.json(meetings);
     } catch (error) {
       console.error("Error fetching meetings:", error);
@@ -6979,11 +6981,11 @@ export async function registerRoutes(
 
   app.get('/api/meetings/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const meeting = await storage.getMeeting(req.params.id);
+      const meeting = await storage.getMeeting(req.params.id, req.organizationId);
       if (!meeting) {
         return res.status(404).json({ message: "Meeting not found" });
       }
-      const notes = await storage.getMeetingNotes(req.params.id);
+      const notes = await storage.getMeetingNotes(req.organizationId, req.params.id);
       res.json({ ...meeting, notes });
     } catch (error) {
       console.error("Error fetching meeting:", error);
@@ -7086,7 +7088,7 @@ export async function registerRoutes(
   // Get action items for a meeting
   app.get('/api/meetings/:id/action-items', isAuthenticated, async (req: any, res) => {
     try {
-      const items = await storage.getMeetingActionItems(req.params.id);
+      const items = await storage.getMeetingActionItems(req.organizationId, req.params.id);
       
       // Enrich with assignee info
       const enrichedItems = await Promise.all(items.map(async (item) => {
@@ -7163,7 +7165,7 @@ export async function registerRoutes(
         (validated as any).completedBy = userId;
       }
       
-      const item = await storage.updateMeetingActionItem(itemId, validated);
+      const item = await storage.updateMeetingActionItem(itemId, req.organizationId, validated);
       res.json(item);
     } catch (error) {
       console.error("Error updating meeting action item:", error);
@@ -7177,7 +7179,7 @@ export async function registerRoutes(
   // Delete action item
   app.delete('/api/meetings/action-items/:itemId', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteMeetingActionItem(req.params.itemId);
+      await storage.deleteMeetingActionItem(req.params.itemId, req.organizationId);
       res.json({ message: "Action item deleted" });
     } catch (error) {
       console.error("Error deleting meeting action item:", error);
@@ -7189,7 +7191,7 @@ export async function registerRoutes(
   app.get('/api/action-items/my', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const items = await storage.getActionItemsByAssignee(userId);
+      const items = await storage.getActionItemsByAssignee(req.organizationId, userId);
       res.json(items);
     } catch (error) {
       console.error("Error fetching user action items:", error);
@@ -7200,8 +7202,8 @@ export async function registerRoutes(
   // Get meeting attendance
   app.get('/api/meetings/:id/attendance', isAuthenticated, async (req: any, res) => {
     try {
-      const attendance = await storage.getMeetingAttendance(req.params.id);
-      
+      const attendance = await storage.getMeetingAttendance(req.organizationId, req.params.id);
+
       // Enrich with user info
       const enrichedAttendance = await Promise.all(attendance.map(async (a) => {
         const user = await storage.getUser(a.userId);
@@ -7272,11 +7274,11 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const [existing] = await Promise.all([
-        storage.getMeetingAttendance(req.params.id)
+        storage.getMeetingAttendance(req.organizationId, req.params.id)
       ]).then(([attendance]) => attendance.filter(a => a.userId === userId));
-      
+
       if (existing) {
-        const attendance = await storage.updateMeetingAttendance(existing.id, {
+        const attendance = await storage.updateMeetingAttendance(existing.id, req.organizationId, {
           checkedOutAt: new Date(),
         });
         res.json(attendance);
@@ -7567,7 +7569,7 @@ export async function registerRoutes(
   app.get('/api/messages', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const messages = await storage.getMessages(userId);
+      const messages = await storage.getMessages(req.organizationId, userId);
       
       const users = await storage.getAllUsers(req.organizationId);
       const activeUsers = users.filter(u => !u.isArchived);
@@ -7622,7 +7624,7 @@ export async function registerRoutes(
   app.patch('/api/messages/:id/read', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      await storage.markMessageRead(id);
+      await storage.markMessageRead(id, req.organizationId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error marking message as read:", error);
@@ -7898,7 +7900,7 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const unreadOnly = req.query.unread === 'true';
-      const notifications = await storage.getNotifications(userId, unreadOnly);
+      const notifications = await storage.getNotifications(req.organizationId, userId, unreadOnly);
       res.json(notifications);
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -7910,7 +7912,7 @@ export async function registerRoutes(
   app.patch('/api/notifications/:id/read', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      await storage.markNotificationRead(id);
+      await storage.markNotificationRead(id, req.organizationId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error marking notification read:", error);
@@ -7922,7 +7924,7 @@ export async function registerRoutes(
   app.post('/api/notifications/mark-all-read', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      await storage.markAllNotificationsRead(userId);
+      await storage.markAllNotificationsRead(req.organizationId, userId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error marking all notifications read:", error);
@@ -8582,7 +8584,7 @@ export async function registerRoutes(
   app.get('/api/recurring-activities', isAuthenticated, async (req: any, res) => {
     try {
       const { ministryId } = req.query;
-      const activities = await storage.getRecurringActivities(ministryId as string);
+      const activities = await storage.getRecurringActivities(req.organizationId, ministryId as string);
       res.json(activities);
     } catch (error) {
       console.error("Error fetching recurring activities:", error);
@@ -8592,7 +8594,7 @@ export async function registerRoutes(
 
   app.get('/api/recurring-activities/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const activity = await storage.getRecurringActivity(req.params.id);
+      const activity = await storage.getRecurringActivity(req.params.id, req.organizationId);
       if (!activity) {
         return res.status(404).json({ message: "Activity not found" });
       }
@@ -8615,7 +8617,7 @@ export async function registerRoutes(
 
   app.patch('/api/recurring-activities/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const activity = await storage.updateRecurringActivity(req.params.id, req.body);
+      const activity = await storage.updateRecurringActivity(req.params.id, req.organizationId, req.body);
       res.json(activity);
     } catch (error) {
       console.error("Error updating recurring activity:", error);
@@ -8631,6 +8633,7 @@ export async function registerRoutes(
     try {
       const { activityId, status } = req.query;
       const submissions = await storage.getMetricsSubmissions(
+        req.organizationId,
         activityId as string,
         status as string
       );
@@ -8643,7 +8646,7 @@ export async function registerRoutes(
 
   app.get('/api/metrics-submissions/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const submission = await storage.getMetricsSubmission(req.params.id);
+      const submission = await storage.getMetricsSubmission(req.params.id, req.organizationId);
       if (!submission) {
         return res.status(404).json({ message: "Submission not found" });
       }
@@ -8683,7 +8686,7 @@ export async function registerRoutes(
   app.patch('/api/metrics-submissions/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const existing = await storage.getMetricsSubmission(req.params.id);
+      const existing = await storage.getMetricsSubmission(req.params.id, req.organizationId);
       
       if (!existing) {
         return res.status(404).json({ message: "Submission not found" });
@@ -8702,7 +8705,7 @@ export async function registerRoutes(
         });
       }
       
-      const submission = await storage.updateMetricsSubmission(req.params.id, {
+      const submission = await storage.updateMetricsSubmission(req.params.id, req.organizationId, {
         ...req.body,
         submittedBy: userId,
         submittedAt: req.body.status === 'submitted' ? new Date() : existing.submittedAt,
@@ -8909,7 +8912,7 @@ export async function registerRoutes(
   
   app.get('/api/rooms/:roomId/layouts', isAuthenticated, async (req: any, res) => {
     try {
-      const layouts = await storage.getRoomLayouts(req.params.roomId);
+      const layouts = await storage.getRoomLayouts(req.organizationId, req.params.roomId);
       res.json(layouts);
     } catch (error) {
       console.error("Error fetching room layouts:", error);
@@ -8932,7 +8935,7 @@ export async function registerRoutes(
 
   app.patch('/api/room-layouts/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const layout = await storage.updateRoomLayout(req.params.id, req.body);
+      const layout = await storage.updateRoomLayout(req.params.id, req.organizationId, req.body);
       res.json(layout);
     } catch (error) {
       console.error("Error updating room layout:", error);
@@ -8942,7 +8945,7 @@ export async function registerRoutes(
 
   app.delete('/api/room-layouts/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteRoomLayout(req.params.id);
+      await storage.deleteRoomLayout(req.params.id, req.organizationId);
       res.json({ message: "Layout deleted successfully" });
     } catch (error) {
       console.error("Error deleting room layout:", error);
@@ -9546,7 +9549,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const { ministryId, status } = req.query;
       
-      const workboards = await storage.getWorkboards({
+      const workboards = await storage.getWorkboards(req.organizationId, {
         ministryId: ministryId as string,
         status: status as string,
       });
@@ -9561,7 +9564,7 @@ export async function registerRoutes(
 
   app.get('/api/workboards/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const workboard = await storage.getWorkboard(req.params.id);
+      const workboard = await storage.getWorkboard(req.params.id, req.organizationId);
       if (!workboard) {
         return res.status(404).json({ message: "Workboard not found" });
       }
@@ -9594,7 +9597,7 @@ export async function registerRoutes(
 
   app.patch('/api/workboards/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const workboard = await storage.updateWorkboard(req.params.id, req.body);
+      const workboard = await storage.updateWorkboard(req.params.id, req.organizationId, req.body);
       res.json(workboard);
     } catch (error) {
       console.error("Error updating workboard:", error);
@@ -9604,7 +9607,7 @@ export async function registerRoutes(
 
   app.delete('/api/workboards/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteWorkboard(req.params.id);
+      await storage.deleteWorkboard(req.params.id, req.organizationId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting workboard:", error);
@@ -9615,7 +9618,7 @@ export async function registerRoutes(
   // Action Items
   app.get('/api/workboards/:workboardId/items', isAuthenticated, async (req: any, res) => {
     try {
-      const items = await storage.getActionItems(req.params.workboardId);
+      const items = await storage.getActionItems(req.organizationId, req.params.workboardId);
       res.json(items);
     } catch (error) {
       console.error("Error fetching action items:", error);
@@ -9640,7 +9643,7 @@ export async function registerRoutes(
 
   app.patch('/api/action-items/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const item = await storage.updateActionItem(req.params.id, req.body);
+      const item = await storage.updateActionItem(req.params.id, req.organizationId, req.body);
       res.json(item);
     } catch (error) {
       console.error("Error updating action item:", error);
@@ -9650,7 +9653,7 @@ export async function registerRoutes(
 
   app.delete('/api/action-items/:id', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.deleteActionItem(req.params.id);
+      await storage.deleteActionItem(req.params.id, req.organizationId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting action item:", error);
@@ -9661,7 +9664,7 @@ export async function registerRoutes(
   // Action Item Comments
   app.get('/api/action-items/:itemId/comments', isAuthenticated, async (req: any, res) => {
     try {
-      const comments = await storage.getActionItemComments(req.params.itemId);
+      const comments = await storage.getActionItemComments(req.organizationId, req.params.itemId);
       res.json(comments);
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -9692,14 +9695,14 @@ export async function registerRoutes(
   app.post('/api/workboards/:id/send-agenda', isAuthenticated, requireLeader, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const workboard = await storage.getWorkboard(req.params.id);
-      
+      const workboard = await storage.getWorkboard(req.params.id, req.organizationId);
+
       if (!workboard) {
         return res.status(404).json({ message: "Workboard not found" });
       }
 
       // Get action items for agenda
-      const actionItems = await storage.getActionItems(req.params.id);
+      const actionItems = await storage.getActionItems(req.organizationId, req.params.id);
       const agendaItems = actionItems
         .filter((item: any) => item.status === 'pending')
         .map((item: any) => item.content);
@@ -9757,14 +9760,14 @@ export async function registerRoutes(
   app.post('/api/workboards/:id/send-recap', isAuthenticated, requireLeader, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const workboard = await storage.getWorkboard(req.params.id);
-      
+      const workboard = await storage.getWorkboard(req.params.id, req.organizationId);
+
       if (!workboard) {
         return res.status(404).json({ message: "Workboard not found" });
       }
 
       // Get action items
-      const actionItems = await storage.getActionItems(req.params.id);
+      const actionItems = await storage.getActionItems(req.organizationId, req.params.id);
       
       // Parse decisions from workboard notes or separate field
       const decisions = workboard.decisions 
@@ -11236,9 +11239,6 @@ async function seedSampleBadges() {
 // Sample rooms for the facility management system
 async function seedSampleRooms() {
   try {
-    const existingRooms = await storage.getRooms();
-    if (existingRooms.length > 0) return;
-
     // Server-startup seed with no per-request tenant context; seed into the
     // oldest existing organization, or skip entirely on a fresh install.
     const org = await storage.getFirstOrganization();
@@ -11246,6 +11246,9 @@ async function seedSampleRooms() {
       console.log("[Seed] Skipping seedSampleRooms - no organization exists yet");
       return;
     }
+
+    const existingRooms = await storage.getRooms(org.id);
+    if (existingRooms.length > 0) return;
 
     const sampleRooms = [
       {
