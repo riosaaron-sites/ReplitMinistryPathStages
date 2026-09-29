@@ -274,7 +274,7 @@ export async function analyzeManual(manualId: string): Promise<{ success: boolea
         .returning();
     } else {
       [analysisRecord] = await db.insert(manualAnalysis)
-        .values({ manualId, status: 'processing' })
+        .values({ organizationId: manual.organizationId, manualId, status: 'processing' })
         .returning();
     }
 
@@ -358,6 +358,7 @@ export async function analyzeManual(manualId: string): Promise<{ success: boolea
     } else {
       [trainingModule] = await db.insert(trainingModules)
         .values({
+          organizationId: manual.organizationId,
           title: `${manual.title} Training`,
           slug,
           ministryId: manual.ministryId,
@@ -383,6 +384,7 @@ export async function analyzeManual(manualId: string): Promise<{ success: boolea
     for (let i = 0; i < assessmentQuestions.length; i++) {
       const q = assessmentQuestions[i];
       await db.insert(trainingAssessments).values({
+        organizationId: manual.organizationId,
         moduleId: trainingModule.id,
         questionText: q.question,
         questionType: 'multiple-choice',
@@ -437,6 +439,7 @@ async function notifyMinistryMembers(manual: Manual, trainingModuleId: string) {
                        item.user.role === 'admin';
 
       await db.insert(notifications).values({
+        organizationId: manual.organizationId,
         userId: item.user.id,
         type: isLeader ? 'manual-uploaded' : 'new-training-required',
         title: isLeader 
@@ -623,6 +626,7 @@ export async function forceRegenerateTraining(trainingId: string): Promise<Force
     } else {
       await db.insert(manualAnalysis)
         .values({
+          organizationId: training.organizationId,
           manualId: training.manualId,
           status: 'completed',
           extractedText: extractedText.substring(0, 50000),
@@ -641,6 +645,7 @@ export async function forceRegenerateTraining(trainingId: string): Promise<Force
     for (let i = 0; i < assessmentQuestions.length; i++) {
       const q = assessmentQuestions[i];
       await db.insert(trainingAssessments).values({
+        organizationId: training.organizationId,
         moduleId: trainingId,
         questionText: q.question,
         questionType: 'multiple-choice',

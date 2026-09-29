@@ -495,7 +495,7 @@ export async function generateDeepTraining(
         .returning();
     } else {
       [analysisRecord] = await db.insert(manualAnalysis)
-        .values({ manualId, status: 'processing' })
+        .values({ organizationId: manual.organizationId, manualId, status: 'processing' })
         .returning();
     }
 
@@ -596,6 +596,7 @@ export async function generateDeepTraining(
     } else {
       [trainingModule] = await db.insert(trainingModules)
         .values({
+          organizationId: manual.organizationId,
           title: manual.title.replace(/ Manual$/i, ' Training'),
           slug,
           ministryId: manual.ministryId,

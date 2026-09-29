@@ -207,6 +207,7 @@ export interface IStorage {
   // Organization (tenant) operations
   getOrganization(id: string): Promise<Organization | undefined>;
   getOrganizationBySlug(slug: string): Promise<Organization | undefined>;
+  getFirstOrganization(): Promise<Organization | undefined>;
   createOrganization(name: string, ownerId?: string): Promise<Organization>;
   updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
 
@@ -317,7 +318,7 @@ export interface IStorage {
   getUserXp(userId: string): Promise<number>;
   addXpLog(log: InsertXpLog): Promise<XpLog>;
   getXpLogs(userId: string): Promise<XpLog[]>;
-  awardXp(userId: string, amount: number, sourceType: string, reason: string): Promise<XpLog>;  // Phase 3 convenience method
+  awardXp(organizationId: string, userId: string, amount: number, sourceType: string, reason: string): Promise<XpLog>;  // Phase 3 convenience method
   
   // Rooms operations
   getRooms(): Promise<Room[]>;
@@ -547,6 +548,13 @@ export class DatabaseStorage implements IStorage {
 
   async getOrganizationBySlug(slug: string): Promise<Organization | undefined> {
     const [org] = await db.select().from(organizations).where(eq(organizations.slug, slug));
+    return org;
+  }
+
+  // Used by server-startup seed scripts that have no per-request tenant context;
+  // returns the oldest organization, or undefined if none exists yet (fresh install).
+  async getFirstOrganization(): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).orderBy(organizations.createdAt).limit(1);
     return org;
   }
 
@@ -1206,8 +1214,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Phase 3: Convenience method to award XP
-  async awardXp(userId: string, amount: number, sourceType: string, reason: string): Promise<XpLog> {
+  async awardXp(organizationId: string, userId: string, amount: number, sourceType: string, reason: string): Promise<XpLog> {
     return this.addXpLog({
+      organizationId,
       userId,
       amount,
       sourceType,
@@ -1925,6 +1934,7 @@ export class DatabaseStorage implements IStorage {
     
     // Create archive record
     const [archive] = await db.insert(userArchives).values({
+      organizationId: user.organizationId,
       userId,
       archivedBy,
       expiresAt,
@@ -1932,9 +1942,10 @@ export class DatabaseStorage implements IStorage {
       reason,
       userData: user as any,
     }).returning();
-    
+
     // Create audit log
     await this.createAuditLog({
+      organizationId: user.organizationId,
       entityType: 'user',
       entityId: userId,
       action: 'archive',
@@ -1964,6 +1975,7 @@ export class DatabaseStorage implements IStorage {
     
     // Create audit log
     await this.createAuditLog({
+      organizationId: archive.organizationId,
       entityType: 'user',
       entityId: archive.userId,
       action: 'restore',
@@ -2030,6 +2042,7 @@ export class DatabaseStorage implements IStorage {
     
     // Create audit log
     await this.createAuditLog({
+      organizationId: archive.organizationId,
       entityType: 'ministry',
       entityId: archive.ministryId,
       action: 'restore',
@@ -2071,6 +2084,7 @@ export class DatabaseStorage implements IStorage {
     
     // Create audit log
     await this.createAuditLog({
+      organizationId: room.organizationId,
       entityType: 'room',
       entityId: roomId,
       action: 'archive',
@@ -2078,7 +2092,7 @@ export class DatabaseStorage implements IStorage {
       newValue: { isArchived: true },
       performedBy: archivedBy,
     });
-    
+
     return room;
   }
 

@@ -649,6 +649,7 @@ export async function registerRoutes(
       
       // Log the bootstrap action (audit)
       try {
+        // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (which org does the bootstrapped admin belong to?)
         await storage.createAuditLog({
           action: 'admin_bootstrap',
           entityType: 'user',
@@ -725,6 +726,7 @@ export async function registerRoutes(
       
       // Create audit log
       await storage.createAuditLog({
+        organizationId: req.organizationId,
         action: 'impersonation_start',
         entityType: 'user',
         entityId: targetUserId,
@@ -794,6 +796,7 @@ export async function registerRoutes(
       
       // Create audit log for stopping
       await storage.createAuditLog({
+        organizationId: req.organizationId,
         action: 'impersonation_stop',
         entityType: 'user',
         entityId: targetUserId,
@@ -1421,6 +1424,7 @@ export async function registerRoutes(
               // Check if assignment already exists using pre-fetched set
               if (!assignedMinistryIds.has(ministryId)) {
                 await storage.createRoleAssignment({
+                  organizationId: invite.organizationId,
                   userId,
                   ministryId,
                   roleType,
@@ -1428,8 +1432,9 @@ export async function registerRoutes(
                   isActive: true,
                   assignedBy: invite.invitedBy,
                 });
-                
+
                 await storage.createMinistrySelection({
+                  organizationId: invite.organizationId,
                   userId,
                   ministryId,
                   isActive: true,
@@ -1496,6 +1501,7 @@ export async function registerRoutes(
       const validatedData = progressSchema.parse(req.body);
       
       const progress = await storage.upsertSurveyProgress({
+        organizationId: req.organizationId,
         userId,
         currentSection: validatedData.currentSection,
         currentQuestion: validatedData.currentQuestion,
@@ -1537,6 +1543,7 @@ export async function registerRoutes(
       
       // Save results
       const results = await storage.createSurveyResults({
+        organizationId: req.organizationId,
         userId,
         spiritualGifts,
         personalityProfile,
@@ -2039,6 +2046,7 @@ export async function registerRoutes(
           
           // Create manual record
           const newManual = await storage.createManual({
+            organizationId: req.organizationId,
             title,
             category,
             ministryId: ministryId || null,
@@ -2199,6 +2207,7 @@ export async function registerRoutes(
         // Create analysis record
         if (!existingAnalysis) {
           await storage.createManualAnalysis({
+            organizationId: req.organizationId,
             manualId: module.manualId,
             status: 'processing',
             triggeredBy: userId,
@@ -2609,6 +2618,7 @@ export async function registerRoutes(
       const validatedData = progressSchema.parse(req.body);
       
       const progress = await storage.upsertOnboardingProgress({
+        organizationId: req.organizationId,
         userId,
         ...validatedData,
       });
@@ -3092,6 +3102,7 @@ export async function registerRoutes(
       
       const validated = assignmentSchema.parse(req.body);
       const assignment = await storage.createRoleAssignment({
+        organizationId: req.organizationId,
         ...validated,
         assignedBy: requestingUserId,
       });
@@ -3545,6 +3556,7 @@ export async function registerRoutes(
         // Create ministry leadership assignments for each selected ministry
         for (const ministryId of ministryIds) {
           await storage.createMinistryLeadershipAssignment({
+            organizationId: req.organizationId,
             ministryId,
             userId,
             leadershipType: 'primary',
@@ -3557,6 +3569,7 @@ export async function registerRoutes(
         
         // Create audit log entry for leader_locked_in
         await storage.createAuditLog({
+          organizationId: req.organizationId,
           entityType: 'user',
           entityId: userId,
           action: 'leader_locked_in',
@@ -3577,6 +3590,7 @@ export async function registerRoutes(
         for (const adminUser of adminOwnerUsers) {
           if (adminUser.id !== userId) { // Don't notify the user themselves
             await storage.createNotification({
+              organizationId: req.organizationId,
               userId: adminUser.id,
               type: 'leader_locked_in',
               title: 'Leader Locked In',
@@ -3759,6 +3773,7 @@ export async function registerRoutes(
       const validatedData = eventSchema.parse(req.body);
       
       const event = await storage.createCalendarEvent({
+        organizationId: req.organizationId,
         ...validatedData,
         createdBy: userId,
       });
@@ -3842,7 +3857,7 @@ export async function registerRoutes(
       
       // Import the planning center service dynamically
       const { planningCenterService } = await import('./planningCenterService');
-      const syncCount = await planningCenterService.syncUserAssignments(userId, userEmail);
+      const syncCount = await planningCenterService.syncUserAssignments(req.organizationId, userId, userEmail);
       
       res.json({ 
         message: syncCount > 0 
@@ -3900,6 +3915,7 @@ export async function registerRoutes(
       const validated = configSchema.parse(req.body);
 
       await storage.upsertIntegrationSettings({
+        organizationId: req.organizationId,
         integrationName: 'planning-center',
         isEnabled: validated.isEnabled,
         credentials: {
@@ -4138,6 +4154,7 @@ export async function registerRoutes(
       const validated = schema.parse(req.body);
       
       const leader = await storage.addMinistryLeader({
+        organizationId: req.organizationId,
         ministryId: req.params.id,
         userId: validated.userId,
         role: validated.role || 'leader',
@@ -4277,6 +4294,7 @@ export async function registerRoutes(
       }
 
       const request = await storage.createTeamJoinRequest({
+        organizationId: req.organizationId,
         userId,
         ministryId: validated.ministryId,
         message: validated.message || null,
@@ -4297,6 +4315,7 @@ export async function registerRoutes(
         
         for (const assignment of leaderAssignments) {
           await storage.createNotification({
+            organizationId: req.organizationId,
             userId: assignment.userId,
             type: 'team_join_request',
             title: 'New Team Join Request',
@@ -4362,6 +4381,7 @@ export async function registerRoutes(
       // If approved, create role assignment and auto-enroll in training
       if (validated.status === 'approved') {
         await storage.createRoleAssignment({
+          organizationId: req.organizationId,
           userId: request.userId,
           ministryId: request.ministryId,
           assignedBy: userId,
@@ -4375,6 +4395,7 @@ export async function registerRoutes(
           const existingProgress = await storage.getUserModuleProgress(request.userId, training.id);
           if (!existingProgress) {
             await storage.upsertUserTrainingProgress({
+              organizationId: req.organizationId,
               userId: request.userId,
               moduleId: training.id,
               status: 'not-started',
@@ -4393,6 +4414,7 @@ export async function registerRoutes(
             : newMember?.email || 'New member';
           
           await storage.createNotification({
+            organizationId: req.organizationId,
             userId: request.userId,
             type: 'team_join_approved',
             title: 'Welcome to the Team!',
@@ -4409,6 +4431,7 @@ export async function registerRoutes(
             if (!leaderUser || assignment.userId === userId) continue; // Skip approver
             
             await storage.createNotification({
+              organizationId: req.organizationId,
               userId: assignment.userId,
               type: 'team_member_joined',
               title: 'New Team Member',
@@ -5004,7 +5027,10 @@ export async function registerRoutes(
       });
 
       const validated = schema.parse(req.body);
-      const assessment = await storage.createTrainingAssessment(validated);
+      const assessment = await storage.createTrainingAssessment({
+        organizationId: req.organizationId,
+        ...validated,
+      });
       res.json(assessment);
     } catch (error) {
       console.error("Error creating assessment:", error);
@@ -5177,6 +5203,7 @@ export async function registerRoutes(
       }
       
       const progressData: any = {
+        organizationId: req.organizationId,
         userId,
         moduleId: validated.moduleId,
         status: finalStatus,
@@ -5215,6 +5242,7 @@ export async function registerRoutes(
               
               // Create in-app notification
               await storage.createNotification({
+                organizationId: req.organizationId,
                 userId: assignment.userId,
                 type: 'training_submitted',
                 title: 'Training Submitted for Review',
@@ -5247,6 +5275,7 @@ export async function registerRoutes(
           // This allows admins to approve their own training (with audit trail)
           if (submitter && (submitter.role === 'admin' || submitter.role === 'pastor' || submitter.role === 'owner')) {
             await storage.createNotification({
+              organizationId: req.organizationId,
               userId: userId,
               type: 'training_self_submitted',
               title: 'Your Training Submitted for Review',
@@ -5278,6 +5307,7 @@ export async function registerRoutes(
           
           if (!alreadyAwarded) {
             await storage.addXpLog({
+              organizationId: req.organizationId,
               userId,
               amount: trainingModule.xpReward,
               sourceType: 'training',
@@ -5298,6 +5328,7 @@ export async function registerRoutes(
                 const hasBadge = userBadges.some(ub => ub.badgeId === learnerBadge.id);
                 if (!hasBadge) {
                   await storage.awardBadge({
+                    organizationId: req.organizationId,
                     userId,
                     badgeId: learnerBadge.id,
                   });
@@ -5641,7 +5672,7 @@ export async function registerRoutes(
       
       // Award XP to the user
       const xpAmount = module?.xpReward || 100;
-      await storage.awardXp(progress.userId, xpAmount, 'training_completed', `Completed training: ${module?.title || 'Unknown'}`);
+      await storage.awardXp(req.organizationId, progress.userId, xpAmount, 'training_completed', `Completed training: ${module?.title || 'Unknown'}`);
       
       // Check for first training badge (Learner)
       const allUserProgress = await storage.getUserTrainingProgress(progress.userId);
@@ -5656,7 +5687,7 @@ export async function registerRoutes(
           const userBadges = await storage.getUserBadges(progress.userId);
           const hasBadge = userBadges.some(ub => ub.badgeId === learnerBadge.id);
           if (!hasBadge) {
-            await storage.awardBadge({ userId: progress.userId, badgeId: learnerBadge.id });
+            await storage.awardBadge({ organizationId: req.organizationId, userId: progress.userId, badgeId: learnerBadge.id });
           }
         }
       }
@@ -5699,6 +5730,7 @@ export async function registerRoutes(
       
       // Create audit log entry for training approval
       await storage.createAuditLog({
+        organizationId: req.organizationId,
         entityType: 'training_progress',
         entityId: progressId,
         action: approvalType === 'admin_override' ? 'admin_override_approve' : 'approve',
@@ -5712,6 +5744,7 @@ export async function registerRoutes(
       const submitter = await storage.getUser(progress.userId);
       if (submitter) {
         await storage.createNotification({
+          organizationId: req.organizationId,
           userId: progress.userId,
           type: 'training_approved',
           title: 'Milestone Reached!',
@@ -5809,6 +5842,7 @@ export async function registerRoutes(
       const rejectApprovalType = adminOverride === true && (isAdmin(leader.role) || leader.role === 'owner') 
         ? 'admin_override' : 'ministry_leader';
       await storage.createAuditLog({
+        organizationId: req.organizationId,
         entityType: 'training_progress',
         entityId: progressId,
         action: rejectApprovalType === 'admin_override' ? 'admin_override_reject' : 'decline',
@@ -5820,6 +5854,7 @@ export async function registerRoutes(
 
       // Notify the user their training was rejected with feedback
       await storage.createNotification({
+        organizationId: req.organizationId,
         userId: progress.userId,
         type: 'training_rejected',
         title: 'Training Needs Follow-up',
@@ -6010,7 +6045,7 @@ export async function registerRoutes(
       });
 
       const validated = roomSchema.parse(req.body);
-      const room = await storage.createRoom(validated);
+      const room = await storage.createRoom({ organizationId: req.organizationId, ...validated });
       res.json(room);
     } catch (error) {
       console.error("Error creating room:", error);
@@ -6048,7 +6083,7 @@ export async function registerRoutes(
       });
 
       const validated = resourceSchema.parse(req.body);
-      const resource = await storage.createResource(validated);
+      const resource = await storage.createResource({ organizationId: req.organizationId, ...validated });
       res.json(resource);
     } catch (error) {
       console.error("Error creating resource:", error);
@@ -6130,6 +6165,7 @@ export async function registerRoutes(
       }
       
       const reservation = await storage.createRoomReservation({
+        organizationId: req.organizationId,
         ...validated,
         requestedBy: userId,
       });
@@ -6300,6 +6336,7 @@ export async function registerRoutes(
       }
       
       const category = await storage.createCalendarCategory({
+        organizationId: req.organizationId,
         ...validated,
         slug,
       });
@@ -6544,6 +6581,7 @@ export async function registerRoutes(
       const totalCount = (validated.adultCount || 0) + (validated.childCount || 0) + (validated.youthCount || 0);
       
       const report = await storage.createAttendanceReport({
+        organizationId: req.organizationId,
         ...validated,
         totalCount,
         submittedBy: userId,
@@ -6674,6 +6712,7 @@ export async function registerRoutes(
       }
       
       const metric = await storage.upsertWeeklyMetrics({
+        organizationId: req.organizationId,
         ...validated,
         submittedByUserId: user.id,
       });
@@ -6781,6 +6820,7 @@ export async function registerRoutes(
 
       const validated = requestSchema.parse(req.body);
       const request = await storage.createSupportRequest({
+        organizationId: req.organizationId,
         ...validated,
         requestedBy: userId,
       });
@@ -6884,7 +6924,7 @@ export async function registerRoutes(
       });
 
       const validated = internSchema.parse(req.body);
-      const profile = await storage.createInternProfile(validated);
+      const profile = await storage.createInternProfile({ organizationId: req.organizationId, ...validated });
       res.json(profile);
     } catch (error) {
       console.error("Error creating intern profile:", error);
@@ -6907,6 +6947,7 @@ export async function registerRoutes(
 
       const validated = logSchema.parse(req.body);
       const log = await storage.createInternLog({
+        organizationId: req.organizationId,
         internProfileId: req.params.profileId,
         ...validated,
       });
@@ -6969,6 +7010,7 @@ export async function registerRoutes(
 
       const validated = meetingSchema.parse(req.body);
       const meeting = await storage.createMeeting({
+        organizationId: req.organizationId,
         ...validated,
         organizerId: userId,
       });
@@ -6995,6 +7037,7 @@ export async function registerRoutes(
 
       const validated = notesSchema.parse(req.body);
       const notes = await storage.upsertMeetingNotes({
+        organizationId: req.organizationId,
         meetingId: req.params.id,
         createdBy: userId,
         ...validated,
@@ -7022,6 +7065,7 @@ export async function registerRoutes(
 
       const validated = feedbackSchema.parse(req.body);
       const feedback = await storage.createMeetingFeedback({
+        organizationId: req.organizationId,
         ...validated,
         submittedBy: validated.isAnonymous ? null : userId,
       });
@@ -7082,6 +7126,7 @@ export async function registerRoutes(
 
       const validated = itemSchema.parse(req.body);
       const item = await storage.createMeetingActionItem({
+        organizationId: req.organizationId,
         meetingId: req.params.id,
         createdBy: userId,
         ...validated,
@@ -7190,6 +7235,7 @@ export async function registerRoutes(
 
       const validated = attendanceSchema.parse(req.body);
       const attendance = await storage.upsertMeetingAttendance({
+        organizationId: req.organizationId,
         meetingId: req.params.id,
         ...validated,
       });
@@ -7208,6 +7254,7 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const attendance = await storage.upsertMeetingAttendance({
+        organizationId: req.organizationId,
         meetingId: req.params.id,
         userId,
         status: 'attended',
@@ -7273,6 +7320,7 @@ export async function registerRoutes(
 
       const validated = checkSchema.parse(req.body);
       const check = await storage.upsertBackgroundCheck({
+        organizationId: req.organizationId,
         ...validated,
         verifiedBy: req.user.claims.sub,
         completedAt: validated.status === 'approved' || validated.status === 'denied' ? new Date() : undefined,
@@ -7555,6 +7603,7 @@ export async function registerRoutes(
       const validatedData = messageSchema.parse(req.body);
       
       const message = await storage.createMessage({
+        organizationId: req.organizationId,
         senderId: userId,
         ...validatedData,
       });
@@ -7674,6 +7723,7 @@ export async function registerRoutes(
       const validatedData = manualSchema.parse(req.body);
       
       const manual = await storage.createManual({
+        organizationId: req.organizationId,
         title: validatedData.title,
         description: validatedData.description || null,
         ministryId: validatedData.ministryId || null,
@@ -8224,6 +8274,7 @@ export async function registerRoutes(
         
         ministryIds.push(ministryId);
         await storage.createRoleAssignment({
+          organizationId: invite.organizationId,
           userId,
           ministryId,
           roleType,
@@ -8231,9 +8282,10 @@ export async function registerRoutes(
           isActive: true,
           assignedBy: invite.invitedBy,
         });
-        
+
         // Also create ministry selection for the user
         await storage.createMinistrySelection({
+          organizationId: invite.organizationId,
           userId,
           ministryId,
           isActive: true,
@@ -8363,6 +8415,7 @@ export async function registerRoutes(
       const selections = [];
       for (const ministryId of ministryIds) {
         const selection = await storage.createMinistrySelection({
+          organizationId: req.organizationId,
           userId,
           ministryId,
           isActive: true,
@@ -8398,6 +8451,7 @@ export async function registerRoutes(
       const { stepType, ministryId, isComplete, quizScore, quizPassed } = req.body;
       
       const step = await storage.upsertOnboardingStep({
+        organizationId: req.organizationId,
         userId,
         stepType,
         ministryId: ministryId || null,
@@ -8436,7 +8490,7 @@ export async function registerRoutes(
 
   app.post('/api/quiz/questions', isAuthenticated, async (req: any, res) => {
     try {
-      const question = await storage.createQuizQuestion(req.body);
+      const question = await storage.createQuizQuestion({ organizationId: req.organizationId, ...req.body });
       res.json(question);
     } catch (error) {
       console.error("Error creating quiz question:", error);
@@ -8485,6 +8539,7 @@ export async function registerRoutes(
       const attemptNumber = previousAttempts.length + 1;
       
       const attempt = await storage.createQuizAttempt({
+        organizationId: req.organizationId,
         userId,
         manualId: manualId || null,
         trainingId: trainingId || null,
@@ -8501,6 +8556,7 @@ export async function registerRoutes(
       if (passed) {
         const stepType = manualId ? 'manual-quiz' : trainingId ? 'training-quiz' : quizCategory;
         await storage.upsertOnboardingStep({
+          organizationId: req.organizationId,
           userId,
           stepType: stepType || 'quiz',
           ministryId: null,
@@ -8636,6 +8692,7 @@ export async function registerRoutes(
       // Create audit log for edits
       if (existing.submittedAt) {
         await storage.createAuditLog({
+          organizationId: req.organizationId,
           entityType: 'metrics_submission',
           entityId: req.params.id,
           action: 'update',
@@ -8791,6 +8848,7 @@ export async function registerRoutes(
       
       // Create the secondary leader assignment
       const assignment = await storage.createMinistryLeadershipAssignment({
+        organizationId: req.organizationId,
         userId,
         ministryId,
         leadershipType: 'secondary',
@@ -8816,6 +8874,7 @@ export async function registerRoutes(
       // Send notification to new secondary leader with CELEBRATION intent
       const actorName = `${actor.firstName || ''} ${actor.lastName || ''}`.trim() || 'A leader';
       await storage.createNotification({
+        organizationId: req.organizationId,
         userId,
         type: 'leader_added',
         title: 'You\'ve Been Added as a Leader!',
@@ -10087,6 +10146,7 @@ export async function registerRoutes(
       if (!settings) {
         settings = {
           id: 'default',
+          organizationId: 'default',
           organizationName: 'MinistryPath',
           tagline: null,
           primaryColor: '#3B82F6',
@@ -10767,10 +10827,17 @@ async function seedSampleManuals() {
     const existingManuals = await storage.getManuals();
     if (existingManuals.length > 0) return;
 
+    // Server-startup seed with no per-request tenant context; seed into the
+    // oldest existing organization, or skip entirely on a fresh install.
+    const org = await storage.getFirstOrganization();
+    if (!org) {
+      console.log("[Seed] Skipping seedSampleManuals - no organization exists yet");
+      return;
+    }
+
     // Get ministries to link manuals
-    // TODO(multi-tenant): this is a server-startup seed function (no request/auth context); needs a design decision on which org seeded manuals/ministries belong to
-    const ministries = await storage.getMinistries();
-    const getMinistryId = (name: string) => ministries.find(m => 
+    const ministries = await storage.getMinistries(org.id);
+    const getMinistryId = (name: string) => ministries.find(m =>
       m.name.toLowerCase().includes(name.toLowerCase())
     )?.id;
 
@@ -11040,9 +11107,9 @@ async function seedSampleManuals() {
     ];
 
     for (const manual of ministryManuals) {
-      await storage.createManual(manual);
+      await storage.createManual({ organizationId: org.id, ...manual });
     }
-    
+
     console.log("Ministry manuals seeded successfully - 29 manuals loaded");
   } catch (error) {
     console.error("Error seeding ministry manuals:", error);
@@ -11054,6 +11121,14 @@ async function seedSampleBadges() {
   try {
     const existingBadges = await storage.getBadges();
     if (existingBadges.length > 0) return;
+
+    // Server-startup seed with no per-request tenant context; seed into the
+    // oldest existing organization, or skip entirely on a fresh install.
+    const org = await storage.getFirstOrganization();
+    if (!org) {
+      console.log("[Seed] Skipping seedSampleBadges - no organization exists yet");
+      return;
+    }
 
     const sampleBadges = [
       {
@@ -11149,7 +11224,7 @@ async function seedSampleBadges() {
     ];
 
     for (const badge of sampleBadges) {
-      await storage.createBadge(badge);
+      await storage.createBadge({ organizationId: org.id, ...badge });
     }
     
     console.log("Sample badges seeded successfully");
@@ -11163,6 +11238,14 @@ async function seedSampleRooms() {
   try {
     const existingRooms = await storage.getRooms();
     if (existingRooms.length > 0) return;
+
+    // Server-startup seed with no per-request tenant context; seed into the
+    // oldest existing organization, or skip entirely on a fresh install.
+    const org = await storage.getFirstOrganization();
+    if (!org) {
+      console.log("[Seed] Skipping seedSampleRooms - no organization exists yet");
+      return;
+    }
 
     const sampleRooms = [
       {
@@ -11240,7 +11323,7 @@ async function seedSampleRooms() {
     ];
 
     for (const room of sampleRooms) {
-      await storage.createRoom(room);
+      await storage.createRoom({ organizationId: org.id, ...room });
     }
     
     console.log("Sample rooms seeded successfully");
@@ -11291,7 +11374,7 @@ export function registerCalendarCategoryRoutes(app: Express) {
       const validated = categorySchema.parse(req.body);
       // Generate slug from name
       const slug = validated.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const category = await storage.createCalendarCategory({ ...validated, slug });
+      const category = await storage.createCalendarCategory({ organizationId: req.organizationId, ...validated, slug });
       res.status(201).json(category);
     } catch (error) {
       return handleApiError(error, res);
@@ -11451,6 +11534,14 @@ export async function seedDefaultCalendarCategories() {
       return;
     }
 
+    // Server-startup seed with no per-request tenant context; seed into the
+    // oldest existing organization, or skip entirely on a fresh install.
+    const org = await storage.getFirstOrganization();
+    if (!org) {
+      console.log("[Seed] Skipping seedDefaultCalendarCategories - no organization exists yet");
+      return;
+    }
+
     const defaultCategories = [
       { name: "Worship Service", slug: "worship-service", type: "SERVICE" as const, color: "#8B5CF6", description: "Sunday services and special worship events", sortOrder: 1 },
       { name: "Team Meeting", slug: "team-meeting", type: "GROUP" as const, color: "#3B82F6", description: "Ministry team and leadership meetings", sortOrder: 2 },
@@ -11463,9 +11554,9 @@ export async function seedDefaultCalendarCategories() {
     ];
 
     for (const category of defaultCategories) {
-      await storage.createCalendarCategory(category);
+      await storage.createCalendarCategory({ organizationId: org.id, ...category });
     }
-    
+
     console.log("Default calendar categories seeded successfully");
   } catch (error) {
     console.error("Error seeding calendar categories:", error);

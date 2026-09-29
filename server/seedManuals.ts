@@ -1,8 +1,8 @@
 import { db } from './db';
-import { manuals, ministries, trainingModules } from '@shared/schema';
+import { manuals, ministries, trainingModules, organizations } from '@shared/schema';
 import * as fs from 'fs';
 import * as path from 'path';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 
 interface ManualEntry {
   title: string;
@@ -130,12 +130,20 @@ async function seedManuals(isDryRun: boolean) {
     console.log('*** EXECUTE MODE: Changes WILL be written to database ***\n');
   }
   
+  // This is a standalone CLI script with no per-request tenant context; seed
+  // into the oldest existing organization, or bail out entirely if none exists.
+  const [org] = await db.select().from(organizations).orderBy(asc(organizations.createdAt)).limit(1);
+  if (!org) {
+    console.error('No organization exists yet - cannot seed manuals. Create an organization first.');
+    process.exit(1);
+  }
+
   const assetsDir = path.resolve(process.cwd(), 'attached_assets');
   const files = fs.readdirSync(assetsDir);
   const pdfFiles = files.filter(f => f.toLowerCase().endsWith('.pdf') && !f.includes('.pdf_'));
-  
+
   console.log(`Found ${pdfFiles.length} PDF files to process\n`);
-  
+
   const existingMinistries = await db.select().from(ministries);
   console.log(`Found ${existingMinistries.length} ministries in database`);
   
@@ -196,6 +204,7 @@ async function seedManuals(isDryRun: boolean) {
     if (!isDryRun) {
       try {
         await db.insert(manuals).values({
+          organizationId: org.id,
           title: entry.title,
           category: entry.category,
           ministryId: entry.ministryId,

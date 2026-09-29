@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { ministries, trainingModules, agreementContent } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { storage } from "./storage";
 
 function slugify(text: string): string {
   return text
@@ -62,7 +63,15 @@ const coreTrainingModules = [
 
 export async function seedCoreData() {
   console.log("[Seed] Checking for core ministries and training modules...");
-  
+
+  // Server-startup seed with no per-request tenant context; seed into the
+  // oldest existing organization, or skip entirely on a fresh install.
+  const org = await storage.getFirstOrganization();
+  if (!org) {
+    console.log("[Seed] Skipping seedCoreData - no organization exists yet");
+    return { ministriesAdded: 0, ministriesSkipped: 0, trainingsAdded: 0, trainingsSkipped: 0 };
+  }
+
   let ministriesAdded = 0;
   let ministriesSkipped = 0;
   let trainingsAdded = 0;
@@ -81,6 +90,7 @@ export async function seedCoreData() {
       
       await db.insert(ministries).values({
         id: ministry.id,
+        organizationId: org.id,
         name: ministry.name,
         slug: ministry.slug,
         category: ministry.category,
@@ -111,6 +121,7 @@ export async function seedCoreData() {
       
       await db.insert(trainingModules).values({
         id: training.id,
+        organizationId: org.id,
         title: training.title,
         slug: slugify(training.title),
         description: training.description,
@@ -233,7 +244,15 @@ const defaultAgreementContent = [
 
 export async function seedAgreementContent() {
   console.log("[Seed] Checking for agreement content...");
-  
+
+  // Server-startup seed with no per-request tenant context; seed into the
+  // oldest existing organization, or skip entirely on a fresh install.
+  const org = await storage.getFirstOrganization();
+  if (!org) {
+    console.log("[Seed] Skipping seedAgreementContent - no organization exists yet");
+    return { added: 0, skipped: 0 };
+  }
+
   let added = 0;
   let skipped = 0;
   
@@ -249,6 +268,7 @@ export async function seedAgreementContent() {
       }
       
       await db.insert(agreementContent).values({
+        organizationId: org.id,
         stepNumber: step.stepNumber,
         title: step.title,
         scripture: step.scripture,

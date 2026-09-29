@@ -213,7 +213,7 @@ export class PlanningCenterService {
     };
   }
 
-  async syncUserAssignments(userId: string, userEmail: string): Promise<number> {
+  async syncUserAssignments(organizationId: string, userId: string, userEmail: string): Promise<number> {
     // First, validate that we have valid credentials and can connect
     const connectionTest = await this.testConnection();
     if (!connectionTest.success) {
@@ -241,6 +241,7 @@ export class PlanningCenterService {
                           schedule.attributes.status === 'unconfirmed';
       
       await storage.upsertServiceAssignment({
+        organizationId,
         userId,
         planningCenterScheduleId: schedule.id,
         planningCenterServiceId: schedule.relationships?.plan?.data?.id,
@@ -260,6 +261,7 @@ export class PlanningCenterService {
     const settings = await storage.getIntegrationSettings('planning-center');
     if (settings) {
       await storage.upsertIntegrationSettings({
+        organizationId,
         integrationName: settings.integrationName,
         isEnabled: settings.isEnabled,
         credentials: settings.credentials as Record<string, unknown> | undefined,
