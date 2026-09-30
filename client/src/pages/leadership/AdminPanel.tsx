@@ -34,7 +34,9 @@ import {
   X,
   Cloud,
   RefreshCw,
-  Copy
+  Copy,
+  Building2,
+  Palette,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2466,6 +2468,319 @@ function SystemStatusSection() {
   );
 }
 
+interface OrgSettingsData {
+  organizationName: string;
+  tagline: string | null;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  logoUrl: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  website: string | null;
+  facebookUrl: string | null;
+  instagramUrl: string | null;
+  youtubeUrl: string | null;
+  twitterUrl: string | null;
+  enableOnboarding: boolean;
+  enableTraining: boolean;
+  enableRewards: boolean;
+  enableTeamCenter: boolean;
+  enableBackgroundChecks: boolean;
+}
+
+function OrganizationSettingsSection() {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState<Partial<OrgSettingsData>>({});
+
+  const { data: settings, isLoading } = useQuery<OrgSettingsData>({
+    queryKey: ['/api/org/settings'],
+  });
+
+  const merged: Partial<OrgSettingsData> = { ...settings, ...formData };
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: Partial<OrgSettingsData>) => {
+      const res = await apiRequest('PUT', '/api/org/settings', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/org/settings'] });
+      setFormData({});
+      toast({ title: "Settings Saved", description: "Your ministry's settings have been updated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Save Failed", description: error.message || "Could not save settings.", variant: "destructive" });
+    },
+  });
+
+  const field = (key: keyof OrgSettingsData, value: string | boolean) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = () => {
+    if (Object.keys(formData).length === 0) return;
+    updateMutation.mutate(formData);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-96" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const hasChanges = Object.keys(formData).length > 0;
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Ministry Information
+              </CardTitle>
+              <CardDescription>
+                This is what your team sees throughout MinistryPath, and what shows on invite and onboarding pages.
+              </CardDescription>
+            </div>
+            <Button
+              onClick={handleSave}
+              disabled={!hasChanges || updateMutation.isPending}
+              data-testid="button-save-org-settings"
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Save Changes
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ministry Name</label>
+              <Input
+                value={merged.organizationName ?? ''}
+                onChange={(e) => field('organizationName', e.target.value)}
+                placeholder="e.g. Garden City Church"
+                data-testid="input-org-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tagline</label>
+              <Input
+                value={merged.tagline ?? ''}
+                onChange={(e) => field('tagline', e.target.value)}
+                placeholder="A short phrase describing your ministry"
+                data-testid="input-org-tagline"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Contact Email</label>
+              <Input
+                type="email"
+                value={merged.email ?? ''}
+                onChange={(e) => field('email', e.target.value)}
+                placeholder="info@yourchurch.org"
+                data-testid="input-org-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Phone</label>
+              <Input
+                value={merged.phone ?? ''}
+                onChange={(e) => field('phone', e.target.value)}
+                placeholder="(555) 123-4567"
+                data-testid="input-org-phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Website</label>
+              <Input
+                value={merged.website ?? ''}
+                onChange={(e) => field('website', e.target.value)}
+                placeholder="https://yourchurch.org"
+                data-testid="input-org-website"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Address</label>
+              <Input
+                value={merged.address ?? ''}
+                onChange={(e) => field('address', e.target.value)}
+                placeholder="123 Main St, Your City, ST"
+                data-testid="input-org-address"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            Branding
+          </CardTitle>
+          <CardDescription>
+            Colors used throughout your ministry's MinistryPath experience.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Primary Color</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="color"
+                  className="w-14 h-10 p-1"
+                  value={merged.primaryColor ?? '#3B82F6'}
+                  onChange={(e) => field('primaryColor', e.target.value)}
+                  data-testid="input-org-primary-color"
+                />
+                <Input
+                  value={merged.primaryColor ?? '#3B82F6'}
+                  onChange={(e) => field('primaryColor', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Secondary Color</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="color"
+                  className="w-14 h-10 p-1"
+                  value={merged.secondaryColor ?? '#10B981'}
+                  onChange={(e) => field('secondaryColor', e.target.value)}
+                  data-testid="input-org-secondary-color"
+                />
+                <Input
+                  value={merged.secondaryColor ?? '#10B981'}
+                  onChange={(e) => field('secondaryColor', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Accent Color</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="color"
+                  className="w-14 h-10 p-1"
+                  value={merged.accentColor ?? '#F59E0B'}
+                  onChange={(e) => field('accentColor', e.target.value)}
+                  data-testid="input-org-accent-color"
+                />
+                <Input
+                  value={merged.accentColor ?? '#F59E0B'}
+                  onChange={(e) => field('accentColor', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Logo URL</label>
+            <Input
+              value={merged.logoUrl ?? ''}
+              onChange={(e) => field('logoUrl', e.target.value)}
+              placeholder="https://..."
+              data-testid="input-org-logo-url"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Social Media</CardTitle>
+          <CardDescription>Shown on your public-facing pages where applicable.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Facebook</label>
+            <Input
+              value={merged.facebookUrl ?? ''}
+              onChange={(e) => field('facebookUrl', e.target.value)}
+              placeholder="https://facebook.com/..."
+              data-testid="input-org-facebook"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Instagram</label>
+            <Input
+              value={merged.instagramUrl ?? ''}
+              onChange={(e) => field('instagramUrl', e.target.value)}
+              placeholder="https://instagram.com/..."
+              data-testid="input-org-instagram"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">YouTube</label>
+            <Input
+              value={merged.youtubeUrl ?? ''}
+              onChange={(e) => field('youtubeUrl', e.target.value)}
+              placeholder="https://youtube.com/..."
+              data-testid="input-org-youtube"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Twitter / X</label>
+            <Input
+              value={merged.twitterUrl ?? ''}
+              onChange={(e) => field('twitterUrl', e.target.value)}
+              placeholder="https://x.com/..."
+              data-testid="input-org-twitter"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Feature Toggles</CardTitle>
+          <CardDescription>Turn features on or off for your entire ministry.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {([
+            ['enableOnboarding', 'Onboarding', 'New member onboarding wizard'],
+            ['enableTraining', 'Training', 'Training modules and manuals'],
+            ['enableRewards', 'Rewards', 'Badges and XP gamification'],
+            ['enableTeamCenter', 'Team Center', 'Ministry team collaboration tools'],
+            ['enableBackgroundChecks', 'Background Checks', 'Background check status tracking'],
+          ] as const).map(([key, label, description]) => (
+            <div key={key} className="flex items-center justify-between py-2 border-b last:border-0">
+              <div>
+                <p className="font-medium text-sm">{label}</p>
+                <p className="text-xs text-muted-foreground">{description}</p>
+              </div>
+              <Switch
+                checked={merged[key] ?? true}
+                onCheckedChange={(checked) => field(key, checked)}
+                data-testid={`switch-${key}`}
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 interface OutlookSettings {
   enabled: boolean;
   tenantId: string;
@@ -3253,6 +3568,10 @@ export default function AdminPanel() {
             <Calendar className="h-4 w-4" />
             Calendar
           </TabsTrigger>
+          <TabsTrigger value="organization" className="gap-2" data-testid="tab-organization">
+            <Building2 className="h-4 w-4" />
+            Organization
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="trainings">
@@ -3296,6 +3615,10 @@ export default function AdminPanel() {
 
         <TabsContent value="calendar">
           <CalendarCategoriesSection />
+        </TabsContent>
+
+        <TabsContent value="organization">
+          <OrganizationSettingsSection />
         </TabsContent>
       </Tabs>
     </div>
