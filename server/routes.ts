@@ -231,9 +231,21 @@ export async function registerRoutes(
   // ==========================================================================
   app.post('/api/bootstrap/seed-ministries', async (req, res) => {
     try {
+      // No auth/tenant context here by design (first-time setup) — attach to
+      // the oldest existing organization, since this only makes sense to run
+      // once an organization already exists (created via
+      // /api/auth/register-organization).
+      const firstOrg = await storage.getFirstOrganization();
+      if (!firstOrg) {
+        return res.status(400).json({
+          success: false,
+          message: "No organization exists yet. Create one first via /api/auth/register-organization.",
+        });
+      }
+      const organizationId = firstOrg.id;
+
       // Check if ministries already exist
-      // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (which org do seeded ministries belong to?)
-      const existingMinistries = await storage.getMinistries();
+      const existingMinistries = await storage.getMinistries(organizationId);
       if (existingMinistries.length > 0) {
         return res.status(400).json({ 
           success: false, 
@@ -308,8 +320,8 @@ export async function registerRoutes(
       const created: string[] = [];
       
       for (const parent of ministryHierarchy) {
-        // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (which org do seeded ministries belong to?)
         const parentMinistry = await storage.createMinistry({
+          organizationId,
           name: parent.name,
           slug: generateSlug(parent.name),
           description: parent.description,
@@ -317,11 +329,11 @@ export async function registerRoutes(
           isActive: true,
         });
         created.push(parent.name);
-        
+
         if (parentMinistry && parent.children) {
           for (const child of parent.children) {
-            // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (which org do seeded ministries belong to?)
             await storage.createMinistry({
+              organizationId,
               name: child.name,
               slug: generateSlug(child.name),
               description: child.description,
@@ -606,30 +618,44 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Invalid bootstrap key" });
       }
       
-      // Check if any admin/owner users exist
-      // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (is this global bootstrap or per-org?)
-      const existingAdmins = await storage.getAllUsers();
-      const hasExistingAdmin = existingAdmins.some(u => 
-        u.role === 'admin' || u.role === 'owner'
-      );
-      
-      if (hasExistingAdmin) {
-        console.log('[Bootstrap] Rejected - admin accounts already exist');
-        return res.status(409).json({ 
-          message: "Admin accounts already exist. Use the normal admin invite flow." 
+      // No auth/tenant context here by design (this creates the very first
+      // admin before anyone can log in) — attach to the oldest existing
+      // organization. New ministries signing up should use
+      // /api/auth/register-organization instead, which creates an org and
+      // its owner together; this endpoint exists for adding a second
+      // admin-level account to that same org via a shared secret.
+      const firstOrg = await storage.getFirstOrganization();
+      if (!firstOrg) {
+        return res.status(400).json({
+          message: "No organization exists yet. Create one first via /api/auth/register-organization.",
         });
       }
-      
+      const organizationId = firstOrg.id;
+
+      // Check if any admin/owner users exist in that organization
+      const existingAdmins = await storage.getAllUsers(organizationId);
+      const hasExistingAdmin = existingAdmins.some(u =>
+        u.role === 'admin' || u.role === 'owner'
+      );
+
+      if (hasExistingAdmin) {
+        console.log('[Bootstrap] Rejected - admin accounts already exist');
+        return res.status(409).json({
+          message: "Admin accounts already exist. Use the normal admin invite flow."
+        });
+      }
+
       // Check if email is already taken
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(409).json({ message: "Email already in use" });
       }
-      
+
       // Create the first admin account
       const passwordHash = await bcrypt.hash(password, 12); // Use cost 12 for admin accounts
-      
-      const adminUser = await storage.createUser({
+
+      const adminUser = await storage.upsertUser({
+        organizationId,
         email,
         passwordHash,
         authProvider: 'local',
@@ -644,13 +670,13 @@ export async function registerRoutes(
         status: 'active',
         isArchived: false,
       });
-      
+
       console.log(`[Bootstrap] Created initial owner account for ${email} (ID: ${adminUser.id})`);
-      
+
       // Log the bootstrap action (audit)
       try {
-        // TODO(multi-tenant): this bootstrap endpoint has no auth middleware and no tenant context yet; needs a design decision (which org does the bootstrapped admin belong to?)
         await storage.createAuditLog({
+          organizationId,
           action: 'admin_bootstrap',
           entityType: 'user',
           entityId: adminUser.id,
@@ -8232,9 +8258,11 @@ export async function registerRoutes(
         return res.status(400).json({ message: "This invite has expired", status: 'expired' });
       }
       
-      // Get ministry details if applicable
-      // TODO(multi-tenant): this route has no auth middleware (public invite-lookup page) and no req.organizationId; consider using invite.organizationId (already scoped via the unique token) once storage.getMinistry's org check is confirmed safe for this public path
-      const ministry = invite.ministryId ? await storage.getMinistry(invite.ministryId) : null;
+      // Get ministry details if applicable. No auth middleware here (public
+      // invite-acceptance page), but invite.organizationId is already safely
+      // scoped — the invite itself was looked up by its unique, unguessable
+      // token, so its organizationId can be trusted the same way.
+      const ministry = invite.ministryId ? await storage.getMinistry(invite.ministryId, invite.organizationId) : null;
       const inviter = await storage.getUser(invite.invitedBy);
       
       res.json({
