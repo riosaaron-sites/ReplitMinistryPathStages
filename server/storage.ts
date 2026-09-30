@@ -2687,7 +2687,7 @@ export class DatabaseStorage implements IStorage {
     ministryName: string;
     primaryLeader: { id: string; name: string } | null;
     coLeaders: { id: string; name: string }[];
-    expectation: string | null;
+    expectations: string[] | null;
   }[]> {
     const actingUser = await this.getUser(userId);
     const organizationId = actingUser?.organizationId;
@@ -2732,7 +2732,7 @@ export class DatabaseStorage implements IStorage {
         ministryName: ministry.name,
         primaryLeader,
         coLeaders,
-        expectations: (ministry as any).expectations || null,
+        expectations: ministry.expectations || null,
       });
     }
     

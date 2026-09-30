@@ -69,7 +69,7 @@ export function QuestionCard({
               <Badge variant="secondary" className="font-mono" data-testid={`badge-question-number-${question.id}`}>
                 {questionNumber} / {totalQuestions}
               </Badge>
-              {question.skillVerification && (
+              {question.skillCategory && (
                 <Badge variant="outline" className="text-xs">
                   Skill Verification
                 </Badge>

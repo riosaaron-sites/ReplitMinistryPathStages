@@ -132,7 +132,7 @@ export async function seedCoreData() {
         estimatedMinutes: training.estimatedMinutes,
         xpReward: training.xpReward,
         requiresApproval: false,
-        orderIndex: 0,
+        sortOrder: 0,
       });
       
       trainingsAdded++;

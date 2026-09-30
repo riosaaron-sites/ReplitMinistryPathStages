@@ -28,6 +28,7 @@ interface OnboardingLayoutProps {
   subtitle?: string;
   showBackButton?: boolean;
   backUrl?: string;
+  onBackClick?: () => void;
   helpContent?: ReactNode;
 }
 
@@ -38,15 +39,20 @@ export function OnboardingLayout({
   subtitle,
   showBackButton = false,
   backUrl,
+  onBackClick,
   helpContent,
 }: OnboardingLayoutProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [, setLocation] = useLocation();
-  
+
   const currentIndex = ONBOARDING_STEPS.findIndex(s => s.id === currentStep);
-  
+
+  // Prefer an in-wizard step transition when provided; fall back to
+  // navigating to a fixed URL otherwise.
   const handleBack = () => {
-    if (backUrl) {
+    if (onBackClick) {
+      onBackClick();
+    } else if (backUrl) {
       setLocation(backUrl);
     }
   };

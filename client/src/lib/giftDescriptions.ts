@@ -11,12 +11,12 @@ export const GIFT_DESCRIPTIONS: Record<SpiritualGift, { name: string; descriptio
     description: "You enjoy explaining Scripture clearly and helping others understand and apply God's Word. You have a gift for making complex truths accessible and practical.",
     biblicalReference: "Romans 12:7, Ephesians 4:11",
   },
-  shepherding: {
+  'pastor-shepherd': {
     name: "Shepherding / Pastoral Care",
     description: "You are drawn to nurturing people over time, walking with them through life's seasons. You care deeply about spiritual growth and wellbeing of others.",
     biblicalReference: "Ephesians 4:11, 1 Peter 5:2-3",
   },
-  evangelism: {
+  evangelist: {
     name: "Evangelism",
     description: "You feel bold and passionate about sharing the Gospel with those who don't know Jesus. You naturally look for opportunities to introduce people to Christ.",
     biblicalReference: "Ephesians 4:11, Acts 8:4",
@@ -36,7 +36,7 @@ export const GIFT_DESCRIPTIONS: Record<SpiritualGift, { name: string; descriptio
     description: "You naturally take initiative, cast vision, and guide others toward goals. People look to you for direction and you feel comfortable making decisions.",
     biblicalReference: "Romans 12:8, Hebrews 13:17",
   },
-  serving: {
+  service: {
     name: "Serving / Helps",
     description: "You find great joy in practical service, often behind the scenes. You meet needs and support others' ministries with a humble, faithful spirit.",
     biblicalReference: "Romans 12:7, 1 Corinthians 12:28",
@@ -61,12 +61,12 @@ export const GIFT_DESCRIPTIONS: Record<SpiritualGift, { name: string; descriptio
     description: "You carry a burden to pray for extended periods and intercede for others. Prayer is not just a discipline but a calling—you sense the urgency of prayer ministry.",
     biblicalReference: "Romans 8:26-27, James 5:16",
   },
-  wisdom: {
+  'word-of-wisdom': {
     name: "Wisdom",
     description: "You receive insight and understanding from the Holy Spirit that guides decision-making and problem-solving. Others seek your counsel for navigating complex situations.",
     biblicalReference: "1 Corinthians 12:8, James 1:5",
   },
-  knowledge: {
+  'word-of-knowledge': {
     name: "Word of Knowledge",
     description: "You perceive facts or truths supernaturally that you could not have known naturally. This gift often provides key information for ministry situations.",
     biblicalReference: "1 Corinthians 12:8",
@@ -91,10 +91,45 @@ export const GIFT_DESCRIPTIONS: Record<SpiritualGift, { name: string; descriptio
     description: "You speak in languages you have not learned, either known languages or a heavenly prayer language, for worship, intercession, or communicating God's message.",
     biblicalReference: "1 Corinthians 12:10, 28, Acts 2:4",
   },
-  interpretation: {
+  'interpretation-of-tongues': {
     name: "Interpretation of Tongues",
     description: "You receive the meaning of messages spoken in tongues and can communicate that message to the congregation for edification.",
     biblicalReference: "1 Corinthians 12:10, 30, 14:27-28",
+  },
+  apostleship: {
+    name: "Apostleship",
+    description: "You pioneer new works, plant churches, and provide oversight to multiple ministries. You start new initiatives and establish foundational work.",
+    biblicalReference: "Ephesians 4:11, 1 Corinthians 12:28",
+  },
+  prophet: {
+    name: "Prophet",
+    description: "You speak forth God's message to the church and world with authority, proclaiming truth boldly and calling people to righteousness.",
+    biblicalReference: "Ephesians 4:11",
+  },
+  teacher: {
+    name: "Teacher (Office)",
+    description: "You systematically explain Scripture and doctrine with authority, building curriculum and teaching with depth and clarity.",
+    biblicalReference: "Ephesians 4:11",
+  },
+  helps: {
+    name: "Helps",
+    description: "You assist others and free them to focus on their primary ministry, supporting leaders and meeting practical needs.",
+    biblicalReference: "1 Corinthians 12:28",
+  },
+  reconciliation: {
+    name: "Reconciliation",
+    description: "You bring unity and resolve conflicts between people, bridging divides and restoring relationships.",
+    biblicalReference: "2 Corinthians 5:18-19",
+  },
+  compassion: {
+    name: "Compassion",
+    description: "You feel deeply for the suffering and take action to help, moved to action whenever you see need.",
+    biblicalReference: "Matthew 9:36, Colossians 3:12",
+  },
+  exhortation: {
+    name: "Exhortation / Encouragement",
+    description: "You come alongside people with practical encouragement and counsel, helping them take their next step and persevere in faith.",
+    biblicalReference: "Romans 12:8",
   },
 };
 
@@ -235,6 +270,36 @@ export const MINISTRY_DESCRIPTIONS: Record<MinistryId, {
     description: "Take the love of Jesus beyond our walls.",
     roleDetails: "Participate in community outreach events, evangelism efforts, and service projects. Be the hands and feet of Jesus in our community.",
     icon: "globe",
+  },
+  "landing-team": {
+    name: "The Landing Team",
+    description: "Be the first friendly face guests encounter.",
+    roleDetails: "Greet arriving guests in the parking lot and entryways, help them find their way, and make their first moments at church feel warm and unhurried.",
+    icon: "hand-wave",
+  },
+  "prayer-team": {
+    name: "Prayer Team / Intercession",
+    description: "Carry the needs of others before God.",
+    roleDetails: "Pray with people during and after services, intercede for the church's needs, and cultivate a culture of prayer throughout the congregation.",
+    icon: "hands-praying",
+  },
+  "altar-ministry": {
+    name: "Altar Ministry",
+    description: "Minister to people responding at the altar.",
+    roleDetails: "Pray with and encourage those who respond to altar calls, offering a caring presence during meaningful moments of decision and surrender.",
+    icon: "heart",
+  },
+  griefshare: {
+    name: "GriefShare",
+    description: "Walk alongside those grieving a loss.",
+    roleDetails: "Facilitate or support a GriefShare group, offering comfort, structure, and hope to those processing the loss of a loved one.",
+    icon: "heart-handshake",
+  },
+  "celebrate-recovery": {
+    name: "Celebrate Recovery",
+    description: "Support others on the path to freedom and healing.",
+    roleDetails: "Lead or support a Celebrate Recovery group, walking alongside people working through hurts, habits, and hang-ups in a Christ-centered recovery process.",
+    icon: "sunrise",
   },
 };
 

@@ -4152,7 +4152,7 @@ export async function registerRoutes(
   });
 
   // Get team health indicators for a ministry (leadership view)
-  app.get('/api/ministries/:id/team-health', isAuthenticated, isLeader, async (req: any, res) => {
+  app.get('/api/ministries/:id/team-health', isAuthenticated, requireLeader, async (req: any, res) => {
     try {
       const teamHealth = await storage.getMinistryTeamHealth(req.params.id);
       res.json(teamHealth);
@@ -4964,7 +4964,7 @@ export async function registerRoutes(
           
           if (audience === 'ministry' && ministryId) {
             // Ministry-specific training: notify all members of that ministry
-            const memberships = await storage.getMinistryMemberships(ministryId);
+            const memberships = await storage.getMinistryMembers(ministryId, req.organizationId);
             targetUserIds = memberships.map(m => m.userId);
           } else if (audience === 'leader') {
             // Leader-only training: notify all leaders
@@ -4991,8 +4991,8 @@ export async function registerRoutes(
               type: 'training_published',
               title: 'New Training Available',
               message: `A new training "${training.title}" is now available for you to complete.`,
-              relatedType: 'training',
-              relatedId: training.id,
+              link: '/trainings',
+              data: { trainingId: training.id },
             });
           }
           
@@ -6301,11 +6301,11 @@ export async function registerRoutes(
           type: 'event' as const,
           title: e.title,
           description: e.description,
-          startTime: e.startTime,
-          endTime: e.endTime,
+          startTime: e.startDate,
+          endTime: e.endDate,
           location: e.location,
-          category: e.category,
-          categorySlug: resolveCategorySlug(e.category),
+          category: e.eventType,
+          categorySlug: resolveCategorySlug(e.eventType),
           ministryId: e.ministryId,
           isRecurring: e.isRecurring,
         }));
@@ -6728,7 +6728,7 @@ export async function registerRoutes(
       // Get ministries based on user role
       let ministryIds: string[] | undefined;
       if (!isAdmin(user.role) && !isPastor(user.role)) {
-        ministryIds = user.ledMinistryIds || [];
+        ministryIds = (user.ledMinistryIds || []) as string[];
         if (ministryIds.length === 0) {
           return res.json([]);
         }
@@ -8400,10 +8400,10 @@ export async function registerRoutes(
           token: invite.token,
           message: invite.message,
         },
-        inviter,
+        inviter: inviter ?? null,
         ministry: ministry ? { name: ministry.name } : null,
       });
-      
+
       if (!emailResult.success) {
         return res.status(500).json({ message: "Failed to send email", error: emailResult.error });
       }
@@ -8928,7 +8928,7 @@ export async function registerRoutes(
         entityId: assignment.id,
         action: 'leader_added',
         performedBy: actorId,
-        changes: {
+        newValue: {
           ministryId,
           userId,
           leadershipType: 'secondary',
@@ -9530,7 +9530,15 @@ export async function registerRoutes(
         const ministryId = req.body.ministryId;
         if (ministryId) {
           try {
-            await storage.addMinistryMember(userId, ministryId, req.body.roleInMinistry || 'member');
+            await storage.createRoleAssignment({
+              organizationId: req.organizationId,
+              userId,
+              ministryId,
+              roleType: 'member',
+              roleName: req.body.roleInMinistry || 'Member',
+              isActive: true,
+              assignedBy: userId,
+            });
             console.log(`[Ministry] Auto-approved admin/owner ${user.firstName} to join ministry ${ministryId}`);
           } catch (memberError) {
             console.error('[Ministry] Error adding auto-approved member:', memberError);
@@ -9798,7 +9806,6 @@ export async function registerRoutes(
               day: 'numeric'
             })
           : 'TBD',
-        location: workboard.location || undefined,
         ministryName,
         organizer: organizer ? { firstName: organizer.firstName, lastName: organizer.lastName } : undefined,
         agenda: agendaItems,
@@ -9806,7 +9813,7 @@ export async function registerRoutes(
 
       // Get recipients from request body or default to empty
       const { recipients } = req.body;
-      
+
       if (recipients && recipients.length > 0) {
         // Try to send email
         const result = await sendMeetingAgendaEmail(emailData, recipients);
@@ -9883,7 +9890,6 @@ export async function registerRoutes(
               day: 'numeric' 
             })
           : 'TBD',
-        location: workboard.location || undefined,
         ministryName,
         organizer: organizer ? { firstName: organizer.firstName, lastName: organizer.lastName } : undefined,
         notes: workboard.notes || undefined,
@@ -10512,9 +10518,9 @@ export async function registerRoutes(
       
       const outlook = await import('./outlook');
       const events = await outlook.getOutlookEvents(
-        start as string, 
-        end as string, 
-        { category: category as string, ministryId: ministryId as string }
+        start as string,
+        end as string,
+        { categorySlug: category as string, ministryId: ministryId as string }
       );
       
       if (events === null) {

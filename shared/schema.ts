@@ -448,6 +448,10 @@ export const roleAssignments = pgTable("role_assignments", {
 export const insertRoleAssignmentSchema = createInsertSchema(roleAssignments).omit({
   id: true,
   assignedAt: true,
+}).extend({
+  // drizzle-zod doesn't carry the .$type<string[]>() override on jsonb columns
+  // through to the inferred insert type without an explicit extend here.
+  keySkills: z.array(z.string()).nullable().optional(),
 });
 
 export type InsertRoleAssignment = z.infer<typeof insertRoleAssignmentSchema>;
@@ -1278,6 +1282,8 @@ export const insertMinistrySchema = createInsertSchema(ministries).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  expectations: z.array(z.string()).nullable().optional(),
 });
 
 export type InsertMinistry = z.infer<typeof insertMinistrySchema>;
@@ -1563,6 +1569,8 @@ export const insertUserTrainingProgressSchema = createInsertSchema(userTrainingP
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  lessonsCompleted: z.array(z.string()).nullable().optional(),
 });
 
 export type InsertUserTrainingProgress = z.infer<typeof insertUserTrainingProgressSchema>;
@@ -2373,6 +2381,12 @@ export const insertTeamInviteSchema = createInsertSchema(teamInvites).omit({
   acceptedAt: true,
   acceptedBy: true,
   createdAt: true,
+}).extend({
+  ministries: z.array(z.object({
+    ministryId: z.string(),
+    roleType: z.enum(['leader', 'member']),
+    roleTitle: z.string().optional(),
+  })).nullable().optional(),
 });
 
 export type InsertTeamInvite = z.infer<typeof insertTeamInviteSchema>;
@@ -3060,6 +3074,8 @@ export const insertWorkboardSchema = createInsertSchema(workboards).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  decisions: z.array(z.string()).nullable().optional(),
 });
 
 export type InsertWorkboard = z.infer<typeof insertWorkboardSchema>;

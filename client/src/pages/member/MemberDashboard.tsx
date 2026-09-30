@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRole } from "@/hooks/useRole";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
+import {
+  type LucideIcon,
   ChevronRight,
   ArrowRight,
   GraduationCap,
@@ -167,8 +168,8 @@ function getWhatsNextPriority(
   onboardingProgress: OnboardingProgress | undefined,
   userProgress: UserProgress | undefined,
   surveyResults: SurveyResults | undefined
-): { title: string; description: string; action: string; href: string; icon: typeof AlertCircle; priority: number } | null {
-  
+): { title: string; description: string; action: string; href: string; icon: LucideIcon; priority: number } | null {
+
   // 1) Onboarding incomplete
   if (user?.onboardingState && user.onboardingState !== 'DONE') {
     return {
@@ -320,6 +321,38 @@ export default function MemberDashboard() {
   const dailyEncouragement = getDailyEncouragement();
 
   const whatsNext = getWhatsNextPriority(user, onboardingProgress, userProgress, surveyResults);
+  let whatsNextPanel: ReactNode = null;
+  if (whatsNext) {
+    const WhatsNextIcon = whatsNext.icon;
+    whatsNextPanel = (
+      <Card className="border-primary/50 bg-primary/5" data-testid="card-whats-next">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <WhatsNextIcon className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Badge variant="default" className="text-xs">What's Next</Badge>
+              </div>
+              <h3 className="font-semibold text-lg mb-1" data-testid="text-whats-next-title">
+                {whatsNext.title}
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4" data-testid="text-whats-next-description">
+                {whatsNext.description}
+              </p>
+              <Link href={whatsNext.href}>
+                <Button className="gap-2" data-testid="button-whats-next-action">
+                  {whatsNext.action}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Ministry display - compact badges
   const activeAssignments = (myAssignments || []).filter(a => a.isActive);
@@ -371,6 +404,7 @@ export default function MemberDashboard() {
 
   return (
     <div className="space-y-6">
+      <>
       {/* Welcome Section */}
       <div className="flex flex-col gap-1">
         <h1 className="font-serif-display text-3xl font-bold" data-testid="text-dashboard-title">
@@ -382,34 +416,7 @@ export default function MemberDashboard() {
       </div>
 
       {/* What's Next - Priority Panel */}
-      {whatsNext && (
-        <Card className="border-primary/50 bg-primary/5" data-testid="card-whats-next">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                <whatsNext.icon className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="default" className="text-xs">What's Next</Badge>
-                </div>
-                <h3 className="font-semibold text-lg mb-1" data-testid="text-whats-next-title">
-                  {whatsNext.title}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4" data-testid="text-whats-next-description">
-                  {whatsNext.description}
-                </p>
-                <Link href={whatsNext.href}>
-                  <Button className="gap-2" data-testid="button-whats-next-action">
-                    {whatsNext.action}
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {whatsNextPanel}
 
       {/* Two Column Layout: Trainings + Discipleship */}
       <div className="grid md:grid-cols-2 gap-6">
@@ -527,9 +534,11 @@ export default function MemberDashboard() {
           </CardContent>
         </Card>
       </div>
+      </>
 
+      <>
       {/* Biblical Formation Card */}
-      {surveyResults?.biblicalLiteracy && (() => {
+      {surveyResults?.biblicalLiteracy && ((): JSX.Element => {
         const literacy = surveyResults.biblicalLiteracy as BiblicalLiteracyResult;
         const level = literacy.level || 'low';
         const levelInfo = BIBLICAL_LITERACY_LEVELS[level as keyof typeof BIBLICAL_LITERACY_LEVELS] || BIBLICAL_LITERACY_LEVELS.low;
@@ -566,7 +575,7 @@ export default function MemberDashboard() {
               <p className="text-sm text-muted-foreground">{levelInfo.encouragement}</p>
               
               {/* Bucket highlights - show lowest scoring area as focus */}
-              {literacy.bucketScores && literacy.bucketScores.length > 0 && (() => {
+              {literacy.bucketScores && literacy.bucketScores.length > 0 && ((): JSX.Element => {
                 const lowestBucket = [...literacy.bucketScores].sort((a, b) => a.percentage - b.percentage)[0];
                 const highestBucket = [...literacy.bucketScores].sort((a, b) => b.percentage - a.percentage)[0];
                 return (
@@ -988,7 +997,9 @@ export default function MemberDashboard() {
           </CardContent>
         </Card>
       )}
+      </>
 
+      <>
       {/* Background Check Status */}
       <Card data-testid="card-background-check">
         <CardContent className="pt-6">
@@ -1035,6 +1046,7 @@ export default function MemberDashboard() {
 
       {/* DEV Tools - Only visible to admins */}
       <DevToolsPanel user={user} isAdmin={isAdmin} />
+      </>
     </div>
   );
 }
