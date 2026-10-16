@@ -15,9 +15,13 @@ import {
   manuals, 
   manualAnalysis, 
   trainingModules, 
-  isPastor, 
-  isLeader, 
+  isPastor,
+  isLeader,
   isAdmin,
+  isOwner,
+  canManageRole,
+  USER_ROLES,
+  type UserRole,
   users,
   surveyResults,
   userTrainingProgress,
@@ -46,7 +50,8 @@ import {
   generateMeetingRecapContent,
   sendLeaderNotificationEmail,
   sendPasswordResetEmail,
-  MeetingEmailData 
+  getAppBaseUrl,
+  MeetingEmailData
 } from "./emailService";
 import { z } from "zod";
 import { seedHelpArticles } from "./seedHelpArticles";
@@ -729,12 +734,12 @@ export async function registerRoutes(
       
       const { targetUserId, reason } = parseResult.data;
       
-      // Verify target user exists
-      const targetUser = await storage.getUser(targetUserId);
+      // Verify target user exists in the admin's own organization
+      const targetUser = await storage.getUserInOrg(targetUserId, req.organizationId);
       if (!targetUser) {
         return res.status(404).json({ message: "Target user not found" });
       }
-      
+
       // Prevent impersonating owners if you're just an admin
       if (targetUser.role === 'owner' && admin.role !== 'owner') {
         return res.status(403).json({ message: "Cannot impersonate owner accounts" });
@@ -931,6 +936,19 @@ export async function registerRoutes(
         onboardingState: 'PROFILE',
         role: 'owner',
       });
+
+      // Give the new ministry the system defaults the app depends on
+      // (faith-commitment steps for onboarding, calendar categories, badges).
+      // A failure here shouldn't block signup; leaders can add these later.
+      try {
+        await Promise.all([
+          seedAgreementContent(organization.id),
+          seedDefaultCalendarCategories(organization.id),
+          seedSampleBadges(organization.id),
+        ]);
+      } catch (provisionError) {
+        console.error(`Failed to provision defaults for organization ${organization.id}:`, provisionError);
+      }
 
       const user = {
         claims: { sub: userId, email, first_name: firstName, last_name: lastName },
@@ -1190,7 +1208,7 @@ export async function registerRoutes(
       const { email, password, adminKey } = parseResult.data;
 
       // Verify admin key
-      if (adminKey !== process.env.STATUS_KEY) {
+      if (!process.env.STATUS_KEY || adminKey !== process.env.STATUS_KEY) {
         return res.status(403).json({ message: "Unauthorized" });
       }
 
@@ -1270,14 +1288,7 @@ export async function registerRoutes(
       // Clean up old expired tokens
       await storage.deleteExpiredPasswordResetTokens();
 
-      // Send email - use the request origin to ensure correct domain
-      const host = req.get('host') || req.get('Host');
-      const protocol = req.protocol || 'https';
-      const baseUrl = host 
-        ? `${protocol}://${host}`
-        : 'https://gardencitychurchsurvey.com';
-      
-      await sendPasswordResetEmail(email, user.firstName, token, baseUrl);
+      await sendPasswordResetEmail(email, user.firstName, token, getAppBaseUrl());
 
       res.json({ message: "If an account exists with that email, you will receive a password reset link." });
     } catch (error) {
@@ -1393,9 +1404,12 @@ export async function registerRoutes(
       
       if (user?.email && !alreadyProcessed) {
         const allPendingInvites = await storage.getPendingInvitesByEmail(user.email);
-        // Filter out expired invites
-        const pendingInvites = allPendingInvites.filter(invite => 
-          !invite.expiresAt || new Date(invite.expiresAt) > new Date()
+        // Skip expired invites, and invites from other ministries: an account
+        // belongs to exactly one organization, so those stay pending rather
+        // than attaching this user to another tenant's teams.
+        const pendingInvites = allPendingInvites.filter(invite =>
+          (!invite.expiresAt || new Date(invite.expiresAt) > new Date()) &&
+          invite.organizationId === user.organizationId
         );
         
         // Pre-fetch existing role assignments to avoid repeated DB calls
@@ -1586,9 +1600,10 @@ export async function registerRoutes(
       // Get user data and send emails asynchronously (don't block response)
       const user = await storage.getUser(userId);
       if (user) {
-        sendAssessmentEmails({ user, results })
+        storage.getOrgBranding(user.organizationId)
+          .then((org) => sendAssessmentEmails({ user, results, org }))
           .then(async (emailResult) => {
-            // Only mark as sent if ALL emails succeeded (participant + both church emails)
+            // Only mark as sent if ALL emails succeeded (participant + the ministry's staff inboxes)
             if (emailResult.allEmailsSent) {
               await storage.markEmailSent(results.id);
               console.log(`All assessment emails sent successfully for user: ${user.email}`);
@@ -1645,10 +1660,10 @@ export async function registerRoutes(
   });
 
   // Send retroactive emails for all completed surveys that haven't been emailed
-  app.post('/api/admin/send-retroactive-emails', async (req: any, res) => {
+  app.post('/api/admin/send-retroactive-emails', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       // Get all results that haven't been emailed
-      const unsentResults = await storage.getAllResultsWithUnsentEmails();
+      const unsentResults = await storage.getAllResultsWithUnsentEmails(req.organizationId);
       
       if (unsentResults.length === 0) {
         return res.json({ 
@@ -1661,7 +1676,7 @@ export async function registerRoutes(
       console.log(`Found ${unsentResults.length} results with unsent emails`);
       
       // Send emails for each result
-      const emailResult = await sendRetroactiveEmails(unsentResults);
+      const emailResult = await sendRetroactiveEmails(unsentResults, await storage.getOrgBranding(req.organizationId));
       
       // Mark emails as sent ONLY for results where ALL emails succeeded
       for (const result of emailResult.results) {
@@ -1687,9 +1702,9 @@ export async function registerRoutes(
   });
 
   // Get count of unsent emails (for admin info)
-  app.get('/api/admin/unsent-emails-count', async (req: any, res) => {
+  app.get('/api/admin/unsent-emails-count', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
-      const unsentResults = await storage.getAllResultsWithUnsentEmails();
+      const unsentResults = await storage.getAllResultsWithUnsentEmails(req.organizationId);
       res.json({ count: unsentResults.length });
     } catch (error) {
       console.error("Error getting unsent emails count:", error);
@@ -1703,14 +1718,15 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      const adminRoles = ['system-admin', 'admin'];
+      const adminRoles = ['owner', 'system-admin', 'admin'];
       if (!user || !adminRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
       
       // Get counts of what would be affected
       const existingManuals = await storage.getManuals(req.organizationId);
-      const allAnalyses = await db.select().from(manualAnalysis);
+      const allAnalyses = await db.select().from(manualAnalysis)
+        .where(eq(manualAnalysis.organizationId, req.organizationId));
       const allModules = await storage.getTrainingModules(req.organizationId);
       const modulesWithManualLink = allModules.filter(m => m.manualId);
 
@@ -1742,7 +1758,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      const adminRoles = ['system-admin', 'admin'];
+      const adminRoles = ['owner', 'system-admin', 'admin'];
       if (!user || !adminRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
@@ -1756,22 +1772,23 @@ export async function registerRoutes(
       
       // Get counts before deletion
       const existingManuals = await storage.getManuals(req.organizationId);
-      const allAnalyses = await db.select().from(manualAnalysis);
+      const allAnalyses = await db.select().from(manualAnalysis)
+        .where(eq(manualAnalysis.organizationId, req.organizationId));
       const allModules = await storage.getTrainingModules(req.organizationId);
       const modulesWithManualLink = allModules.filter(m => m.manualId);
 
-      // Step 1: Clear manualId from all training modules
+      // Step 1: Clear manualId from this organization's training modules
       for (const module of modulesWithManualLink) {
         await db.update(trainingModules)
           .set({ manualId: null })
-          .where(eq(trainingModules.id, module.id));
+          .where(and(eq(trainingModules.id, module.id), eq(trainingModules.organizationId, req.organizationId)));
       }
-      
-      // Step 2: Delete all manual analyses
-      await db.delete(manualAnalysis);
-      
-      // Step 3: Delete all manuals
-      await db.delete(manuals);
+
+      // Step 2: Delete this organization's manual analyses
+      await db.delete(manualAnalysis).where(eq(manualAnalysis.organizationId, req.organizationId));
+
+      // Step 3: Delete this organization's manuals
+      await db.delete(manuals).where(eq(manuals.organizationId, req.organizationId));
       
       res.json({
         mode: 'EXECUTED',
@@ -1792,7 +1809,10 @@ export async function registerRoutes(
   // USER RESET TOOL (Safe database reset except owner)
   // ==========================================================================
 
-  const PROTECTED_EMAIL = 'pastor@gardencitychurch.net';
+  // The reset never removes the admin running it or any owner of the
+  // organization — otherwise a ministry could lock itself out entirely.
+  const isProtectedFromReset = (u: { id: string; role: string | null }, requesterId: string) =>
+    u.id === requesterId || u.role === 'owner' || u.role === 'system-admin';
 
   // Preview user reset - DRY RUN mode
   app.get('/api/admin/reset-users/preview', isAuthenticated, async (req: any, res) => {
@@ -1804,11 +1824,10 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
       
-      // Get all users except protected email
       const allUsers = await storage.getAllUsers(req.organizationId);
-      const usersToRemove = allUsers.filter((u: { email: string | null }) => u.email !== PROTECTED_EMAIL);
-      const protectedUser = allUsers.find((u: { email: string | null }) => u.email === PROTECTED_EMAIL);
-      
+      const usersToRemove = allUsers.filter(u => !isProtectedFromReset(u, user.id));
+      const protectedUsers = allUsers.filter(u => isProtectedFromReset(u, user.id));
+
       // Get user IDs to count dependent records
       const userIdsToRemove = usersToRemove.map((u: any) => u.id);
       
@@ -1848,11 +1867,11 @@ export async function registerRoutes(
       
       res.json({
         mode: 'DRY_RUN',
-        protectedUser: protectedUser ? {
-          email: PROTECTED_EMAIL,
-          name: `${protectedUser.firstName} ${protectedUser.lastName}`,
-          role: protectedUser.role,
-        } : null,
+        protectedUsers: protectedUsers.map(u => ({
+          email: u.email,
+          name: `${u.firstName} ${u.lastName}`,
+          role: u.role,
+        })),
         willRemove: dependentCounts,
         usersToRemove: usersToRemove.map((u: any) => ({
           id: u.id,
@@ -1860,7 +1879,7 @@ export async function registerRoutes(
           name: `${u.firstName} ${u.lastName}`,
           role: u.role,
         })),
-        warning: 'This will permanently remove all users except the protected owner account.',
+        warning: 'This will permanently remove all users in your organization except you and its owners.',
         note: 'Use POST /api/admin/reset-users/execute with confirmPhrase to actually delete'
       });
     } catch (error) {
@@ -1888,9 +1907,8 @@ export async function registerRoutes(
         });
       }
       
-      // Get all users except protected email
       const allUsers = await storage.getAllUsers(req.organizationId);
-      const usersToRemove = allUsers.filter((u: { email: string | null }) => u.email !== PROTECTED_EMAIL);
+      const usersToRemove = allUsers.filter(u => !isProtectedFromReset(u, user.id));
 
       let removed = {
         users: 0,
@@ -1943,8 +1961,7 @@ export async function registerRoutes(
       res.json({
         mode: 'EXECUTED',
         removed,
-        protectedEmail: PROTECTED_EMAIL,
-        message: `Successfully removed ${removed.users} users. Protected account preserved.`
+        message: `Successfully removed ${removed.users} users. You and the organization's owners were preserved.`
       });
     } catch (error) {
       console.error("Error executing user reset:", error);
@@ -1958,7 +1975,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      const adminRoles = ['system-admin', 'admin'];
+      const adminRoles = ['owner', 'system-admin', 'admin'];
       if (!user || !adminRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
@@ -2125,7 +2142,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      const adminRoles = ['system-admin', 'admin'];
+      const adminRoles = ['owner', 'system-admin', 'admin'];
       if (!user || !adminRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
@@ -2207,7 +2224,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || !['system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - leadership access required" });
       }
       
@@ -2271,7 +2288,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      const adminRoles = ['system-admin', 'admin', 'owner'];
+      const adminRoles = ['owner', 'system-admin', 'admin', 'owner'];
       if (!user || !adminRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
@@ -2366,7 +2383,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || !['system-admin', 'admin', 'pastor'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor'].includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
       
@@ -2403,7 +2420,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || !['system-admin', 'admin', 'pastor'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor'].includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
       
@@ -2434,7 +2451,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || !['system-admin', 'admin', 'pastor'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor'].includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
       
@@ -2475,7 +2492,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      const adminRoles = ['system-admin', 'admin'];
+      const adminRoles = ['owner', 'system-admin', 'admin'];
       if (!user || !adminRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Unauthorized" });
       }
@@ -2727,27 +2744,12 @@ export async function registerRoutes(
   // AGREEMENT CONTENT ROUTES - Editable faith commitment content
   // =============================================================================
   
-  // GET all agreement content (used by OnboardingWizard right after signup/invite,
-  // so the visitor is authenticated by the time this loads in practice; falls back
-  // to the first organization if somehow called before login)
-  app.get('/api/agreement-content', async (req: any, res) => {
+  // GET all agreement content (used by OnboardingWizard right after signup/invite)
+  app.get('/api/agreement-content', isAuthenticated, async (req: any, res) => {
     try {
-      let organizationId: string | undefined;
-      if (req.isAuthenticated?.() && req.user?.claims) {
-        const email = req.user.claims.email;
-        const authUser = email ? await storage.getUserByEmail(email) : await storage.getUser(req.user.claims.sub);
-        organizationId = authUser?.organizationId;
-      }
-      if (!organizationId) {
-        const firstOrg = await storage.getFirstOrganization();
-        organizationId = firstOrg?.id;
-      }
-      if (!organizationId) {
-        return res.json([]);
-      }
-
+      const organizationId: string = req.organizationId;
       const content = await db.query.agreementContent.findMany({
-        where: (table, { eq, and }) => and(eq(table.organizationId, organizationId!), eq(table.isActive, true)),
+        where: (table, { eq, and }) => and(eq(table.organizationId, organizationId), eq(table.isActive, true)),
         orderBy: (table, { asc }) => asc(table.stepNumber),
       });
       res.json(content);
@@ -2758,29 +2760,16 @@ export async function registerRoutes(
   });
 
   // GET single agreement step
-  app.get('/api/agreement-content/:stepNumber', async (req: any, res) => {
+  app.get('/api/agreement-content/:stepNumber', isAuthenticated, async (req: any, res) => {
     try {
       const stepNumber = parseInt(req.params.stepNumber);
       if (isNaN(stepNumber)) {
         return res.status(400).json({ message: "Invalid step number" });
       }
 
-      let organizationId: string | undefined;
-      if (req.isAuthenticated?.() && req.user?.claims) {
-        const email = req.user.claims.email;
-        const authUser = email ? await storage.getUserByEmail(email) : await storage.getUser(req.user.claims.sub);
-        organizationId = authUser?.organizationId;
-      }
-      if (!organizationId) {
-        const firstOrg = await storage.getFirstOrganization();
-        organizationId = firstOrg?.id;
-      }
-      if (!organizationId) {
-        return res.status(404).json({ message: "Agreement step not found" });
-      }
-
+      const organizationId: string = req.organizationId;
       const content = await db.query.agreementContent.findFirst({
-        where: (table, { eq, and }) => and(eq(table.stepNumber, stepNumber), eq(table.organizationId, organizationId!)),
+        where: (table, { eq, and }) => and(eq(table.stepNumber, stepNumber), eq(table.organizationId, organizationId)),
       });
 
       if (!content) {
@@ -2908,12 +2897,22 @@ export async function registerRoutes(
       
       const { userId } = req.params;
       const { role: newRole } = req.body;
-      const targetUser = await storage.getUser(userId);
-      
+      if (!USER_ROLES.includes(newRole)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      const targetUser = await storage.getUserInOrg(userId, req.organizationId);
       if (!targetUser) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
+      // Owners can assign anything; everyone else may only change users ranked
+      // below them, and only to roles ranked below them (no self-promotion to owner).
+      if (!isOwner(requestingUser.role) &&
+          (!canManageRole(requestingUser.role, targetUser.role) || !canManageRole(requestingUser.role, newRole))) {
+        return res.status(403).json({ message: "You can't assign that role" });
+      }
+
       await storage.updateUserRole(userId, newRole);
       res.json({ message: "Role updated successfully" });
     } catch (error) {
@@ -2934,7 +2933,7 @@ export async function registerRoutes(
       const requestingUser = await storage.getUser(requestingUserId);
       
       // Only admins and pastors can update class status
-      const classAdminRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor'];
+      const classAdminRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor'];
       if (!requestingUser || !classAdminRoles.includes(requestingUser.role || '')) {
         return res.status(403).json({ message: "Only administrators can update class status" });
       }
@@ -2950,8 +2949,8 @@ export async function registerRoutes(
       
       const { userId } = req.params;
       const { nextNightStatus, followingJesusStatus } = parseResult.data;
-      
-      const targetUser = await storage.getUser(userId);
+
+      const targetUser = await storage.getUserInOrg(userId, req.organizationId);
       if (!targetUser) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -3103,7 +3102,7 @@ export async function registerRoutes(
       const requestingUserId = req.user.claims.sub;
       const requestingUser = await storage.getUser(requestingUserId);
       
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!requestingUser || !leaderRoles.includes(requestingUser.role || '')) {
         return res.status(403).json({ message: "Unauthorized" });
       }
@@ -3125,12 +3124,15 @@ export async function registerRoutes(
       // Users can view their own assignments, or leaders can view anyone's
       if (requestingUserId !== targetUserId) {
         const requestingUser = await storage.getUser(requestingUserId);
-        const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+        const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
         if (!requestingUser || !leaderRoles.includes(requestingUser.role || '')) {
           return res.status(403).json({ message: "Unauthorized" });
         }
+        if (!(await storage.getUserInOrg(targetUserId, req.organizationId))) {
+          return res.status(404).json({ message: "User not found" });
+        }
       }
-      
+
       const assignments = await storage.getUserRoleAssignments(targetUserId);
       res.json(assignments);
     } catch (error) {
@@ -3145,7 +3147,7 @@ export async function registerRoutes(
       const requestingUserId = req.user.claims.sub;
       const requestingUser = await storage.getUser(requestingUserId);
       
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!requestingUser || !leaderRoles.includes(requestingUser.role || '')) {
         return res.status(403).json({ message: "Unauthorized" });
       }
@@ -3157,9 +3159,16 @@ export async function registerRoutes(
       });
       
       const validated = assignmentSchema.parse(req.body);
+      const [targetUser, ministry] = await Promise.all([
+        storage.getUserInOrg(validated.userId, req.organizationId),
+        storage.getMinistry(validated.ministryId, req.organizationId),
+      ]);
+      if (!targetUser || !ministry) {
+        return res.status(404).json({ message: "User or ministry not found" });
+      }
       const assignment = await storage.createRoleAssignment({
-        organizationId: req.organizationId,
         ...validated,
+        organizationId: req.organizationId,
         assignedBy: requestingUserId,
       });
       res.json(assignment);
@@ -3178,7 +3187,7 @@ export async function registerRoutes(
       const requestingUserId = req.user.claims.sub;
       const requestingUser = await storage.getUser(requestingUserId);
       
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!requestingUser || !leaderRoles.includes(requestingUser.role || '')) {
         return res.status(403).json({ message: "Unauthorized" });
       }
@@ -3360,7 +3369,7 @@ export async function registerRoutes(
       const requestingUserId = req.user.claims.sub;
       const requestingUser = await storage.getUser(requestingUserId);
       
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!requestingUser || !leaderRoles.includes(requestingUser.role || '')) {
         return res.status(403).json({ message: "Unauthorized" });
       }
@@ -3636,7 +3645,7 @@ export async function registerRoutes(
         });
         
         // Notify Admin/Owner users about the new leader lock-in
-        const allUsers = await storage.getUsersWithMinistryDetails();
+        const allUsers = await storage.getUsersWithMinistryDetails(req.organizationId);
         const adminOwnerUsers = allUsers.filter(u => 
           u.role === 'owner' || u.role === 'admin' || u.role === 'system-admin'
         );
@@ -3912,8 +3921,8 @@ export async function registerRoutes(
       }
       
       // Import the planning center service dynamically
-      const { planningCenterService } = await import('./planningCenterService');
-      const syncCount = await planningCenterService.syncUserAssignments(req.organizationId, userId, userEmail);
+      const { getPlanningCenterService } = await import('./planningCenterService');
+      const syncCount = await getPlanningCenterService(req.organizationId).syncUserAssignments(userId, userEmail);
       
       res.json({ 
         message: syncCount > 0 
@@ -3938,8 +3947,8 @@ export async function registerRoutes(
   // Get Planning Center integration status (admin only)
   app.get('/api/integrations/planning-center', isAuthenticated, async (req: any, res) => {
     try {
-      const settings = await storage.getIntegrationSettings('planning-center');
-      
+      const settings = await storage.getIntegrationSettings(req.organizationId, 'planning-center');
+
       // Don't expose the actual credentials, just the status
       res.json({
         isEnabled: settings?.isEnabled ?? false,
@@ -3958,7 +3967,7 @@ export async function registerRoutes(
   app.post('/api/integrations/planning-center', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      if (!user || !['admin'].includes(user.role || '')) {
+      if (!user || !isAdmin(user.role)) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -3981,8 +3990,8 @@ export async function registerRoutes(
       });
 
       // Test the connection
-      const { planningCenterService } = await import('./planningCenterService');
-      const testResult = await planningCenterService.testConnection();
+      const { getPlanningCenterService } = await import('./planningCenterService');
+      const testResult = await getPlanningCenterService(req.organizationId).testConnection();
 
       res.json({
         message: "Planning Center integration configured",
@@ -4052,7 +4061,7 @@ export async function registerRoutes(
   app.post('/api/ministries', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      if (!user || !['system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4086,7 +4095,7 @@ export async function registerRoutes(
   app.patch('/api/ministries/:id', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      if (!user || !['system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -4154,7 +4163,7 @@ export async function registerRoutes(
   // Get team health indicators for a ministry (leadership view)
   app.get('/api/ministries/:id/team-health', isAuthenticated, requireLeader, async (req: any, res) => {
     try {
-      const teamHealth = await storage.getMinistryTeamHealth(req.params.id);
+      const teamHealth = await storage.getMinistryTeamHealth(req.params.id, req.organizationId);
       res.json(teamHealth);
     } catch (error) {
       console.error("Error fetching team health:", error);
@@ -4196,7 +4205,7 @@ export async function registerRoutes(
       const user = await storage.getUser(userId);
       
       // Only admins can add leaders
-      const isAdmin = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
+      const isAdmin = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
       if (!isAdmin) {
         return res.status(403).json({ message: "Not authorized to add leaders" });
       }
@@ -4234,12 +4243,12 @@ export async function registerRoutes(
       const user = await storage.getUser(currentUserId);
       
       // Only admins can remove leaders
-      const isAdmin = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
+      const isAdmin = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
       if (!isAdmin) {
         return res.status(403).json({ message: "Not authorized to remove leaders" });
       }
 
-      await storage.removeMinistryLeader(req.params.id, req.params.userId);
+      await storage.removeMinistryLeader(req.params.id, req.params.userId, req.organizationId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error removing ministry leader:", error);
@@ -4254,7 +4263,7 @@ export async function registerRoutes(
       const user = await storage.getUser(userId);
       
       // Only admins can update ministry hierarchy
-      const isAdmin = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
+      const isAdmin = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
       if (!isAdmin) {
         return res.status(403).json({ message: "Not authorized to update ministry hierarchy" });
       }
@@ -4290,7 +4299,7 @@ export async function registerRoutes(
       }
 
       // Only ministry leader or admin can view requests
-      const isAdmin = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
+      const isAdmin = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
       const isLeader = ministry.leaderId === userId;
 
       if (!isAdmin && !isLeader) {
@@ -4413,7 +4422,7 @@ export async function registerRoutes(
       }
 
       // Only ministry leader or admin can update
-      const isAdmin = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
+      const isAdmin = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'].includes(user?.role || '');
       const isLeader = ministry.leaderId === userId;
 
       if (!isAdmin && !isLeader) {
@@ -4781,7 +4790,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "This training is not available yet" });
       }
       
-      const rawAssessments = await storage.getTrainingAssessments(req.params.id);
+      const rawAssessments = await storage.getTrainingAssessments(req.params.id, req.organizationId);
       
       // Transform assessments to frontend format with numeric correctAnswer
       const assessments = rawAssessments.map(a => {
@@ -4856,7 +4865,7 @@ export async function registerRoutes(
   app.post('/api/training/modules', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!user || !leaderRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Not authorized to create training modules" });
       }
@@ -5016,7 +5025,7 @@ export async function registerRoutes(
   app.delete('/api/training/modules/:id', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      const adminRoles = ['system-admin', 'admin', 'lead-pastor'];
+      const adminRoles = ['owner', 'system-admin', 'admin', 'lead-pastor'];
       if (!user || !adminRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Not authorized to delete training modules - admin access required" });
       }
@@ -5027,7 +5036,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Training module not found" });
       }
 
-      await storage.deleteTrainingModule(id);
+      await storage.deleteTrainingModule(id, req.organizationId);
       res.json({ success: true, message: "Training module deleted successfully" });
     } catch (error) {
       console.error("Error deleting training module:", error);
@@ -5037,7 +5046,7 @@ export async function registerRoutes(
 
   app.get('/api/training/assessments/:moduleId', isAuthenticated, async (req: any, res) => {
     try {
-      const assessments = await storage.getTrainingAssessments(req.params.moduleId);
+      const assessments = await storage.getTrainingAssessments(req.params.moduleId, req.organizationId);
       // Transform to frontend format with proper letter-to-index conversion
       const formatted = assessments.map(a => {
         // Convert letter answer (A, B, C, D) to numeric index (0, 1, 2, 3)
@@ -5069,7 +5078,7 @@ export async function registerRoutes(
   app.post('/api/training/assessments', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!user || !leaderRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Not authorized to create assessments" });
       }
@@ -5099,7 +5108,7 @@ export async function registerRoutes(
   app.patch('/api/training/assessments/:id', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!user || !leaderRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Not authorized to update assessments" });
       }
@@ -5113,7 +5122,7 @@ export async function registerRoutes(
       });
 
       const validated = schema.parse(req.body);
-      const assessment = await storage.updateTrainingAssessment(req.params.id, validated);
+      const assessment = await storage.updateTrainingAssessment(req.params.id, req.organizationId, validated);
       res.json(assessment);
     } catch (error) {
       console.error("Error updating assessment:", error);
@@ -5125,12 +5134,12 @@ export async function registerRoutes(
   app.delete('/api/training/assessments/:id', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!user || !leaderRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Not authorized to delete assessments" });
       }
 
-      await storage.deleteTrainingAssessment(req.params.id);
+      await storage.deleteTrainingAssessment(req.params.id, req.organizationId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting assessment:", error);
@@ -5666,7 +5675,7 @@ export async function registerRoutes(
       const { adminOverride } = req.body; // Optional admin override flag
       
       // Get the training progress record
-      const allProgress = await storage.getAllTrainingProgress();
+      const allProgress = await storage.getAllTrainingProgress(req.organizationId);
       const progress = allProgress.find(p => p.id === progressId);
       
       if (!progress) {
@@ -5720,7 +5729,7 @@ export async function registerRoutes(
       }
       
       // Update the progress to approved
-      await storage.updateTrainingProgress(progressId, {
+      await storage.updateTrainingProgress(progressId, req.organizationId, {
         status: 'approved',
         approvedBy: leader.id,
         approvedAt: new Date(),
@@ -5838,7 +5847,7 @@ export async function registerRoutes(
       }
       
       // Get the training progress record
-      const allProgress = await storage.getAllTrainingProgress();
+      const allProgress = await storage.getAllTrainingProgress(req.organizationId);
       const progress = allProgress.find(p => p.id === progressId);
       
       if (!progress) {
@@ -5888,7 +5897,7 @@ export async function registerRoutes(
       }
       
       // Update the progress to rejected
-      await storage.updateTrainingProgress(progressId, {
+      await storage.updateTrainingProgress(progressId, req.organizationId, {
         status: 'rejected',
         rejectedBy: leader.id,
         rejectedAt: new Date(),
@@ -6089,7 +6098,7 @@ export async function registerRoutes(
   app.post('/api/rooms', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      if (!user || !['system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -6126,7 +6135,7 @@ export async function registerRoutes(
   app.post('/api/resources', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      if (!user || !['system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -6254,7 +6263,7 @@ export async function registerRoutes(
         storage.getCalendarEvents(req.organizationId, startDate, endDate),
         storage.getRoomReservations(req.organizationId, startDate, endDate),
         storage.getRooms(req.organizationId),
-        storage.getCalendarCategories(true),
+        storage.getCalendarCategories(req.organizationId, true),
       ]);
       
       // Helper to resolve category to canonical slug
@@ -6347,7 +6356,7 @@ export async function registerRoutes(
   app.get('/api/categories', isAuthenticated, async (req: any, res) => {
     try {
       const activeOnly = req.query.activeOnly !== 'false';
-      const categories = await storage.getCalendarCategories(activeOnly);
+      const categories = await storage.getCalendarCategories(req.organizationId, activeOnly);
       res.json(categories);
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -6358,7 +6367,7 @@ export async function registerRoutes(
   // Get single category
   app.get('/api/categories/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const category = await storage.getCalendarCategory(req.params.id);
+      const category = await storage.getCalendarCategory(req.params.id, req.organizationId);
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
@@ -6388,7 +6397,7 @@ export async function registerRoutes(
       const slug = validated.slug || slugify(validated.name);
       
       // Check for duplicate slug
-      const existing = await storage.getCalendarCategories(false);
+      const existing = await storage.getCalendarCategories(req.organizationId, false);
       if (existing.some(c => c.slug === slug)) {
         return res.status(400).json({ message: "A category with this slug already exists" });
       }
@@ -6414,7 +6423,7 @@ export async function registerRoutes(
   app.patch('/api/categories/:id', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const existing = await storage.getCalendarCategory(id);
+      const existing = await storage.getCalendarCategory(id, req.organizationId);
       if (!existing) {
         return res.status(404).json({ message: "Category not found" });
       }
@@ -6433,13 +6442,13 @@ export async function registerRoutes(
       
       // If changing slug, check for duplicates
       if (validated.slug && validated.slug !== existing.slug) {
-        const allCategories = await storage.getCalendarCategories(false);
+        const allCategories = await storage.getCalendarCategories(req.organizationId, false);
         if (allCategories.some(c => c.slug === validated.slug && c.id !== id)) {
           return res.status(400).json({ message: "A category with this slug already exists" });
         }
       }
       
-      const updated = await storage.updateCalendarCategory(id, validated);
+      const updated = await storage.updateCalendarCategory(id, req.organizationId, validated);
       console.log(`[Category] Updated: ${updated.name} (${updated.slug})`);
       res.json(updated);
     } catch (error) {
@@ -6455,13 +6464,13 @@ export async function registerRoutes(
   app.delete('/api/categories/:id', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const existing = await storage.getCalendarCategory(id);
+      const existing = await storage.getCalendarCategory(id, req.organizationId);
       if (!existing) {
         return res.status(404).json({ message: "Category not found" });
       }
       
       // Soft delete by setting isActive to false
-      const updated = await storage.updateCalendarCategory(id, { isActive: false });
+      const updated = await storage.updateCalendarCategory(id, req.organizationId, { isActive: false });
       console.log(`[Category] Deactivated: ${updated.name} (${updated.slug})`);
       res.json({ message: "Category deactivated", category: updated });
     } catch (error) {
@@ -6602,7 +6611,7 @@ export async function registerRoutes(
   app.get('/api/attendance', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!user || !leaderRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Leader access required" });
       }
@@ -6896,7 +6905,7 @@ export async function registerRoutes(
   app.patch('/api/requests/:id', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!user || !leaderRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Leader access required" });
       }
@@ -6937,7 +6946,7 @@ export async function registerRoutes(
   app.get('/api/interns', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       if (!user || !leaderRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -6968,7 +6977,7 @@ export async function registerRoutes(
   app.post('/api/interns', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      if (!user || !['system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -7366,7 +7375,7 @@ export async function registerRoutes(
   app.post('/api/background-checks', isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      if (!user || !['system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
+      if (!user || !['owner', 'system-admin', 'admin', 'pastor', 'leader'].includes(user.role || '')) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -7723,7 +7732,7 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       
       if (!user || !leaderRoles.includes(user.role || '')) {
         // Delete uploaded file if unauthorized
@@ -7761,7 +7770,7 @@ export async function registerRoutes(
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      const leaderRoles = ['system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
+      const leaderRoles = ['owner', 'system-admin', 'admin', 'lead-pastor', 'pastor', 'ministry-leader', 'leader'];
       
       if (!user || !leaderRoles.includes(user.role || '')) {
         return res.status(403).json({ message: "Not authorized to create manuals" });
@@ -8059,10 +8068,12 @@ export async function registerRoutes(
       
       try {
         const { sendInviteEmail } = await import('./emailService');
+        const branding = await storage.getOrgBranding(req.organizationId);
         await sendInviteEmail({
           invite,
           inviter: inviter || null,
           ministry: firstMinistry || null,
+          orgName: branding.name,
         });
         await storage.updateTeamInvite(invite.id, req.organizationId, { emailSentAt: new Date() });
       } catch (emailError) {
@@ -8134,6 +8145,7 @@ export async function registerRoutes(
       
       const inviter = await storage.getUser(userId);
       const { sendInviteEmail } = await import('./emailService');
+      const branding = await storage.getOrgBranding(currentUser.organizationId);
       
       for (let i = 0; i < inviteData.length; i++) {
         const data = inviteData[i];
@@ -8217,6 +8229,7 @@ export async function registerRoutes(
               invite,
               inviter: inviter || null,
               ministry: firstMinistry || null,
+              orgName: branding.name,
             });
             await storage.updateTeamInvite(invite.id, req.organizationId, { emailSentAt: new Date() });
           } catch (emailError) {
@@ -8287,14 +8300,21 @@ export async function registerRoutes(
   app.post('/api/team-invites/:token/accept', isAuthenticated, async (req: any, res) => {
     try {
       const { token } = req.params;
-      const userId = req.user.claims.sub;
-      
+      const userId = req.currentUser?.id ?? req.user.claims.sub;
+
       const invite = await storage.getTeamInviteByToken(token);
-      
+
       if (!invite) {
         return res.status(404).json({ message: "Invite not found" });
       }
-      
+
+      // An account belongs to exactly one organization.
+      if (invite.organizationId !== req.organizationId) {
+        return res.status(409).json({
+          message: "This invitation is for a different ministry. Sign up with a separate account to accept it.",
+        });
+      }
+
       if (invite.status !== 'pending') {
         return res.status(400).json({ message: "This invite has already been used" });
       }
@@ -8402,6 +8422,7 @@ export async function registerRoutes(
         },
         inviter: inviter ?? null,
         ministry: ministry ? { name: ministry.name } : null,
+        orgName: (await storage.getOrgBranding(req.organizationId)).name,
       });
 
       if (!emailResult.success) {
@@ -8793,13 +8814,24 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/users/:userId/archive', isAuthenticated, async (req: any, res) => {
+  app.post('/api/users/:userId/archive', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
-      const adminId = req.user.claims.sub;
+      const admin = req.authenticatedUser;
       const { userId } = req.params;
       const { reason } = req.body;
-      
-      const archive = await storage.archiveUser(userId, adminId, reason);
+
+      const targetUser = await storage.getUserInOrg(userId, req.organizationId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (targetUser.id === admin.id) {
+        return res.status(400).json({ message: "You can't archive your own account" });
+      }
+      if (!isOwner(admin.role) && !canManageRole(admin.role, targetUser.role)) {
+        return res.status(403).json({ message: "You can't archive this user" });
+      }
+
+      const archive = await storage.archiveUser(userId, admin.id, reason);
       res.json(archive);
     } catch (error) {
       console.error("Error archiving user:", error);
@@ -8807,12 +8839,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/user-archives/:archiveId/restore', isAuthenticated, async (req: any, res) => {
+  app.post('/api/user-archives/:archiveId/restore', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
       const { archiveId } = req.params;
       
-      await storage.restoreUser(archiveId, adminId);
+      await storage.restoreUser(archiveId, req.organizationId, adminId);
       res.json({ message: "User restored successfully" });
     } catch (error) {
       console.error("Error restoring user:", error);
@@ -8873,7 +8905,10 @@ export async function registerRoutes(
       if (!ministry) {
         return res.status(404).json({ message: "Ministry not found" });
       }
-      
+      if (!(await storage.getUserInOrg(userId, req.organizationId))) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
       // Permission check: Admin/Owner, Pastor, or Primary Leader of this ministry
       const isAdminOrOwner = ['owner', 'admin', 'system-admin'].includes(actor.role || '');
       const isPastor = ['pastor', 'lead-pastor', 'board-of-elders'].includes(actor.role || '');
@@ -9432,7 +9467,7 @@ export async function registerRoutes(
 
   app.patch('/api/member-feedback/:id/read', isAuthenticated, async (req: any, res) => {
     try {
-      await storage.markFeedbackAsRead(req.params.id);
+      await storage.markFeedbackAsRead(req.params.id, req.user.claims.sub);
       res.json({ success: true });
     } catch (error) {
       console.error("Error marking feedback as read:", error);
@@ -9452,7 +9487,10 @@ export async function registerRoutes(
       if (!user || !isLeader(user.role)) {
         return res.status(403).json({ message: "Unauthorized - leadership access required" });
       }
-      
+      if (!(await storage.getUserInOrg(req.params.memberId, req.organizationId))) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+
       const health = await storage.getMemberHealthIndicators(req.params.memberId);
       res.json(health);
     } catch (error) {
@@ -9607,7 +9645,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Unauthorized - admin access required" });
       }
       
-      const usersWithDetails = await storage.getUsersWithMinistryDetails();
+      const usersWithDetails = await storage.getUsersWithMinistryDetails(req.organizationId);
       res.json(usersWithDetails);
     } catch (error) {
       console.error("Error fetching users with details:", error);
@@ -9797,6 +9835,7 @@ export async function registerRoutes(
 
       // Build email data
       const emailData: MeetingEmailData = {
+        orgName: (await storage.getOrgBranding(req.organizationId)).name,
         meetingTitle: workboard.title,
         meetingDate: workboard.meetingDate
           ? new Date(workboard.meetingDate).toLocaleDateString('en-US', {
@@ -9881,6 +9920,7 @@ export async function registerRoutes(
 
       // Build email data
       const emailData: MeetingEmailData = {
+        orgName: (await storage.getOrgBranding(req.organizationId)).name,
         meetingTitle: workboard.title,
         meetingDate: workboard.meetingDate
           ? new Date(workboard.meetingDate).toLocaleDateString('en-US', {
@@ -10433,7 +10473,7 @@ export async function registerRoutes(
 
       // Test actual Microsoft Graph connection
       const outlook = await import('./outlook');
-      const result = await outlook.testOutlookConnection();
+      const result = await outlook.testOutlookConnection(req.organizationId);
       res.json(result);
     } catch (error) {
       console.error("Error testing Outlook connection:", error);
@@ -10518,6 +10558,7 @@ export async function registerRoutes(
       
       const outlook = await import('./outlook');
       const events = await outlook.getOutlookEvents(
+        req.organizationId,
         start as string,
         end as string,
         { categorySlug: category as string, ministryId: ministryId as string }
@@ -10538,7 +10579,7 @@ export async function registerRoutes(
   app.get('/api/outlook/rooms', isAuthenticated, async (req: any, res) => {
     try {
       const outlook = await import('./outlook');
-      const rooms = await outlook.getRoomCalendars();
+      const rooms = await outlook.getRoomCalendars(req.organizationId);
       
       if (rooms === null) {
         return res.status(503).json({ message: "Outlook integration not configured" });
@@ -10563,6 +10604,7 @@ export async function registerRoutes(
       
       const outlook = await import('./outlook');
       const events = await outlook.getRoomAvailability(
+        req.organizationId,
         decodeURIComponent(roomId), 
         start as string, 
         end as string
@@ -10600,6 +10642,7 @@ export async function registerRoutes(
       
       const outlook = await import('./outlook');
       const result = await outlook.bookRoom(
+        req.organizationId,
         decodeURIComponent(roomId),
         {
           ...validated,
@@ -11198,11 +11241,13 @@ async function seedSampleManuals() {
 }
 
 // Sample badges for the gamification system
-async function seedSampleBadges() {
+// No argument at startup (seeds the oldest organization); called with an id
+// when a new ministry signs up, since award logic looks badges up by slug.
+export async function seedSampleBadges(targetOrganizationId?: string) {
   try {
-    // Server-startup seed with no per-request tenant context; seed into the
-    // oldest existing organization, or skip entirely on a fresh install.
-    const org = await storage.getFirstOrganization();
+    const org = targetOrganizationId
+      ? await storage.getOrganization(targetOrganizationId)
+      : await storage.getFirstOrganization();
     if (!org) {
       console.log("[Seed] Skipping seedSampleBadges - no organization exists yet");
       return;
@@ -11420,7 +11465,7 @@ export function registerCalendarCategoryRoutes(app: Express) {
   app.get('/api/calendar-categories', isAuthenticated, async (req: any, res) => {
     try {
       const includeInactive = req.query.includeInactive === 'true';
-      const categories = await storage.getCalendarCategories(!includeInactive);
+      const categories = await storage.getCalendarCategories(req.organizationId, !includeInactive);
       res.json(categories);
     } catch (error) {
       return handleApiError(error, res);
@@ -11430,7 +11475,7 @@ export function registerCalendarCategoryRoutes(app: Express) {
   // Get a single category
   app.get('/api/calendar-categories/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const category = await storage.getCalendarCategory(req.params.id);
+      const category = await storage.getCalendarCategory(req.params.id, req.organizationId);
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
@@ -11476,7 +11521,7 @@ export function registerCalendarCategoryRoutes(app: Express) {
       });
       
       const validated = categorySchema.parse(req.body);
-      const category = await storage.updateCalendarCategory(req.params.id, validated);
+      const category = await storage.updateCalendarCategory(req.params.id, req.organizationId, validated);
       res.json(category);
     } catch (error) {
       return handleApiError(error, res);
@@ -11486,7 +11531,7 @@ export function registerCalendarCategoryRoutes(app: Express) {
   // Delete (deactivate) a category (admin only)
   app.delete('/api/calendar-categories/:id', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
-      await storage.deleteCalendarCategory(req.params.id);
+      await storage.deleteCalendarCategory(req.params.id, req.organizationId);
       res.status(204).end();
     } catch (error) {
       return handleApiError(error, res);
@@ -11578,7 +11623,7 @@ export function registerCalendarCategoryRoutes(app: Express) {
       let hasOutlook = false;
       try {
         const outlook = await import('./outlook');
-        const testResult = await outlook.testOutlookConnection();
+        const testResult = await outlook.testOutlookConnection(req.organizationId);
         hasOutlook = testResult.success;
       } catch {
         hasOutlook = false;
@@ -11607,19 +11652,21 @@ export function registerCalendarCategoryRoutes(app: Express) {
 }
 
 // Seed default calendar categories
-export async function seedDefaultCalendarCategories() {
+// No argument at startup (seeds the oldest organization); called with an id
+// when a new ministry signs up, since the calendar expects these slugs.
+export async function seedDefaultCalendarCategories(targetOrganizationId?: string) {
   try {
-    const existing = await storage.getCalendarCategories(false);
-    if (existing.length > 0) {
-      console.log("Calendar categories already seeded");
+    const org = targetOrganizationId
+      ? await storage.getOrganization(targetOrganizationId)
+      : await storage.getFirstOrganization();
+    if (!org) {
+      console.log("[Seed] Skipping seedDefaultCalendarCategories - no organization exists yet");
       return;
     }
 
-    // Server-startup seed with no per-request tenant context; seed into the
-    // oldest existing organization, or skip entirely on a fresh install.
-    const org = await storage.getFirstOrganization();
-    if (!org) {
-      console.log("[Seed] Skipping seedDefaultCalendarCategories - no organization exists yet");
+    const existing = await storage.getCalendarCategories(org.id, false);
+    if (existing.length > 0) {
+      console.log("Calendar categories already seeded");
       return;
     }
 

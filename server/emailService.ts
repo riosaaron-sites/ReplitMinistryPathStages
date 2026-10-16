@@ -18,11 +18,50 @@ const mg = mailgun.client({
 });
 
 const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || '';
-const CHURCH_EMAILS = ['info@gardencitychurch.net', 'pastor@gardencitychurch.net'];
+
+// Who an email is "from" and which of the ministry's own staff inboxes get
+// copied on member results. Always resolved per organization by the caller.
+export interface OrgBranding {
+  name: string;
+  notifyEmails: string[];
+}
 
 interface EmailData {
   user: User;
   results: SurveyResults;
+  org: OrgBranding;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Links in emails must come from server config, never from request headers —
+// a spoofed Host header would otherwise let an attacker redirect reset links.
+export function getAppBaseUrl(): string {
+  if (process.env.APP_BASE_URL) {
+    return process.env.APP_BASE_URL.replace(/\/+$/, '');
+  }
+  // In production, REPLIT_DOMAINS contains comma-separated list of domains
+  if (process.env.REPLIT_DEPLOYMENT === '1' && process.env.REPLIT_DOMAINS) {
+    const domains = process.env.REPLIT_DOMAINS.split(',');
+    const replitDomain = domains.find(d => d.includes('.replit.app')) || domains[0];
+    return `https://${replitDomain}`;
+  }
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  }
+  return 'https://ministrypath.replit.app';
+}
+
+function fromAddress(orgName: string): string {
+  const safeName = orgName.replace(/[<>"\r\n]/g, '');
+  return `${safeName} <noreply@${MAILGUN_DOMAIN}>`;
 }
 
 function formatDate(date: Date | null): string {
@@ -57,9 +96,10 @@ async function generatePDF(data: EmailData): Promise<Buffer> {
     doc.on('error', reject);
 
     const { user, results } = data;
+    const orgName = data.org.name;
     const participantName = getParticipantName(user);
     const completedDate = formatDate(results.completedAt);
-    
+
     const spiritualGifts = (results.spiritualGifts as GiftScore[]) || [];
     const discProfile = results.personalityProfile as DISCProfile | undefined;
     const biblicalLiteracy = results.biblicalLiteracy as BiblicalLiteracyResult | undefined;
@@ -67,8 +107,7 @@ async function generatePDF(data: EmailData): Promise<Buffer> {
     const ministryMatches = (results.ministryMatches as MinistryMatch[]) || [];
 
     // Header
-    doc.fontSize(24).fillColor('#f8a84a').text('Garden City Church', { align: 'center' });
-    doc.fontSize(12).fillColor('#666666').text('Live the life. Tell the Story.', { align: 'center' });
+    doc.fontSize(24).fillColor('#f8a84a').text(orgName, { align: 'center' });
     doc.moveDown();
     doc.fontSize(18).fillColor('#f2660f').text('Ministry Assessment Results', { align: 'center' });
     doc.moveDown();
@@ -207,7 +246,7 @@ async function generatePDF(data: EmailData): Promise<Buffer> {
     doc.moveDown();
     doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke('#f8a84a');
     doc.moveDown();
-    doc.fontSize(10).fillColor('#666666').text('Garden City Church - Ministry Assessment', { align: 'center' });
+    doc.fontSize(10).fillColor('#666666').text(`${orgName} - Ministry Assessment`, { align: 'center' });
     doc.text('This report was generated automatically upon completion of the assessment.', { align: 'center' });
 
     doc.end();
@@ -216,6 +255,7 @@ async function generatePDF(data: EmailData): Promise<Buffer> {
 
 function generateEmailHTML(data: EmailData, isForChurch: boolean): string {
   const { user, results } = data;
+  const orgName = escapeHtml(data.org.name);
   const participantName = getParticipantName(user);
   const completedDate = formatDate(results.completedAt);
   
@@ -225,13 +265,13 @@ function generateEmailHTML(data: EmailData, isForChurch: boolean): string {
   const technicalSkills = results.technicalSkills as TechnicalSkillsProfile | undefined;
   const ministryMatches = (results.ministryMatches as MinistryMatch[]) || [];
 
-  const greeting = isForChurch 
-    ? 'Dear Garden City Church,' 
+  const greeting = isForChurch
+    ? `Dear ${orgName},`
     : `Dear ${participantName},`;
 
   const intro = isForChurch
     ? `<p><strong>${participantName}</strong> has completed the Ministry Assessment. Below are their results.</p>`
-    : `<p>Congratulations on completing the Garden City Church Ministry Assessment! We're excited to help you discover how God has uniquely designed you to serve.</p>`;
+    : `<p>Congratulations on completing the ${orgName} Ministry Assessment! We're excited to help you discover how God has uniquely designed you to serve.</p>`;
 
   const topGifts = spiritualGifts.slice(0, 5);
   const giftsHTML = topGifts.map((gift, index) => `
@@ -263,8 +303,7 @@ function generateEmailHTML(data: EmailData, isForChurch: boolean): string {
   
   <!-- Header -->
   <div style="text-align: center; padding: 20px 0; border-bottom: 3px solid #f8a84a;">
-    <h1 style="color: #f8a84a; margin: 0;">Garden City Church</h1>
-    <p style="color: #666; font-style: italic; margin: 5px 0;">Live the life. Tell the Story.</p>
+    <h1 style="color: #f8a84a; margin: 0;">${orgName}</h1>
   </div>
 
   <!-- Main Content -->
@@ -330,15 +369,14 @@ function generateEmailHTML(data: EmailData, isForChurch: boolean): string {
     ${!isForChurch ? `
     <div style="background: #fff8f0; padding: 20px; border-radius: 8px; margin: 30px 0; border: 1px solid #f8a84a;">
       <h3 style="color: #f2660f; margin-top: 0;">Your Next Step</h3>
-      <p>Thank you for completing the Garden City Church Ministry Assessment! A leader from our team may reach out to help you take your next step in serving. In the meantime, feel free to share your results with a pastor or ministry leader you trust.</p>
+      <p>Thank you for completing the ${orgName} Ministry Assessment! A leader from our team may reach out to help you take your next step in serving. In the meantime, feel free to share your results with a pastor or ministry leader you trust.</p>
     </div>
     ` : ''}
   </div>
 
   <!-- Footer -->
   <div style="text-align: center; padding: 20px 0; border-top: 3px solid #f8a84a; color: #666;">
-    <p style="margin: 5px 0;"><strong>Garden City Church</strong></p>
-    <p style="margin: 5px 0; font-style: italic;">Live the life. Tell the Story.</p>
+    <p style="margin: 5px 0;"><strong>${orgName}</strong></p>
     <p style="margin: 10px 0; font-size: 12px;">This email was sent automatically upon completion of the Ministry Assessment.</p>
   </div>
 
@@ -395,9 +433,9 @@ export async function sendAssessmentEmails(data: EmailData): Promise<EmailResult
   if (data.user.email) {
     try {
       await mg.messages.create(MAILGUN_DOMAIN, {
-        from: `Garden City Church <noreply@${MAILGUN_DOMAIN}>`,
+        from: fromAddress(data.org.name),
         to: [data.user.email],
-        subject: `Your Ministry Assessment Results - Garden City Church`,
+        subject: `Your Ministry Assessment Results - ${data.org.name}`,
         html: generateEmailHTML(data, false),
         attachment: [attachment],
       });
@@ -411,11 +449,12 @@ export async function sendAssessmentEmails(data: EmailData): Promise<EmailResult
     errors.push('Participant email not available');
   }
 
-  // Send emails to church
-  for (const churchEmail of CHURCH_EMAILS) {
+  // Copy this ministry's own staff inboxes (never another tenant's)
+  const notifyEmails = data.org.notifyEmails;
+  for (const churchEmail of notifyEmails) {
     try {
       await mg.messages.create(MAILGUN_DOMAIN, {
-        from: `Garden City Church <noreply@${MAILGUN_DOMAIN}>`,
+        from: fromAddress(data.org.name),
         to: [churchEmail],
         subject: `New Ministry Assessment Completed - ${participantName}`,
         html: generateEmailHTML(data, true),
@@ -429,7 +468,7 @@ export async function sendAssessmentEmails(data: EmailData): Promise<EmailResult
     }
   }
 
-  const churchEmailsSent = churchEmailsSentCount === CHURCH_EMAILS.length;
+  const churchEmailsSent = churchEmailsSentCount === notifyEmails.length;
   const allEmailsSent = participantEmailSent && churchEmailsSent;
 
   return { 
@@ -454,7 +493,8 @@ export interface RetroactiveEmailResult {
 }
 
 export async function sendRetroactiveEmails(
-  usersWithResults: Array<{ user: User; results: SurveyResults }>
+  usersWithResults: Array<{ user: User; results: SurveyResults }>,
+  org: OrgBranding
 ): Promise<RetroactiveEmailResult> {
   let sent = 0;
   let failed = 0;
@@ -468,8 +508,8 @@ export async function sendRetroactiveEmails(
       continue;
     }
 
-    const result = await sendAssessmentEmails(data);
-    
+    const result = await sendAssessmentEmails({ ...data, org });
+
     results.push({
       resultId: data.results.id,
       userEmail: data.user.email,
@@ -505,6 +545,7 @@ interface InviteEmailData {
   };
   inviter: User | null;
   ministry: { name: string } | null;
+  orgName: string;
 }
 
 export async function sendInviteEmail(data: InviteEmailData): Promise<{ success: boolean; error?: string }> {
@@ -515,27 +556,22 @@ export async function sendInviteEmail(data: InviteEmailData): Promise<{ success:
 
   const { invite, inviter, ministry } = data;
   const inviterName = inviter ? `${inviter.firstName || ''} ${inviter.lastName || ''}`.trim() || 'A church leader' : 'A church leader';
+  const orgName = data.orgName;
+  const h = {
+    orgName: escapeHtml(orgName),
+    inviterName: escapeHtml(inviterName),
+    firstName: escapeHtml(invite.firstName),
+    message: invite.message ? escapeHtml(invite.message) : '',
+    ministryName: ministry ? escapeHtml(ministry.name) : '',
+  };
   
   // Build the invite URL - use production domain if deployed, otherwise dev domain
-  const getBaseUrl = () => {
-    // In production, REPLIT_DOMAINS contains comma-separated list of domains
-    if (process.env.REPLIT_DEPLOYMENT === '1' && process.env.REPLIT_DOMAINS) {
-      const domains = process.env.REPLIT_DOMAINS.split(',');
-      // Prefer the .replit.app domain
-      const replitDomain = domains.find(d => d.includes('.replit.app')) || domains[0];
-      return `https://${replitDomain}`;
-    }
-    // In development, use REPLIT_DEV_DOMAIN
-    if (process.env.REPLIT_DEV_DOMAIN) {
-      return `https://${process.env.REPLIT_DEV_DOMAIN}`;
-    }
-    return 'https://ministrypath.replit.app';
-  };
-  const baseUrl = getBaseUrl();
+  const baseUrl = getAppBaseUrl();
   const inviteUrl = `${baseUrl}/invite/${invite.token}`;
   
   const ministryText = ministry ? ` to join the ${ministry.name} team` : ' to join our church community';
-  const personalMessage = invite.message ? `<p style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f8a84a; font-style: italic;">"${invite.message}"</p>` : '';
+  const ministryHtml = ministry ? ` to join the ${h.ministryName} team` : ' to join our church community';
+  const personalMessage = h.message ? `<p style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f8a84a; font-style: italic;">"${h.message}"</p>` : '';
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -546,15 +582,14 @@ export async function sendInviteEmail(data: InviteEmailData): Promise<{ success:
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="text-align: center; margin-bottom: 30px;">
-    <h1 style="color: #f8a84a; margin-bottom: 5px;">Garden City Church</h1>
-    <p style="color: #666; font-style: italic;">Live the life. Tell the Story.</p>
+    <h1 style="color: #f8a84a; margin-bottom: 5px;">${h.orgName}</h1>
   </div>
-  
+
   <h2 style="color: #f2660f;">You're Invited!</h2>
-  
-  <p>Dear ${invite.firstName},</p>
-  
-  <p>${inviterName} has invited you${ministryText} at Garden City Church.</p>
+
+  <p>Dear ${h.firstName},</p>
+
+  <p>${h.inviterName} has invited you${ministryHtml} at ${h.orgName}.</p>
   
   ${personalMessage}
   
@@ -575,8 +610,7 @@ export async function sendInviteEmail(data: InviteEmailData): Promise<{ success:
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
   
   <p style="color: #888; font-size: 12px; text-align: center;">
-    Garden City Church<br>
-    Assemblies of God, Beverly, MA<br>
+    ${h.orgName}<br>
     <a href="${baseUrl}" style="color: #f8a84a;">Visit our portal</a>
   </p>
 </body>
@@ -584,11 +618,11 @@ export async function sendInviteEmail(data: InviteEmailData): Promise<{ success:
   `;
 
   const textContent = `
-You're Invited to Garden City Church!
+You're Invited to ${orgName}!
 
 Dear ${invite.firstName},
 
-${inviterName} has invited you${ministryText} at Garden City Church.
+${inviterName} has invited you${ministryText} at ${orgName}.
 
 ${invite.message ? `Personal message: "${invite.message}"` : ''}
 
@@ -603,15 +637,14 @@ By accepting, you'll be able to:
 This invitation expires in 14 days.
 
 ---
-Garden City Church
-Assemblies of God, Beverly, MA
+${orgName}
   `;
 
   try {
     await mg.messages.create(MAILGUN_DOMAIN, {
-      from: 'Garden City Church <noreply@mg.gardencitychurch.net>',
+      from: fromAddress(orgName),
       to: [invite.email],
-      subject: `${inviterName} has invited you to Garden City Church`,
+      subject: `${inviterName} has invited you to ${orgName}`,
       text: textContent,
       html: htmlContent,
     });
@@ -629,6 +662,7 @@ Assemblies of God, Beverly, MA
 // ============================================================================
 
 export interface MeetingEmailData {
+  orgName: string;
   meetingTitle: string;
   meetingDate: string;
   location?: string;
@@ -676,8 +710,7 @@ export function generateMeetingAgendaContent(data: MeetingEmailData): { html: st
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="text-align: center; margin-bottom: 30px;">
-    <h1 style="color: #f8a84a; margin-bottom: 5px;">Garden City Church</h1>
-    <p style="color: #666; font-style: italic;">Live the life. Tell the Story.</p>
+    <h1 style="color: #f8a84a; margin-bottom: 5px;">${escapeHtml(data.orgName)}</h1>
   </div>
   
   <h2 style="color: #f2660f;">Meeting Agenda</h2>
@@ -700,8 +733,7 @@ export function generateMeetingAgendaContent(data: MeetingEmailData): { html: st
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
   
   <p style="color: #888; font-size: 12px; text-align: center;">
-    Garden City Church<br>
-    Assemblies of God, Beverly, MA
+    ${escapeHtml(data.orgName)}
   </p>
 </body>
 </html>
@@ -723,8 +755,7 @@ ${agendaTextItems}
 Please come prepared to discuss these items. If you have any additional topics, please let ${organizerName} know beforehand.
 
 ---
-Garden City Church
-Assemblies of God, Beverly, MA
+${data.orgName}
   `;
 
   return { html: htmlContent, text: textContent, subject };
@@ -770,8 +801,7 @@ export function generateMeetingRecapContent(data: MeetingEmailData): { html: str
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="text-align: center; margin-bottom: 30px;">
-    <h1 style="color: #f8a84a; margin-bottom: 5px;">Garden City Church</h1>
-    <p style="color: #666; font-style: italic;">Live the life. Tell the Story.</p>
+    <h1 style="color: #f8a84a; margin-bottom: 5px;">${escapeHtml(data.orgName)}</h1>
   </div>
   
   <h2 style="color: #f2660f;">Meeting Recap</h2>
@@ -803,8 +833,7 @@ export function generateMeetingRecapContent(data: MeetingEmailData): { html: str
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
   
   <p style="color: #888; font-size: 12px; text-align: center;">
-    Garden City Church<br>
-    Assemblies of God, Beverly, MA
+    ${escapeHtml(data.orgName)}
   </p>
 </body>
 </html>
@@ -830,8 +859,7 @@ ${actionItemsText}
 Thank you for participating. Please complete your assigned action items by their due dates.
 
 ---
-Garden City Church
-Assemblies of God, Beverly, MA
+${data.orgName}
   `;
 
   return { html: htmlContent, text: textContent, subject };
@@ -862,7 +890,7 @@ export async function sendMeetingAgendaEmail(
 
   try {
     await mg.messages.create(MAILGUN_DOMAIN, {
-      from: 'Garden City Church <noreply@mg.gardencitychurch.net>',
+      from: fromAddress(data.orgName),
       to: recipients,
       subject,
       text,
@@ -906,7 +934,7 @@ export async function sendMeetingRecapEmail(
 
   try {
     await mg.messages.create(MAILGUN_DOMAIN, {
-      from: 'Garden City Church <noreply@mg.gardencitychurch.net>',
+      from: fromAddress(data.orgName),
       to: recipients,
       subject,
       text,
@@ -978,8 +1006,7 @@ ${action}
 ${link ? `View details: ${link}` : ''}
 
 —
-MinistryPath
-Garden City Church`;
+MinistryPath`;
 
   const html = `
 <!DOCTYPE html>
@@ -1008,8 +1035,7 @@ Garden City Church`;
       </div>
     </div>
     <div class="footer">
-      <p>MinistryPath — Garden City Church</p>
-      <p>Live the life. Tell the Story.</p>
+      <p>MinistryPath</p>
     </div>
   </div>
 </body>
@@ -1034,7 +1060,7 @@ export async function sendLeaderNotificationEmail(
 
   try {
     await mg.messages.create(MAILGUN_DOMAIN, {
-      from: 'MinistryPath <noreply@mg.gardencitychurch.net>',
+      from: fromAddress('MinistryPath'),
       to: [data.leaderEmail],
       subject,
       text,
@@ -1076,7 +1102,7 @@ This link will expire in 1 hour.
 If you didn't request this, you can safely ignore this email.
 
 Blessings,
-Garden City Church Team
+The MinistryPath Team
   `.trim();
 
   const html = `
@@ -1107,8 +1133,7 @@ Garden City Church Team
     <p style="font-size: 14px; color: #666;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
   </div>
   <div class="footer">
-    <p>Garden City Church - Beverly, MA</p>
-    <p>Live the life. Tell the Story.</p>
+    <p>MinistryPath</p>
   </div>
 </body>
 </html>`;
@@ -1121,7 +1146,7 @@ Garden City Church Team
 
   try {
     await mg.messages.create(MAILGUN_DOMAIN, {
-      from: 'MinistryPath <noreply@mg.gardencitychurch.net>',
+      from: fromAddress('MinistryPath'),
       to: [email],
       subject,
       text,

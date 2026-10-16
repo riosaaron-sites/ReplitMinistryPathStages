@@ -58,7 +58,7 @@ STRICT ENFORCEMENT (Attempt ${retryAttempt + 1}): Previous generation produced f
     messages: [
       {
         role: 'system',
-        content: `You are a Christian ministry training content creator for Garden City Church. Create a comprehensive training series with EXACTLY 8-12 lessons based on the provided manual content.
+        content: `You are a Christian ministry training content creator for a local church. Create a comprehensive training series with EXACTLY 8-12 lessons based on the provided manual content.
 
 CRITICAL REQUIREMENT: You MUST create between 8 and 12 lessons. This is a hard requirement. If the source content seems limited, expand each topic into multiple lessons covering different aspects.${baseEnforcement}
 
@@ -128,7 +128,7 @@ STRICT ENFORCEMENT (Attempt ${retryAttempt + 1}): Previous generation produced f
     messages: [
       {
         role: 'system',
-        content: `You are a Christian ministry training content creator for Garden City Church. Generate EXACTLY 10-12 assessment questions for a ministry training module.
+        content: `You are a Christian ministry training content creator for a local church. Generate EXACTLY 10-12 assessment questions for a ministry training module.
 
 CRITICAL REQUIREMENT: You MUST create between 10 and 12 questions total. This is a hard requirement.${retryEnforcement}
 
@@ -292,7 +292,7 @@ STRICT ENFORCEMENT (Attempt ${retryAttempt + 1}): Previous generation produced f
     messages: [
       {
         role: 'system',
-        content: `You are a Christian ministry training content creator for Garden City Church. Generate EXACTLY 10-12 intensive assessment questions that test deeper understanding and practical application.
+        content: `You are a Christian ministry training content creator for a local church. Generate EXACTLY 10-12 intensive assessment questions that test deeper understanding and practical application.
 
 CRITICAL REQUIREMENT: You MUST create between 10 and 12 questions total. This is a hard requirement.${retryEnforcement}
 

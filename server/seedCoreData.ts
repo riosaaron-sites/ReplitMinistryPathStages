@@ -242,39 +242,42 @@ const defaultAgreementContent = [
   },
 ];
 
-export async function seedAgreementContent() {
+// Called at server startup with no argument (seeds the oldest organization),
+// and when a new ministry signs up (seeds that ministry), so its onboarding
+// Faith Commitment step has content from day one.
+export async function seedAgreementContent(targetOrganizationId?: string) {
   console.log("[Seed] Checking for agreement content...");
 
-  // Server-startup seed with no per-request tenant context; seed into the
-  // oldest existing organization, or skip entirely on a fresh install.
-  const org = await storage.getFirstOrganization();
-  if (!org) {
+  const organizationId = targetOrganizationId ?? (await storage.getFirstOrganization())?.id;
+  if (!organizationId) {
     console.log("[Seed] Skipping seedAgreementContent - no organization exists yet");
     return { added: 0, skipped: 0 };
   }
+  const { name: orgName } = await storage.getOrgBranding(organizationId);
+  const personalize = (text: string) => text.split("Garden City Church").join(orgName);
 
   let added = 0;
   let skipped = 0;
-  
+
   for (const step of defaultAgreementContent) {
     try {
       const existing = await db.query.agreementContent.findFirst({
-        where: (table, { eq }) => eq(table.stepNumber, step.stepNumber)
+        where: (table, { eq, and }) => and(eq(table.organizationId, organizationId), eq(table.stepNumber, step.stepNumber))
       });
-      
+
       if (existing) {
         skipped++;
         continue;
       }
-      
+
       await db.insert(agreementContent).values({
-        organizationId: org.id,
+        organizationId,
         stepNumber: step.stepNumber,
         title: step.title,
         scripture: step.scripture,
         scriptureRef: step.scriptureRef,
-        content: step.content,
-        question: step.question,
+        content: personalize(step.content),
+        question: personalize(step.question),
         isActive: true,
         isRequired: true,
         version: 1,

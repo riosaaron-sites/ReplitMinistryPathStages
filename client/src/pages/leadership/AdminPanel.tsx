@@ -1377,7 +1377,7 @@ function UserResetTool() {
   
   const { data: preview, isLoading: previewLoading, refetch: refetchPreview } = useQuery<{
     mode: string;
-    protectedUser: { email: string; name: string; role: string } | null;
+    protectedUsers: { email: string | null; name: string; role: string | null }[];
     willRemove: { users: number };
     usersToRemove: { id: string; email: string; name: string; role: string }[];
     warning: string;
@@ -1473,10 +1473,12 @@ function UserResetTool() {
           </DialogHeader>
           
           <div className="py-4 space-y-4">
-            {preview?.protectedUser && (
+            {preview?.protectedUsers && preview.protectedUsers.length > 0 && (
               <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <p className="text-sm font-medium text-green-700 dark:text-green-300">Protected Account (will NOT be removed)</p>
-                <p className="text-sm">{preview.protectedUser.name} ({preview.protectedUser.email})</p>
+                <p className="text-sm font-medium text-green-700 dark:text-green-300">Protected Accounts (will NOT be removed)</p>
+                {preview.protectedUsers.map((u) => (
+                  <p key={u.email ?? u.name} className="text-sm">{u.name} ({u.email})</p>
+                ))}
               </div>
             )}
             

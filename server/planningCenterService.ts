@@ -98,12 +98,16 @@ interface PCApiResponse<T> {
   };
 }
 
+// One instance per organization per request: credentials are tenant-specific
+// and must never be cached somewhere another tenant's request could reuse them.
 export class PlanningCenterService {
   private credentials: PlanningCenterCredentials | null = null;
 
+  constructor(private readonly organizationId: string) {}
+
   private async getAuthHeader(): Promise<string | null> {
     if (!this.credentials) {
-      const settings = await storage.getIntegrationSettings('planning-center');
+      const settings = await storage.getIntegrationSettings(this.organizationId, 'planning-center');
       if (!settings?.isEnabled || !settings.credentials) {
         return null;
       }
@@ -213,7 +217,8 @@ export class PlanningCenterService {
     };
   }
 
-  async syncUserAssignments(organizationId: string, userId: string, userEmail: string): Promise<number> {
+  async syncUserAssignments(userId: string, userEmail: string): Promise<number> {
+    const organizationId = this.organizationId;
     // First, validate that we have valid credentials and can connect
     const connectionTest = await this.testConnection();
     if (!connectionTest.success) {
@@ -258,7 +263,7 @@ export class PlanningCenterService {
       syncCount++;
     }
 
-    const settings = await storage.getIntegrationSettings('planning-center');
+    const settings = await storage.getIntegrationSettings(organizationId, 'planning-center');
     if (settings) {
       await storage.upsertIntegrationSettings({
         organizationId,
@@ -275,4 +280,6 @@ export class PlanningCenterService {
   }
 }
 
-export const planningCenterService = new PlanningCenterService();
+export function getPlanningCenterService(organizationId: string): PlanningCenterService {
+  return new PlanningCenterService(organizationId);
+}

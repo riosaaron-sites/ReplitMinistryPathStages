@@ -3242,7 +3242,7 @@ export const orgSettings = pgTable("org_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   // Basic Info
-  organizationName: varchar("organization_name").default('Garden City Church'),
+  organizationName: varchar("organization_name"),
   tagline: varchar("tagline"),
   
   // Branding

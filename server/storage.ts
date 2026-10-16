@@ -213,6 +213,7 @@ export interface IStorage {
 
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserInOrg(id: string, organizationId: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
@@ -242,14 +243,14 @@ export interface IStorage {
   getSurveyResults(userId: string): Promise<SurveyResultsType | undefined>;
   createSurveyResults(results: InsertSurveyResults): Promise<SurveyResultsType>;
   markEmailSent(resultId: string): Promise<void>;
-  getAllResultsWithUnsentEmails(): Promise<Array<{ user: User; results: SurveyResultsType }>>;
+  getAllResultsWithUnsentEmails(organizationId: string): Promise<Array<{ user: User; results: SurveyResultsType }>>;
   
   // Onboarding progress operations
   getOnboardingProgress(userId: string): Promise<OnboardingProgress | undefined>;
   upsertOnboardingProgress(progress: InsertOnboardingProgress): Promise<OnboardingProgress>;
   
   // Integration settings operations
-  getIntegrationSettings(integrationName: string): Promise<IntegrationSettings | undefined>;
+  getIntegrationSettings(organizationId: string, integrationName: string): Promise<IntegrationSettings | undefined>;
   upsertIntegrationSettings(settings: InsertIntegrationSettings): Promise<IntegrationSettings>;
   
   // Service assignments operations
@@ -274,7 +275,7 @@ export interface IStorage {
   // Ministry leaders operations
   getMinistryLeaders(ministryId: string, organizationId: string): Promise<MinistryLeader[]>;
   addMinistryLeader(data: InsertMinistryLeader): Promise<MinistryLeader>;
-  removeMinistryLeader(ministryId: string, userId: string): Promise<void>;
+  removeMinistryLeader(ministryId: string, userId: string, organizationId: string): Promise<void>;
   updateMinistryLeader(id: string, organizationId: string, data: Partial<InsertMinistryLeader>): Promise<MinistryLeader>;
 
   // Ministry leadership assignments (H1)
@@ -297,18 +298,18 @@ export interface IStorage {
   getTrainingModule(id: string, organizationId: string): Promise<TrainingModule | undefined>;
   createTrainingModule(module: InsertTrainingModule): Promise<TrainingModule>;
   updateTrainingModule(id: string, organizationId: string, module: Partial<InsertTrainingModule>): Promise<TrainingModule>;
-  deleteTrainingModule(id: string): Promise<void>;
-  getTrainingAssessments(moduleId: string): Promise<TrainingAssessment[]>;
+  deleteTrainingModule(id: string, organizationId: string): Promise<void>;
+  getTrainingAssessments(moduleId: string, organizationId: string): Promise<TrainingAssessment[]>;
   createTrainingAssessment(assessment: InsertTrainingAssessment): Promise<TrainingAssessment>;
-  updateTrainingAssessment(id: string, assessment: Partial<InsertTrainingAssessment>): Promise<TrainingAssessment>;
-  deleteTrainingAssessment(id: string): Promise<void>;
+  updateTrainingAssessment(id: string, organizationId: string, assessment: Partial<InsertTrainingAssessment>): Promise<TrainingAssessment>;
+  deleteTrainingAssessment(id: string, organizationId: string): Promise<void>;
   
   // User training progress operations
   getUserTrainingProgress(userId: string): Promise<UserTrainingProgress[]>;
   getUserModuleProgress(userId: string, moduleId: string): Promise<UserTrainingProgress | undefined>;
   upsertUserTrainingProgress(progress: InsertUserTrainingProgress): Promise<UserTrainingProgress>;
-  getAllTrainingProgress(): Promise<UserTrainingProgress[]>;  // Phase 3
-  updateTrainingProgress(id: string, data: Partial<UserTrainingProgress>): Promise<UserTrainingProgress>;  // Phase 3
+  getAllTrainingProgress(organizationId: string): Promise<UserTrainingProgress[]>;  // Phase 3
+  updateTrainingProgress(id: string, organizationId: string, data: Partial<UserTrainingProgress>): Promise<UserTrainingProgress>;  // Phase 3
   
   // Gamification operations
   getBadges(organizationId: string): Promise<Badge[]>;
@@ -391,9 +392,9 @@ export interface IStorage {
   upsertBackgroundCheck(check: InsertBackgroundCheck): Promise<BackgroundCheck>;
   
   // Permissions operations
-  getRolePermissions(role: string): Promise<RolePermission[]>;
+  getRolePermissions(organizationId: string, role: string): Promise<RolePermission[]>;
   addRolePermission(permission: InsertRolePermission): Promise<RolePermission>;
-  removeRolePermission(role: string, permission: string): Promise<void>;
+  removeRolePermission(organizationId: string, role: string, permission: string): Promise<void>;
   
   // Team join requests operations
   getTeamJoinRequests(organizationId: string, ministryId?: string): Promise<TeamJoinRequest[]>;
@@ -462,12 +463,12 @@ export interface IStorage {
   
   // User archive operations
   archiveUser(userId: string, archivedBy: string, reason?: string): Promise<UserArchive>;
-  restoreUser(archiveId: string, restoredBy: string): Promise<void>;
+  restoreUser(archiveId: string, organizationId: string, restoredBy: string): Promise<void>;
   getArchivedUsers(organizationId: string): Promise<UserArchive[]>;
   
   // Ministry archive operations
   archiveMinistry(ministryId: string, organizationId: string, archivedBy: string, reason?: string): Promise<MinistryArchive>;
-  restoreMinistry(archiveId: string, restoredBy: string): Promise<void>;
+  restoreMinistry(archiveId: string, organizationId: string, restoredBy: string): Promise<void>;
   
   // Room layout operations
   getRoomLayouts(organizationId: string, roomId: string): Promise<RoomLayout[]>;
@@ -513,6 +514,7 @@ export interface IStorage {
   
   // Phase 7: Organization settings operations
   getOrgSettings(organizationId: string): Promise<OrgSettings | undefined>;
+  getOrgBranding(organizationId: string): Promise<{ name: string; notifyEmails: string[] }>;
   upsertOrgSettings(organizationId: string, data: Partial<InsertOrgSettings>): Promise<OrgSettings>;
   
   // Phase 9: Help center operations
@@ -526,11 +528,11 @@ export interface IStorage {
   deleteHelpArticle(id: string): Promise<void>;
   
   // Calendar categories operations
-  getCalendarCategories(activeOnly?: boolean): Promise<CalendarCategory[]>;
-  getCalendarCategory(id: string): Promise<CalendarCategory | undefined>;
+  getCalendarCategories(organizationId: string, activeOnly?: boolean): Promise<CalendarCategory[]>;
+  getCalendarCategory(id: string, organizationId: string): Promise<CalendarCategory | undefined>;
   createCalendarCategory(category: InsertCalendarCategory): Promise<CalendarCategory>;
-  updateCalendarCategory(id: string, data: Partial<InsertCalendarCategory>): Promise<CalendarCategory>;
-  deleteCalendarCategory(id: string): Promise<void>;
+  updateCalendarCategory(id: string, organizationId: string, data: Partial<InsertCalendarCategory>): Promise<CalendarCategory>;
+  deleteCalendarCategory(id: string, organizationId: string): Promise<void>;
   
   // Password reset operations
   createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
@@ -579,6 +581,14 @@ export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  // Use this (not getUser) whenever the user id comes from the request
+  // rather than the session, so one tenant can't act on another's users.
+  async getUserInOrg(id: string, organizationId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users)
+      .where(and(eq(users.id, id), eq(users.organizationId, organizationId)));
     return user;
   }
 
@@ -724,7 +734,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(surveyResults.id, resultId));
   }
 
-  async getAllResultsWithUnsentEmails(): Promise<Array<{ user: User; results: SurveyResultsType }>> {
+  async getAllResultsWithUnsentEmails(organizationId: string): Promise<Array<{ user: User; results: SurveyResultsType }>> {
     const resultsWithUsers = await db
       .select({
         user: users,
@@ -732,7 +742,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(surveyResults)
       .innerJoin(users, eq(surveyResults.userId, users.id))
-      .where(eq(surveyResults.emailSent, false));
+      .where(and(eq(surveyResults.organizationId, organizationId), eq(surveyResults.emailSent, false)));
     
     return resultsWithUsers;
   }
@@ -829,17 +839,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Integration settings operations
-  async getIntegrationSettings(integrationName: string): Promise<IntegrationSettings | undefined> {
+  async getIntegrationSettings(organizationId: string, integrationName: string): Promise<IntegrationSettings | undefined> {
     const [settings] = await db
       .select()
       .from(integrationSettings)
-      .where(eq(integrationSettings.integrationName, integrationName));
+      .where(and(
+        eq(integrationSettings.organizationId, organizationId),
+        eq(integrationSettings.integrationName, integrationName),
+      ));
     return settings;
   }
 
   async upsertIntegrationSettings(settingsData: InsertIntegrationSettings): Promise<IntegrationSettings> {
-    const existing = await this.getIntegrationSettings(settingsData.integrationName);
-    
+    const existing = await this.getIntegrationSettings(settingsData.organizationId, settingsData.integrationName);
+
     if (existing) {
       const [settings] = await db
         .update(integrationSettings)
@@ -847,7 +860,7 @@ export class DatabaseStorage implements IStorage {
           ...settingsData,
           updatedAt: new Date(),
         })
-        .where(eq(integrationSettings.integrationName, settingsData.integrationName))
+        .where(eq(integrationSettings.id, existing.id))
         .returning();
       return settings;
     } else {
@@ -1005,11 +1018,12 @@ export class DatabaseStorage implements IStorage {
     return leader;
   }
 
-  async removeMinistryLeader(ministryId: string, userId: string): Promise<void> {
+  async removeMinistryLeader(ministryId: string, userId: string, organizationId: string): Promise<void> {
     await db.delete(ministryLeaders)
       .where(and(
         eq(ministryLeaders.ministryId, ministryId),
-        eq(ministryLeaders.userId, userId)
+        eq(ministryLeaders.userId, userId),
+        eq(ministryLeaders.organizationId, organizationId),
       ));
   }
 
@@ -1121,15 +1135,20 @@ export class DatabaseStorage implements IStorage {
     return module;
   }
 
-  async deleteTrainingModule(id: string): Promise<void> {
-    await db.delete(userTrainingProgress).where(eq(userTrainingProgress.moduleId, id));
-    await db.delete(trainingAssessments).where(eq(trainingAssessments.moduleId, id));
-    await db.delete(trainingModules).where(eq(trainingModules.id, id));
+  async deleteTrainingModule(id: string, organizationId: string): Promise<void> {
+    const module = await this.getTrainingModule(id, organizationId);
+    if (!module) return;
+    await db.delete(userTrainingProgress)
+      .where(and(eq(userTrainingProgress.moduleId, id), eq(userTrainingProgress.organizationId, organizationId)));
+    await db.delete(trainingAssessments)
+      .where(and(eq(trainingAssessments.moduleId, id), eq(trainingAssessments.organizationId, organizationId)));
+    await db.delete(trainingModules)
+      .where(and(eq(trainingModules.id, id), eq(trainingModules.organizationId, organizationId)));
   }
 
-  async getTrainingAssessments(moduleId: string): Promise<TrainingAssessment[]> {
+  async getTrainingAssessments(moduleId: string, organizationId: string): Promise<TrainingAssessment[]> {
     return await db.select().from(trainingAssessments)
-      .where(eq(trainingAssessments.moduleId, moduleId));
+      .where(and(eq(trainingAssessments.moduleId, moduleId), eq(trainingAssessments.organizationId, organizationId)));
   }
 
   async createTrainingAssessment(data: InsertTrainingAssessment): Promise<TrainingAssessment> {
@@ -1137,14 +1156,15 @@ export class DatabaseStorage implements IStorage {
     return assessment;
   }
 
-  async updateTrainingAssessment(id: string, data: Partial<InsertTrainingAssessment>): Promise<TrainingAssessment> {
+  async updateTrainingAssessment(id: string, organizationId: string, data: Partial<InsertTrainingAssessment>): Promise<TrainingAssessment> {
     const [assessment] = await db.update(trainingAssessments).set(data)
-      .where(eq(trainingAssessments.id, id)).returning();
+      .where(and(eq(trainingAssessments.id, id), eq(trainingAssessments.organizationId, organizationId))).returning();
     return assessment;
   }
 
-  async deleteTrainingAssessment(id: string): Promise<void> {
-    await db.delete(trainingAssessments).where(eq(trainingAssessments.id, id));
+  async deleteTrainingAssessment(id: string, organizationId: string): Promise<void> {
+    await db.delete(trainingAssessments)
+      .where(and(eq(trainingAssessments.id, id), eq(trainingAssessments.organizationId, organizationId)));
   }
 
   // User training progress operations
@@ -1172,15 +1192,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Phase 3: Get all training progress records
-  async getAllTrainingProgress(): Promise<UserTrainingProgress[]> {
-    return await db.select().from(userTrainingProgress);
+  async getAllTrainingProgress(organizationId: string): Promise<UserTrainingProgress[]> {
+    return await db.select().from(userTrainingProgress)
+      .where(eq(userTrainingProgress.organizationId, organizationId));
   }
 
   // Phase 3: Update training progress by ID
-  async updateTrainingProgress(id: string, data: Partial<UserTrainingProgress>): Promise<UserTrainingProgress> {
+  async updateTrainingProgress(id: string, organizationId: string, data: Partial<UserTrainingProgress>): Promise<UserTrainingProgress> {
     const [progress] = await db.update(userTrainingProgress)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(userTrainingProgress.id, id)).returning();
+      .where(and(eq(userTrainingProgress.id, id), eq(userTrainingProgress.organizationId, organizationId))).returning();
     return progress;
   }
 
@@ -1592,8 +1613,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Permissions operations
-  async getRolePermissions(role: string): Promise<RolePermission[]> {
-    return await db.select().from(rolePermissions).where(eq(rolePermissions.role, role));
+  async getRolePermissions(organizationId: string, role: string): Promise<RolePermission[]> {
+    return await db.select().from(rolePermissions)
+      .where(and(eq(rolePermissions.organizationId, organizationId), eq(rolePermissions.role, role)));
   }
 
   async addRolePermission(data: InsertRolePermission): Promise<RolePermission> {
@@ -1601,9 +1623,13 @@ export class DatabaseStorage implements IStorage {
     return permission;
   }
 
-  async removeRolePermission(role: string, permission: string): Promise<void> {
+  async removeRolePermission(organizationId: string, role: string, permission: string): Promise<void> {
     await db.delete(rolePermissions)
-      .where(and(eq(rolePermissions.role, role), eq(rolePermissions.permission, permission)));
+      .where(and(
+        eq(rolePermissions.organizationId, organizationId),
+        eq(rolePermissions.role, role),
+        eq(rolePermissions.permission, permission),
+      ));
   }
 
   // Team join requests operations
@@ -1994,9 +2020,9 @@ export class DatabaseStorage implements IStorage {
     return archive;
   }
 
-  async restoreUser(archiveId: string, restoredBy: string): Promise<void> {
+  async restoreUser(archiveId: string, organizationId: string, restoredBy: string): Promise<void> {
     const [archive] = await db.select().from(userArchives)
-      .where(eq(userArchives.id, archiveId));
+      .where(and(eq(userArchives.id, archiveId), eq(userArchives.organizationId, organizationId)));
     if (!archive) throw new Error('Archive not found');
     
     // Restore user
@@ -2061,9 +2087,9 @@ export class DatabaseStorage implements IStorage {
     return archive;
   }
 
-  async restoreMinistry(archiveId: string, restoredBy: string): Promise<void> {
+  async restoreMinistry(archiveId: string, organizationId: string, restoredBy: string): Promise<void> {
     const [archive] = await db.select().from(ministryArchives)
-      .where(eq(ministryArchives.id, archiveId));
+      .where(and(eq(ministryArchives.id, archiveId), eq(ministryArchives.organizationId, organizationId)));
     if (!archive) throw new Error('Archive not found');
     
     // Restore ministry
@@ -2405,12 +2431,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get all users with their ministry assignments (for admin view)
-  async getUsersWithMinistryDetails(): Promise<(User & { ministries: string[], leaders: string[] })[]> {
+  async getUsersWithMinistryDetails(organizationId: string): Promise<(User & { ministries: string[], leaders: string[] })[]> {
     const allUsers = await db.select().from(users)
-      .where(eq(users.isArchived, false));
-    const allAssignments = await db.select().from(roleAssignments).where(eq(roleAssignments.isActive, true));
-    const allMinistries = await db.select().from(ministries);
-    const allLeaders = await db.select().from(ministryLeaders);
+      .where(and(eq(users.organizationId, organizationId), eq(users.isArchived, false)));
+    const allAssignments = await db.select().from(roleAssignments)
+      .where(and(eq(roleAssignments.organizationId, organizationId), eq(roleAssignments.isActive, true)));
+    const allMinistries = await db.select().from(ministries).where(eq(ministries.organizationId, organizationId));
+    const allLeaders = await db.select().from(ministryLeaders).where(eq(ministryLeaders.organizationId, organizationId));
     
     return allUsers.map(user => {
       const userAssignments = allAssignments.filter(a => a.userId === user.id);
@@ -2761,10 +2788,10 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count || 0;
   }
 
-  async markFeedbackAsRead(feedbackId: string): Promise<void> {
+  async markFeedbackAsRead(feedbackId: string, memberId: string): Promise<void> {
     await db.update(memberFeedback)
       .set({ isRead: true, readAt: new Date() })
-      .where(eq(memberFeedback.id, feedbackId));
+      .where(and(eq(memberFeedback.id, feedbackId), eq(memberFeedback.memberId, memberId)));
   }
 
   async getLeaderFeedbackGiven(leaderId: string): Promise<MemberFeedback[]> {
@@ -2833,7 +2860,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Team health indicators for ministry leaders
-  async getMinistryTeamHealth(ministryId: string): Promise<Record<string, {
+  async getMinistryTeamHealth(ministryId: string, organizationId: string): Promise<Record<string, {
     overall: 'green' | 'yellow' | 'red';
     onboardingComplete: boolean;
     trainingProgress: number;
@@ -2849,9 +2876,10 @@ export class DatabaseStorage implements IStorage {
     const assignments = await db.select().from(roleAssignments)
       .where(and(
         eq(roleAssignments.ministryId, ministryId),
+        eq(roleAssignments.organizationId, organizationId),
         eq(roleAssignments.isActive, true)
       ));
-    
+
     const result: Record<string, {
       overall: 'green' | 'yellow' | 'red';
       onboardingComplete: boolean;
@@ -3095,6 +3123,24 @@ export class DatabaseStorage implements IStorage {
     return settings;
   }
 
+  // Display name plus the staff inboxes that get copied on member results:
+  // the ministry's configured contact email and its owner. Never falls back
+  // to another organization's addresses.
+  async getOrgBranding(organizationId: string): Promise<{ name: string; notifyEmails: string[] }> {
+    const [org, settings] = await Promise.all([
+      this.getOrganization(organizationId),
+      this.getOrgSettings(organizationId),
+    ]);
+    const owner = org?.ownerId ? await this.getUserInOrg(org.ownerId, organizationId) : undefined;
+    const notifyEmails = Array.from(new Set(
+      [settings?.email, owner?.email].filter((e): e is string => !!e).map(e => e.toLowerCase()),
+    ));
+    return {
+      name: settings?.organizationName || org?.name || 'MinistryPath',
+      notifyEmails,
+    };
+  }
+
   async upsertOrgSettings(organizationId: string, data: Partial<InsertOrgSettings>): Promise<OrgSettings> {
     const existing = await this.getOrgSettings(organizationId);
     if (existing) {
@@ -3178,19 +3224,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Calendar categories
-  async getCalendarCategories(activeOnly: boolean = true): Promise<CalendarCategory[]> {
+  async getCalendarCategories(organizationId: string, activeOnly: boolean = true): Promise<CalendarCategory[]> {
     if (activeOnly) {
       return await db.select().from(calendarCategories)
-        .where(eq(calendarCategories.isActive, true))
+        .where(and(eq(calendarCategories.organizationId, organizationId), eq(calendarCategories.isActive, true)))
         .orderBy(calendarCategories.sortOrder, calendarCategories.name);
     }
     return await db.select().from(calendarCategories)
+      .where(eq(calendarCategories.organizationId, organizationId))
       .orderBy(calendarCategories.sortOrder, calendarCategories.name);
   }
 
-  async getCalendarCategory(id: string): Promise<CalendarCategory | undefined> {
+  async getCalendarCategory(id: string, organizationId: string): Promise<CalendarCategory | undefined> {
     const [category] = await db.select().from(calendarCategories)
-      .where(eq(calendarCategories.id, id));
+      .where(and(eq(calendarCategories.id, id), eq(calendarCategories.organizationId, organizationId)));
     return category;
   }
 
@@ -3199,19 +3246,19 @@ export class DatabaseStorage implements IStorage {
     return category;
   }
 
-  async updateCalendarCategory(id: string, data: Partial<InsertCalendarCategory>): Promise<CalendarCategory> {
+  async updateCalendarCategory(id: string, organizationId: string, data: Partial<InsertCalendarCategory>): Promise<CalendarCategory> {
     const [category] = await db
       .update(calendarCategories)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(calendarCategories.id, id))
+      .where(and(eq(calendarCategories.id, id), eq(calendarCategories.organizationId, organizationId)))
       .returning();
     return category;
   }
 
-  async deleteCalendarCategory(id: string): Promise<void> {
+  async deleteCalendarCategory(id: string, organizationId: string): Promise<void> {
     await db.update(calendarCategories)
       .set({ isActive: false })
-      .where(eq(calendarCategories.id, id));
+      .where(and(eq(calendarCategories.id, id), eq(calendarCategories.organizationId, organizationId)));
   }
 
   // Password reset operations

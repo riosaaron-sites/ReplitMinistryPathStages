@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { orgSettings, calendarCategories } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 interface OutlookTokenResponse {
   access_token: string;
@@ -29,16 +29,19 @@ interface MinistryPathEventMeta {
 }
 
 // Cache for category lookups
-let categoryCache: { slugToId: Map<string, string>; idToSlug: Map<string, string>; slugToRow: Map<string, any>; lastFetch: number } | null = null;
+type CategoryMaps = { slugToId: Map<string, string>; idToSlug: Map<string, string>; slugToRow: Map<string, any>; lastFetch: number };
+const categoryCache = new Map<string, CategoryMaps>();
 const CACHE_TTL = 60000; // 1 minute
 
-async function getCategoryMaps() {
+async function getCategoryMaps(organizationId: string): Promise<CategoryMaps> {
   const now = Date.now();
-  if (categoryCache && (now - categoryCache.lastFetch) < CACHE_TTL) {
-    return categoryCache;
+  const cached = categoryCache.get(organizationId);
+  if (cached && (now - cached.lastFetch) < CACHE_TTL) {
+    return cached;
   }
   
-  const categories = await db.select().from(calendarCategories).where(eq(calendarCategories.isActive, true));
+  const categories = await db.select().from(calendarCategories)
+    .where(and(eq(calendarCategories.organizationId, organizationId), eq(calendarCategories.isActive, true)));
   
   const slugToId = new Map<string, string>();
   const idToSlug = new Map<string, string>();
@@ -50,8 +53,9 @@ async function getCategoryMaps() {
     slugToRow.set(cat.slug, cat);
   }
   
-  categoryCache = { slugToId, idToSlug, slugToRow, lastFetch: now };
-  return categoryCache;
+  const maps = { slugToId, idToSlug, slugToRow, lastFetch: now };
+  categoryCache.set(organizationId, maps);
+  return maps;
 }
 
 // Extract MP: prefixed categories from Outlook categories array
@@ -70,13 +74,14 @@ function buildOutlookCategories(existingCategories: string[], mpSlugs: string[])
 
 const GRAPH_API_BASE = "https://graph.microsoft.com/v1.0";
 
-async function getOutlookSettings() {
-  const settings = await db.select().from(orgSettings).limit(1);
+async function getOutlookSettings(organizationId: string) {
+  const settings = await db.select().from(orgSettings)
+    .where(eq(orgSettings.organizationId, organizationId)).limit(1);
   return settings[0] || null;
 }
 
-async function getAccessToken(): Promise<string | null> {
-  const settings = await getOutlookSettings();
+async function getAccessToken(organizationId: string): Promise<string | null> {
+  const settings = await getOutlookSettings(organizationId);
   
   if (!settings?.outlookIntegrationEnabled || !settings.outlookTenantId || !settings.outlookClientId) {
     return null;
@@ -137,20 +142,21 @@ function embedMinistryPathMeta(body: string, meta: MinistryPathEventMeta): strin
 }
 
 export async function getOutlookEvents(
+  organizationId: string,
   start: string,
   end: string,
   filters?: { categoryId?: string; categorySlug?: string; ministryId?: string }
 ): Promise<any[] | null> {
-  const token = await getAccessToken();
+  const token = await getAccessToken(organizationId);
   if (!token) return null;
   
-  const settings = await getOutlookSettings();
+  const settings = await getOutlookSettings(organizationId);
   if (!settings?.outlookSelectedCalendars?.length) {
     return [];
   }
   
   // Get category maps for slug/id lookups
-  const categoryMaps = await getCategoryMaps();
+  const categoryMaps = await getCategoryMaps(organizationId);
   
   const allEvents: any[] = [];
   
@@ -234,6 +240,7 @@ export async function getOutlookEvents(
 }
 
 export async function createOutlookEvent(
+  organizationId: string,
   calendarId: string,
   event: {
     title: string;
@@ -245,7 +252,7 @@ export async function createOutlookEvent(
     ministryId?: string;
   }
 ): Promise<any | null> {
-  const token = await getAccessToken();
+  const token = await getAccessToken(organizationId);
   if (!token) return null;
   
   const categorySlugs = event.categorySlugs || [];
@@ -299,6 +306,7 @@ export async function createOutlookEvent(
 }
 
 export async function updateOutlookEvent(
+  organizationId: string,
   calendarId: string,
   eventId: string,
   updates: Partial<{
@@ -311,7 +319,7 @@ export async function updateOutlookEvent(
     existingOutlookCategories: string[];
   }>
 ): Promise<any | null> {
-  const token = await getAccessToken();
+  const token = await getAccessToken(organizationId);
   if (!token) return null;
   
   const graphUpdates: Partial<GraphEvent> = {};
@@ -355,10 +363,11 @@ export async function updateOutlookEvent(
 }
 
 export async function deleteOutlookEvent(
+  organizationId: string,
   calendarId: string,
   eventId: string
 ): Promise<boolean> {
-  const token = await getAccessToken();
+  const token = await getAccessToken(organizationId);
   if (!token) return false;
   
   try {
@@ -378,8 +387,8 @@ export async function deleteOutlookEvent(
   }
 }
 
-export async function testOutlookConnection(): Promise<{ success: boolean; message: string }> {
-  const token = await getAccessToken();
+export async function testOutlookConnection(organizationId: string): Promise<{ success: boolean; message: string }> {
+  const token = await getAccessToken(organizationId);
   if (!token) {
     return { success: false, message: "Failed to obtain access token. Check your configuration." };
   }
@@ -402,11 +411,11 @@ export async function testOutlookConnection(): Promise<{ success: boolean; messa
   }
 }
 
-export async function getRoomCalendars(): Promise<any[] | null> {
-  const token = await getAccessToken();
+export async function getRoomCalendars(organizationId: string): Promise<any[] | null> {
+  const token = await getAccessToken(organizationId);
   if (!token) return null;
   
-  const settings = await getOutlookSettings();
+  const settings = await getOutlookSettings(organizationId);
   if (!settings?.outlookRoomCalendars?.length) {
     return [];
   }
@@ -425,11 +434,12 @@ export async function getRoomCalendars(): Promise<any[] | null> {
 }
 
 export async function getRoomAvailability(
+  organizationId: string,
   roomId: string,
   start: string,
   end: string
 ): Promise<any[] | null> {
-  const token = await getAccessToken();
+  const token = await getAccessToken(organizationId);
   if (!token) return null;
   
   try {
@@ -454,6 +464,7 @@ export async function getRoomAvailability(
 }
 
 export async function bookRoom(
+  organizationId: string,
   roomId: string,
   event: {
     title: string;
@@ -463,13 +474,13 @@ export async function bookRoom(
     organizerEmail?: string;
   }
 ): Promise<{ success: boolean; event?: any; message?: string }> {
-  const token = await getAccessToken();
+  const token = await getAccessToken(organizationId);
   if (!token) {
     return { success: false, message: "Outlook not configured" };
   }
   
   // Check for conflicts
-  const conflicts = await getRoomAvailability(roomId, event.start, event.end);
+  const conflicts = await getRoomAvailability(organizationId, roomId, event.start, event.end);
   if (conflicts && conflicts.length > 0) {
     return { success: false, message: "Room is not available at this time" };
   }

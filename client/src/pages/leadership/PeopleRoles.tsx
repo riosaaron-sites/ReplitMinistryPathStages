@@ -169,7 +169,7 @@ export default function PeopleRoles() {
 
   const roleStats = {
     total: users?.length || 0,
-    leaders: users?.filter(u => ['admin', 'pastor', 'leader'].includes(u.role || '')).length || 0,
+    leaders: users?.filter(u => ['owner', 'admin', 'pastor', 'leader'].includes(u.role || '')).length || 0,
     active: users?.filter(u => u.isServingActive).length || 0,
     acpEligible: users?.filter(u => u.acpStatus === 'approved').length || 0,
   };

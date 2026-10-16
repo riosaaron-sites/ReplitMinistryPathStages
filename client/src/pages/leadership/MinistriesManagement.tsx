@@ -374,7 +374,7 @@ export default function MinistriesManagement() {
   }));
 
   const leaderOptions = (users || []).filter(u => 
-    ['admin', 'pastor', 'leader'].includes(u.role || '')
+    ['owner', 'admin', 'pastor', 'leader'].includes(u.role || '')
   );
 
   // Filter out users already assigned as leaders for this ministry

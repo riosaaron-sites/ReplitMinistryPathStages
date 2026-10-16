@@ -833,7 +833,7 @@ export default function MyTeam() {
   );
 
   // For admins, show all ministries
-  const isAdmin = ['admin', 'pastor', 'leader'].includes(user?.role || '');
+  const isAdmin = ['owner', 'admin', 'pastor', 'leader'].includes(user?.role || '');
   const displayMinistries = isAdmin ? (ministries || []).filter(m => m.isActive) : myMinistries;
 
   if (!isLeader) {

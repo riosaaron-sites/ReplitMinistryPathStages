@@ -395,7 +395,7 @@ export default function InternPortal() {
     u.role === 'dream-team' && !internProfiles?.some(p => p.userId === u.id)
   );
   const supervisors = (users || []).filter(u => 
-    ['admin', 'pastor', 'leader'].includes(u.role || '')
+    ['owner', 'admin', 'pastor', 'leader'].includes(u.role || '')
   );
 
   return (
