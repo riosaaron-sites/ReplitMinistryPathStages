@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -2786,8 +2786,9 @@ function OrganizationSettingsSection() {
 interface OutlookSettings {
   enabled: boolean;
   tenantId: string;
-  clientId: string;
-  clientSecretConfigured: boolean;
+  connected: boolean;
+  platformConfigured: boolean;
+  adminConsentUrl: string | null;
   selectedCalendars: string[];
   roomCalendars: string[];
   syncIntervalMinutes: number;
@@ -2808,11 +2809,26 @@ interface SetupGuide {
   note: string;
 }
 
+// Results the server's Microsoft connect flow redirects back with (?outlook=...)
+const OUTLOOK_CONNECT_RESULTS: Record<string, { title: string; description: string; destructive?: boolean }> = {
+  connected: { title: "Microsoft 365 connected", description: "Calendar sync is now on." },
+  consent_required: {
+    title: "Almost there",
+    description: "A Microsoft 365 administrator still needs to grant MinistryPath access. Use the \"Grant admin consent\" link.",
+  },
+  cancelled: { title: "Connection cancelled", description: "Microsoft sign-in was cancelled.", destructive: true },
+  invalid_request: { title: "Connection expired", description: "Please click Connect Microsoft 365 again.", destructive: true },
+  verification_failed: { title: "Couldn't verify your Microsoft account", description: "Please try again.", destructive: true },
+  not_configured: {
+    title: "Outlook isn't available yet",
+    description: "The Outlook integration hasn't been set up on this server. Please contact MinistryPath support.",
+    destructive: true,
+  },
+};
+
 function OutlookIntegrationSection() {
   const { toast } = useToast();
   const [showGuide, setShowGuide] = useState(false);
-  const [tenantId, setTenantId] = useState('');
-  const [clientId, setClientId] = useState('');
 
   const { data: settings, isLoading } = useQuery<OutlookSettings>({
     queryKey: ['/api/org/outlook-settings'],
@@ -2823,16 +2839,25 @@ function OutlookIntegrationSection() {
     enabled: showGuide,
   });
 
-  // Sync form state with fetched settings
-  useState(() => {
-    if (settings) {
-      setTenantId(settings.tenantId);
-      setClientId(settings.clientId);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('outlook');
+    if (!result) return;
+    const message = OUTLOOK_CONNECT_RESULTS[result];
+    if (message) {
+      toast({
+        title: message.title,
+        description: message.description,
+        variant: message.destructive ? "destructive" : undefined,
+      });
     }
-  });
+    params.delete('outlook');
+    const query = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+  }, [toast]);
 
   const updateMutation = useMutation({
-    mutationFn: async (data: Partial<OutlookSettings>) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const res = await apiRequest('PUT', '/api/org/outlook-settings', data);
       return res.json();
     },
@@ -2862,20 +2887,13 @@ function OutlookIntegrationSection() {
     },
   });
 
-  const handleSave = () => {
-    updateMutation.mutate({
-      outlookTenantId: tenantId,
-      outlookClientId: clientId,
-    } as any);
-  };
-
   const handleToggleEnabled = (enabled: boolean) => {
-    updateMutation.mutate({ outlookIntegrationEnabled: enabled } as any);
+    updateMutation.mutate({ outlookIntegrationEnabled: enabled });
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copied", description: "Text copied to clipboard" });
+    toast({ title: "Copied", description: "Link copied to clipboard" });
   };
 
   if (isLoading) {
@@ -2894,6 +2912,8 @@ function OutlookIntegrationSection() {
     );
   }
 
+  const connected = settings?.connected ?? false;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -2905,7 +2925,7 @@ function OutlookIntegrationSection() {
                 Outlook 365 Integration
               </CardTitle>
               <CardDescription>
-                Connect your church's Outlook 365 calendar to sync events and room bookings
+                Connect your church's Microsoft 365 calendars to sync events and room bookings
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -2921,7 +2941,7 @@ function OutlookIntegrationSection() {
               <Switch
                 checked={settings?.enabled ?? false}
                 onCheckedChange={handleToggleEnabled}
-                disabled={updateMutation.isPending}
+                disabled={!connected || updateMutation.isPending}
                 data-testid="switch-outlook-enabled"
               />
             </div>
@@ -2930,13 +2950,12 @@ function OutlookIntegrationSection() {
         <CardContent className="space-y-6">
           {/* Status Indicators */}
           <div className="flex flex-wrap gap-3">
-            <Badge variant={settings?.enabled ? "default" : "secondary"} className="flex items-center gap-1">
-              {settings?.enabled ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-              {settings?.enabled ? 'Enabled' : 'Disabled'}
+            <Badge variant={connected ? "default" : "secondary"} className="flex items-center gap-1">
+              {connected ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+              {connected ? 'Microsoft 365 connected' : 'Not connected'}
             </Badge>
-            <Badge variant={settings?.clientSecretConfigured ? "default" : "destructive"} className="flex items-center gap-1">
-              {settings?.clientSecretConfigured ? <CheckCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-              {settings?.clientSecretConfigured ? 'Secret Configured' : 'Secret Missing'}
+            <Badge variant={settings?.enabled ? "default" : "secondary"}>
+              {settings?.enabled ? 'Sync on' : 'Sync off'}
             </Badge>
             {settings?.lastSyncAt && (
               <Badge variant="outline" className="flex items-center gap-1">
@@ -2946,48 +2965,55 @@ function OutlookIntegrationSection() {
             )}
           </div>
 
-          {/* Credentials Form */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tenant ID</label>
-              <Input
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={tenantId || settings?.tenantId || ''}
-                onChange={(e) => setTenantId(e.target.value)}
-                data-testid="input-tenant-id"
-              />
-              <p className="text-xs text-muted-foreground">
-                Your Azure AD Directory (tenant) ID
-              </p>
+          {!settings?.platformConfigured && (
+            <div className="p-4 rounded-lg border bg-muted/50 text-sm text-muted-foreground">
+              The Outlook integration hasn't been set up on this MinistryPath server yet. Please contact support.
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Client ID</label>
-              <Input
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={clientId || settings?.clientId || ''}
-                onChange={(e) => setClientId(e.target.value)}
-                data-testid="input-client-id"
-              />
-              <p className="text-xs text-muted-foreground">
-                Your Azure AD Application (client) ID
-              </p>
-            </div>
-          </div>
+          )}
 
-          {/* Client Secret Note */}
-          <div className="p-4 rounded-lg border bg-muted/50">
+          {/* Connection */}
+          <div className="p-4 rounded-lg border bg-muted/50 space-y-3">
             <div className="flex items-start gap-3">
               <Shield className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <h4 className="font-medium">Client Secret</h4>
-                <p className="text-sm text-muted-foreground mt-1">
-                  For security, the client secret is stored in environment variables. 
-                  Add <code className="bg-muted px-1 rounded">OUTLOOK_CLIENT_SECRET</code> to your Replit secrets.
+              <div className="space-y-1">
+                <h4 className="font-medium">
+                  {connected ? 'Connected Microsoft 365 organization' : 'Connect your Microsoft 365 organization'}
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  {connected
+                    ? <>Tenant ID: <code className="bg-muted px-1 rounded">{settings?.tenantId}</code></>
+                    : "Sign in with a Microsoft account from your church's Microsoft 365 organization. No IDs or secrets to copy."}
                 </p>
-                {!settings?.clientSecretConfigured && (
-                  <Badge variant="destructive" className="mt-2">Not configured</Badge>
-                )}
               </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => { window.location.href = '/api/org/outlook/connect'; }}
+                disabled={!settings?.platformConfigured}
+                variant={connected ? "outline" : "default"}
+                data-testid="button-connect-outlook"
+              >
+                <Cloud className="h-4 w-4 mr-2" />
+                {connected ? 'Reconnect Microsoft 365' : 'Connect Microsoft 365'}
+              </Button>
+              {connected && !settings?.enabled && settings?.adminConsentUrl && (
+                <>
+                  <Button asChild data-testid="link-outlook-admin-consent">
+                    <a href={settings.adminConsentUrl}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Grant admin consent
+                    </a>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => copyToClipboard(settings.adminConsentUrl!)}
+                    data-testid="button-copy-admin-consent"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy link for your administrator
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -2996,7 +3022,7 @@ function OutlookIntegrationSection() {
             <label className="text-sm font-medium">Sync Interval</label>
             <Select
               value={String(settings?.syncIntervalMinutes || 15)}
-              onValueChange={(v) => updateMutation.mutate({ outlookSyncIntervalMinutes: Number(v) } as any)}
+              onValueChange={(v) => updateMutation.mutate({ outlookSyncIntervalMinutes: Number(v) })}
             >
               <SelectTrigger className="w-48" data-testid="select-sync-interval">
                 <SelectValue />
@@ -3013,23 +3039,9 @@ function OutlookIntegrationSection() {
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
             <Button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              data-testid="button-save-outlook"
-            >
-              {updateMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Settings'
-              )}
-            </Button>
-            <Button
               variant="outline"
               onClick={() => testMutation.mutate()}
-              disabled={testMutation.isPending}
+              disabled={!connected || testMutation.isPending}
               data-testid="button-test-outlook"
             >
               {testMutation.isPending ? (
@@ -3054,7 +3066,7 @@ function OutlookIntegrationSection() {
           <CardHeader>
             <CardTitle>{setupGuide.title}</CardTitle>
             <CardDescription>
-              Follow these steps to set up Azure AD app registration for Outlook integration
+              Connect in a few clicks, no Azure setup required
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -3528,7 +3540,10 @@ export default function AdminPanel() {
         <HelpLink category="admin" tooltip="Admin Help" variant="text" />
       </div>
 
-      <Tabs defaultValue="trainings" className="space-y-6">
+      <Tabs
+        defaultValue={new URLSearchParams(window.location.search).has('outlook') ? 'integrations' : 'trainings'}
+        className="space-y-6"
+      >
         <TabsList>
           <TabsTrigger value="trainings" className="gap-2" data-testid="tab-trainings">
             <GraduationCap className="h-4 w-4" />

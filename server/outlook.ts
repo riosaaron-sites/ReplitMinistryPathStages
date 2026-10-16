@@ -80,24 +80,116 @@ async function getOutlookSettings(organizationId: string) {
   return settings[0] || null;
 }
 
+// MinistryPath's own multi-tenant Azure app. Each ministry connects its
+// Microsoft 365 tenant to this app; ministries never supply app credentials.
+// OUTLOOK_CLIENT_ID falls back to a client ID stored before this model existed.
+export function getOutlookClientId(legacyClientId?: string | null): string | null {
+  return process.env.OUTLOOK_CLIENT_ID || legacyClientId || null;
+}
+
+export function isOutlookPlatformConfigured(): boolean {
+  return !!process.env.OUTLOOK_CLIENT_ID && !!process.env.OUTLOOK_CLIENT_SECRET;
+}
+
+const TENANT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Step 1 of connecting: a ministry admin signs in with their Microsoft
+// account so we learn — from Microsoft, not from user input — which tenant
+// they belong to.
+export function buildOutlookSignInUrl(redirectUri: string, state: string): string | null {
+  const clientId = process.env.OUTLOOK_CLIENT_ID;
+  if (!clientId) return null;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    redirect_uri: redirectUri,
+    response_mode: "query",
+    scope: "openid profile",
+    state,
+    prompt: "select_account",
+  });
+  return `https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?${params.toString()}`;
+}
+
+// Exchanges the sign-in code for an ID token and returns its tenant id. The
+// token comes straight from Microsoft's token endpoint over TLS, authenticated
+// with our client secret, so its claims can be trusted without a separate JWT
+// signature check (OIDC Core 3.1.3.7). Never trust a tenant id from a redirect
+// query string — those are unsigned and can be forged.
+export async function verifyTenantFromAuthCode(code: string, redirectUri: string): Promise<string | null> {
+  const clientId = process.env.OUTLOOK_CLIENT_ID;
+  const clientSecret = process.env.OUTLOOK_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  const response = await fetch("https://login.microsoftonline.com/organizations/oauth2/v2.0/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      code,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code",
+      scope: "openid profile",
+    }).toString(),
+  });
+  if (!response.ok) {
+    console.error("[Outlook] Sign-in code exchange failed:", await response.text());
+    return null;
+  }
+
+  const { id_token } = (await response.json()) as { id_token?: string };
+  const payloadPart = id_token?.split(".")[1];
+  if (!payloadPart) return null;
+  const claims = JSON.parse(Buffer.from(payloadPart, "base64url").toString("utf8")) as {
+    aud?: string; tid?: string; iss?: string; exp?: number;
+  };
+
+  if (claims.aud !== clientId) return null;
+  if (!claims.tid || !TENANT_ID_PATTERN.test(claims.tid)) return null;
+  if (!claims.iss?.includes(claims.tid)) return null;
+  if (!claims.exp || claims.exp * 1000 < Date.now()) return null;
+  return claims.tid;
+}
+
+// Step 2: an administrator of that tenant approves the app's calendar
+// permissions. The page Microsoft redirects back to carries no trusted data;
+// we confirm consent by actually obtaining an app token afterwards.
+export function buildAdminConsentUrl(tenantId: string, redirectUri: string): string | null {
+  const clientId = process.env.OUTLOOK_CLIENT_ID;
+  if (!clientId || !TENANT_ID_PATTERN.test(tenantId)) return null;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    scope: "https://graph.microsoft.com/.default",
+    redirect_uri: redirectUri,
+  });
+  return `https://login.microsoftonline.com/${tenantId}/v2.0/adminconsent?${params.toString()}`;
+}
+
 async function getAccessToken(organizationId: string): Promise<string | null> {
   const settings = await getOutlookSettings(organizationId);
-  
-  if (!settings?.outlookIntegrationEnabled || !settings.outlookTenantId || !settings.outlookClientId) {
+
+  if (!settings?.outlookIntegrationEnabled || !settings.outlookTenantId) {
     return null;
   }
-  
+  return fetchAppToken(settings.outlookTenantId, settings.outlookClientId);
+}
+
+// App-only token for a tenant. Succeeds only once an admin of that tenant has
+// granted consent to MinistryPath's app.
+export async function fetchAppToken(tenantId: string, legacyClientId?: string | null): Promise<string | null> {
+  const clientId = getOutlookClientId(legacyClientId);
   const clientSecret = process.env.OUTLOOK_CLIENT_SECRET;
-  if (!clientSecret) {
-    console.log("[Outlook] No client secret configured");
+  if (!clientId || !clientSecret) {
+    console.log("[Outlook] App credentials not configured");
     return null;
   }
-  
+
   try {
-    const tokenUrl = `https://login.microsoftonline.com/${settings.outlookTenantId}/oauth2/v2.0/token`;
-    
+    const tokenUrl = `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
+
     const params = new URLSearchParams({
-      client_id: settings.outlookClientId,
+      client_id: clientId,
       client_secret: clientSecret,
       scope: "https://graph.microsoft.com/.default",
       grant_type: "client_credentials",

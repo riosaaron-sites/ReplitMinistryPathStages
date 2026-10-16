@@ -57,6 +57,7 @@ import { z } from "zod";
 import { seedHelpArticles } from "./seedHelpArticles";
 import { seedCoreData, seedAgreementContent } from "./seedCoreData";
 import { slugify } from "./utils/slugify";
+import { createRateLimiter } from "./utils/rateLimit";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 // Configure multer for profile photo uploads
@@ -894,6 +895,28 @@ export async function registerRoutes(
   // Creates a brand new tenant (ministry/organization) plus its first user, who
   // becomes that organization's owner. This is the primary "sign up as a SaaS
   // tenant" entry point.
+  const signupOrgLimiter = createRateLimiter({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    message: "Too many ministry signups from this network. Please try again later.",
+  });
+  const signupLimiter = createRateLimiter({
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    message: "Too many signup attempts. Please try again later.",
+  });
+  const loginLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: "Too many login attempts. Please wait a few minutes and try again.",
+    keyFn: (req) => `${req.ip}:${String(req.body?.email ?? '').toLowerCase()}`,
+  });
+  const passwordResetLimiter = createRateLimiter({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    message: "Too many password reset requests. Please try again later.",
+  });
+
   const registerOrganizationSchema = z.object({
     organizationName: z.string().min(2, "Ministry name is required"),
     email: z.string().email(),
@@ -902,7 +925,7 @@ export async function registerRoutes(
     lastName: z.string().min(1),
   });
 
-  app.post('/api/auth/register-organization', async (req: any, res) => {
+  app.post('/api/auth/register-organization', signupOrgLimiter, async (req: any, res) => {
     try {
       const parseResult = registerOrganizationSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -980,7 +1003,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/auth/register', async (req: any, res) => {
+  app.post('/api/auth/register', signupLimiter, async (req: any, res) => {
     try {
       const parseResult = registerSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -1064,7 +1087,7 @@ export async function registerRoutes(
     password: z.string().min(1),
   });
 
-  app.post('/api/auth/login', async (req: any, res) => {
+  app.post('/api/auth/login', loginLimiter, async (req: any, res) => {
     try {
       const parseResult = loginSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -1262,7 +1285,7 @@ export async function registerRoutes(
   });
 
   // Request password reset - sends email with reset link
-  app.post('/api/auth/forgot-password', async (req: any, res) => {
+  app.post('/api/auth/forgot-password', passwordResetLimiter, async (req: any, res) => {
     try {
       const schema = z.object({ email: z.string().email() });
       const parseResult = schema.safeParse(req.body);
@@ -10390,13 +10413,18 @@ export async function registerRoutes(
   app.get('/api/org/outlook-settings', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const settings = await storage.getOrgSettings(req.organizationId);
+      const outlook = await import('./outlook');
+      const tenantId = settings?.outlookTenantId || '';
 
       // Return Outlook-specific settings (never expose client secret)
       res.json({
         enabled: settings?.outlookIntegrationEnabled ?? false,
-        tenantId: settings?.outlookTenantId || '',
-        clientId: settings?.outlookClientId || '',
-        // Secret is stored in env vars, show if configured
+        tenantId,
+        connected: !!tenantId,
+        platformConfigured: outlook.isOutlookPlatformConfigured(),
+        adminConsentUrl: tenantId
+          ? outlook.buildAdminConsentUrl(tenantId, `${getAppBaseUrl()}/api/org/outlook/consent-complete`)
+          : null,
         clientSecretConfigured: !!process.env.OUTLOOK_CLIENT_SECRET,
         selectedCalendars: settings?.outlookSelectedCalendars || [],
         roomCalendars: settings?.outlookRoomCalendars || [],
@@ -10414,10 +10442,11 @@ export async function registerRoutes(
     try {
       const admin = req.authenticatedUser;
       
+      // The tenant is only ever set by the verified Microsoft sign-in flow
+      // (/api/org/outlook/connect), never typed in — a typed tenant id would
+      // let one ministry point its sync at another ministry's Microsoft 365.
       const outlookSchema = z.object({
         outlookIntegrationEnabled: z.boolean().optional(),
-        outlookTenantId: z.string().optional(),
-        outlookClientId: z.string().optional(),
         outlookSelectedCalendars: z.array(z.string()).optional(),
         outlookRoomCalendars: z.array(z.string()).optional(),
         outlookSyncIntervalMinutes: z.number().min(5).max(60).optional(),
@@ -10434,7 +10463,7 @@ export async function registerRoutes(
       res.json({
         enabled: settings?.outlookIntegrationEnabled ?? false,
         tenantId: settings?.outlookTenantId || '',
-        clientId: settings?.outlookClientId || '',
+        connected: !!settings?.outlookTenantId,
         clientSecretConfigured: !!process.env.OUTLOOK_CLIENT_SECRET,
         selectedCalendars: settings?.outlookSelectedCalendars || [],
         roomCalendars: settings?.outlookRoomCalendars || [],
@@ -10455,18 +10484,18 @@ export async function registerRoutes(
     try {
       const settings = await storage.getOrgSettings(req.organizationId);
 
-      if (!settings?.outlookTenantId || !settings?.outlookClientId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Outlook is not configured. Please enter your Tenant ID and Client ID first.",
+      if (!settings?.outlookTenantId) {
+        return res.status(400).json({
+          success: false,
+          message: "Microsoft 365 isn't connected yet. Click \"Connect Microsoft 365\" first.",
           setupRequired: true
         });
       }
 
-      if (!process.env.OUTLOOK_CLIENT_SECRET) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Outlook Client Secret is not configured. Please add OUTLOOK_CLIENT_SECRET to your environment variables.",
+      if (!process.env.OUTLOOK_CLIENT_SECRET || !(process.env.OUTLOOK_CLIENT_ID || settings.outlookClientId)) {
+        return res.status(400).json({
+          success: false,
+          message: "The Outlook integration hasn't been set up on this MinistryPath server yet. Please contact support.",
           setupRequired: true
         });
       }
@@ -10481,69 +10510,121 @@ export async function registerRoutes(
     }
   });
 
+  // Connect Microsoft 365, step 1: send the admin to Microsoft sign-in. The
+  // state value ties the round trip to this session and organization.
+  app.get('/api/org/outlook/connect', isAuthenticated, requireAdmin, async (req: any, res) => {
+    const outlook = await import('./outlook');
+    const state = randomUUID();
+    const signInUrl = outlook.buildOutlookSignInUrl(`${getAppBaseUrl()}/api/org/outlook/callback`, state);
+    if (!signInUrl || !outlook.isOutlookPlatformConfigured()) {
+      return res.redirect('/leadership/admin?outlook=not_configured');
+    }
+    req.session.outlookConnect = { state, organizationId: req.organizationId, startedAt: Date.now() };
+    req.session.save(() => res.redirect(signInUrl));
+  });
+
+  // Connect Microsoft 365, step 2: Microsoft redirects back with a code. The
+  // tenant id comes from the ID token we fetch with that code, never from
+  // the query string.
+  app.get('/api/org/outlook/callback', isAuthenticated, requireAdmin, async (req: any, res) => {
+    const pending = req.session.outlookConnect;
+    delete req.session.outlookConnect;
+    try {
+      const { code, state, error } = req.query;
+      const stateIsValid = pending
+        && typeof state === 'string' && state === pending.state
+        && pending.organizationId === req.organizationId
+        && Date.now() - pending.startedAt < 15 * 60 * 1000;
+      if (!stateIsValid) {
+        return res.redirect('/leadership/admin?outlook=invalid_request');
+      }
+      if (error || typeof code !== 'string') {
+        return res.redirect('/leadership/admin?outlook=cancelled');
+      }
+
+      const outlook = await import('./outlook');
+      const tenantId = await outlook.verifyTenantFromAuthCode(code, `${getAppBaseUrl()}/api/org/outlook/callback`);
+      if (!tenantId) {
+        return res.redirect('/leadership/admin?outlook=verification_failed');
+      }
+
+      // Sync turns on only once an administrator of that tenant has granted
+      // the app access, which we confirm by actually obtaining a token.
+      const consentGranted = !!(await outlook.fetchAppToken(tenantId));
+      await storage.upsertOrgSettings(req.organizationId, {
+        outlookTenantId: tenantId,
+        outlookClientId: null,
+        outlookIntegrationEnabled: consentGranted,
+        updatedBy: req.authenticatedUser.id,
+      });
+      console.log(`[Outlook] Organization ${req.organizationId} connected Microsoft 365 tenant ${tenantId} (consent: ${consentGranted})`);
+      return res.redirect(`/leadership/admin?outlook=${consentGranted ? 'connected' : 'consent_required'}`);
+    } catch (err) {
+      console.error("Error completing Outlook connection:", err);
+      return res.redirect('/leadership/admin?outlook=verification_failed');
+    }
+  });
+
+  // Where Microsoft returns after an admin grants consent. The query string
+  // is untrusted, so this only checks whether an app token now works.
+  app.get('/api/org/outlook/consent-complete', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const settings = await storage.getOrgSettings(req.organizationId);
+      if (!settings?.outlookTenantId) {
+        return res.redirect('/leadership/admin?outlook=invalid_request');
+      }
+      const outlook = await import('./outlook');
+      const consentGranted = !!(await outlook.fetchAppToken(settings.outlookTenantId, settings.outlookClientId));
+      if (consentGranted) {
+        await storage.upsertOrgSettings(req.organizationId, {
+          outlookIntegrationEnabled: true,
+          updatedBy: req.authenticatedUser.id,
+        });
+      }
+      return res.redirect(`/leadership/admin?outlook=${consentGranted ? 'connected' : 'consent_required'}`);
+    } catch (err) {
+      console.error("Error checking Outlook consent:", err);
+      return res.redirect('/leadership/admin?outlook=verification_failed');
+    }
+  });
+
   // Get Outlook setup instructions
   app.get('/api/org/outlook-setup-guide', isAuthenticated, requireAdmin, async (req: any, res) => {
     res.json({
-      title: "Outlook 365 Integration Setup",
+      title: "Connect Outlook / Microsoft 365",
       steps: [
         {
           step: 1,
-          title: "Create Azure AD App Registration",
-          description: "Go to Azure Portal > Azure Active Directory > App registrations > New registration",
+          title: "Click \"Connect Microsoft 365\"",
+          description: "Sign in with a Microsoft account from your church's Microsoft 365 organization.",
           details: [
-            "Name: MinistryPath Calendar Integration",
-            "Supported account types: Single tenant (your organization)",
-            "Redirect URI: Leave blank for now (not needed for app-only auth)"
+            "This tells MinistryPath which Microsoft 365 organization belongs to your ministry",
+            "No passwords, IDs, or secrets need to be copied or pasted"
           ]
         },
         {
           step: 2,
-          title: "Configure API Permissions",
-          description: "In your app registration, go to API Permissions",
+          title: "Grant access as a Microsoft 365 administrator",
+          description: "A Global Administrator of your Microsoft 365 organization approves MinistryPath's calendar access.",
           details: [
-            "Add: Microsoft Graph > Application permissions",
-            "Calendars.Read - Read calendars in all mailboxes",
-            "Calendars.Read.Shared - Read shared calendars",
-            "Place.Read.All - Read room/resource lists",
-            "Grant admin consent for your organization"
+            "If you're the administrator, approve the prompt that appears",
+            "Otherwise, share the \"Grant admin consent\" link with your administrator"
           ]
         },
         {
           step: 3,
-          title: "Create Client Secret",
-          description: "In your app registration, go to Certificates & secrets",
+          title: "Choose calendars and test",
+          description: "Pick the calendars and room mailboxes to sync, then click Test Connection.",
           details: [
-            "Click 'New client secret'",
-            "Set description: MinistryPath Integration",
-            "Set expiration (24 months recommended)",
-            "Copy the secret value immediately (it won't be shown again)"
-          ]
-        },
-        {
-          step: 4,
-          title: "Copy Your Credentials",
-          description: "From the app registration Overview page, copy:",
-          details: [
-            "Application (client) ID → Enter as Client ID below",
-            "Directory (tenant) ID → Enter as Tenant ID below"
-          ]
-        },
-        {
-          step: 5,
-          title: "Add Client Secret to Environment",
-          description: "Add the secret to your Replit environment variables",
-          details: [
-            "Variable name: OUTLOOK_CLIENT_SECRET",
-            "Variable value: (paste your client secret)"
+            "Sync turns on automatically once administrator access is granted"
           ]
         }
       ],
       requiredPermissions: [
-        "Calendars.Read",
-        "Calendars.Read.Shared", 
+        "Calendars.ReadWrite",
         "Place.Read.All"
       ],
-      note: "After setup, MinistryPath will be able to read your church calendars and room availability. Events created in MinistryPath (like room bookings) will sync to Outlook."
+      note: "MinistryPath reads your church calendars and room availability. Room bookings made in MinistryPath sync to Outlook."
     });
   });
 

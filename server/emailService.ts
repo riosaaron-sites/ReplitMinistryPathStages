@@ -256,7 +256,7 @@ async function generatePDF(data: EmailData): Promise<Buffer> {
 function generateEmailHTML(data: EmailData, isForChurch: boolean): string {
   const { user, results } = data;
   const orgName = escapeHtml(data.org.name);
-  const participantName = getParticipantName(user);
+  const participantName = escapeHtml(getParticipantName(user));
   const completedDate = formatDate(results.completedAt);
   
   const spiritualGifts = (results.spiritualGifts as GiftScore[]) || [];
@@ -316,8 +316,8 @@ function generateEmailHTML(data: EmailData, isForChurch: boolean): string {
     <!-- Participant Info -->
     <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
       <p style="margin: 5px 0;"><strong>Name:</strong> ${participantName}</p>
-      <p style="margin: 5px 0;"><strong>Email:</strong> ${user.email || 'Not provided'}</p>
-      ${user.phone ? `<p style="margin: 5px 0;"><strong>Phone:</strong> ${user.phone}</p>` : ''}
+      <p style="margin: 5px 0;"><strong>Email:</strong> ${user.email ? escapeHtml(user.email) : 'Not provided'}</p>
+      ${user.phone ? `<p style="margin: 5px 0;"><strong>Phone:</strong> ${escapeHtml(user.phone)}</p>` : ''}
       <p style="margin: 5px 0;"><strong>Completed:</strong> ${completedDate}</p>
     </div>
 
@@ -682,6 +682,28 @@ export interface MeetingEmailData {
   }>;
 }
 
+// Meeting titles, notes, agendas and action items are free text from users,
+// so the HTML versions of these emails must escape every field.
+function escapeMeetingData(data: MeetingEmailData): MeetingEmailData {
+  const esc = (v: string | undefined) => (v === undefined ? undefined : escapeHtml(v));
+  return {
+    ...data,
+    orgName: escapeHtml(data.orgName),
+    meetingTitle: escapeHtml(data.meetingTitle),
+    meetingDate: escapeHtml(data.meetingDate),
+    location: esc(data.location),
+    ministryName: esc(data.ministryName),
+    notes: esc(data.notes),
+    agenda: data.agenda?.map(escapeHtml),
+    decisions: data.decisions?.map(escapeHtml),
+    actionItems: data.actionItems?.map(item => ({
+      description: escapeHtml(item.description),
+      assignee: esc(item.assignee),
+      dueDate: esc(item.dueDate),
+    })),
+  };
+}
+
 /**
  * Generate meeting agenda email content (both HTML and plain text)
  * Can be used for sending or for generating copy-able content
@@ -690,11 +712,13 @@ export function generateMeetingAgendaContent(data: MeetingEmailData): { html: st
   const organizerName = data.organizer 
     ? `${data.organizer.firstName || ''} ${data.organizer.lastName || ''}`.trim() || 'Meeting Organizer'
     : 'Meeting Organizer';
+  const h = escapeMeetingData(data);
+  const hOrganizerName = escapeHtml(organizerName);
   
   const subject = `Meeting Agenda: ${data.meetingTitle} - ${data.meetingDate}`;
   
-  const agendaItems = data.agenda?.length 
-    ? data.agenda.map((item, i) => `<li>${item}</li>`).join('')
+  const agendaItems = h.agenda?.length 
+    ? h.agenda.map((item, i) => `<li>${item}</li>`).join('')
     : '<li>No agenda items set</li>';
   
   const agendaTextItems = data.agenda?.length
@@ -710,17 +734,17 @@ export function generateMeetingAgendaContent(data: MeetingEmailData): { html: st
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="text-align: center; margin-bottom: 30px;">
-    <h1 style="color: #f8a84a; margin-bottom: 5px;">${escapeHtml(data.orgName)}</h1>
+    <h1 style="color: #f8a84a; margin-bottom: 5px;">${h.orgName}</h1>
   </div>
   
   <h2 style="color: #f2660f;">Meeting Agenda</h2>
   
   <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-    <p style="margin: 5px 0;"><strong>Meeting:</strong> ${data.meetingTitle}</p>
-    <p style="margin: 5px 0;"><strong>Date:</strong> ${data.meetingDate}</p>
-    ${data.location ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${data.location}</p>` : ''}
-    ${data.ministryName ? `<p style="margin: 5px 0;"><strong>Ministry:</strong> ${data.ministryName}</p>` : ''}
-    <p style="margin: 5px 0;"><strong>Organizer:</strong> ${organizerName}</p>
+    <p style="margin: 5px 0;"><strong>Meeting:</strong> ${h.meetingTitle}</p>
+    <p style="margin: 5px 0;"><strong>Date:</strong> ${h.meetingDate}</p>
+    ${h.location ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${h.location}</p>` : ''}
+    ${h.ministryName ? `<p style="margin: 5px 0;"><strong>Ministry:</strong> ${h.ministryName}</p>` : ''}
+    <p style="margin: 5px 0;"><strong>Organizer:</strong> ${hOrganizerName}</p>
   </div>
   
   <h3 style="color: #333; border-bottom: 2px solid #f8a84a; padding-bottom: 5px;">Agenda</h3>
@@ -728,12 +752,12 @@ export function generateMeetingAgendaContent(data: MeetingEmailData): { html: st
     ${agendaItems}
   </ol>
   
-  <p style="margin-top: 30px; color: #666;">Please come prepared to discuss these items. If you have any additional topics, please let ${organizerName} know beforehand.</p>
+  <p style="margin-top: 30px; color: #666;">Please come prepared to discuss these items. If you have any additional topics, please let ${hOrganizerName} know beforehand.</p>
   
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
   
   <p style="color: #888; font-size: 12px; text-align: center;">
-    ${escapeHtml(data.orgName)}
+    ${h.orgName}
   </p>
 </body>
 </html>
@@ -769,19 +793,20 @@ export function generateMeetingRecapContent(data: MeetingEmailData): { html: str
   const organizerName = data.organizer 
     ? `${data.organizer.firstName || ''} ${data.organizer.lastName || ''}`.trim() || 'Meeting Organizer'
     : 'Meeting Organizer';
+  const h = escapeMeetingData(data);
   
   const subject = `Meeting Recap: ${data.meetingTitle} - ${data.meetingDate}`;
   
-  const decisionsHtml = data.decisions?.length
-    ? data.decisions.map(d => `<li>${d}</li>`).join('')
+  const decisionsHtml = h.decisions?.length
+    ? h.decisions.map(d => `<li>${d}</li>`).join('')
     : '<li>No decisions recorded</li>';
   
   const decisionsText = data.decisions?.length
     ? data.decisions.map((d, i) => `${i + 1}. ${d}`).join('\n')
     : '- No decisions recorded';
 
-  const actionItemsHtml = data.actionItems?.length
-    ? data.actionItems.map(item => 
+  const actionItemsHtml = h.actionItems?.length
+    ? h.actionItems.map(item => 
         `<li><strong>${item.description}</strong>${item.assignee ? ` (Assigned to: ${item.assignee})` : ''}${item.dueDate ? ` - Due: ${item.dueDate}` : ''}</li>`
       ).join('')
     : '<li>No action items assigned</li>';
@@ -801,21 +826,21 @@ export function generateMeetingRecapContent(data: MeetingEmailData): { html: str
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="text-align: center; margin-bottom: 30px;">
-    <h1 style="color: #f8a84a; margin-bottom: 5px;">${escapeHtml(data.orgName)}</h1>
+    <h1 style="color: #f8a84a; margin-bottom: 5px;">${h.orgName}</h1>
   </div>
   
   <h2 style="color: #f2660f;">Meeting Recap</h2>
   
   <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-    <p style="margin: 5px 0;"><strong>Meeting:</strong> ${data.meetingTitle}</p>
-    <p style="margin: 5px 0;"><strong>Date:</strong> ${data.meetingDate}</p>
-    ${data.location ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${data.location}</p>` : ''}
-    ${data.ministryName ? `<p style="margin: 5px 0;"><strong>Ministry:</strong> ${data.ministryName}</p>` : ''}
+    <p style="margin: 5px 0;"><strong>Meeting:</strong> ${h.meetingTitle}</p>
+    <p style="margin: 5px 0;"><strong>Date:</strong> ${h.meetingDate}</p>
+    ${h.location ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${h.location}</p>` : ''}
+    ${h.ministryName ? `<p style="margin: 5px 0;"><strong>Ministry:</strong> ${h.ministryName}</p>` : ''}
   </div>
   
-  ${data.notes ? `
+  ${h.notes ? `
   <h3 style="color: #333; border-bottom: 2px solid #f8a84a; padding-bottom: 5px;">Meeting Notes</h3>
-  <p style="color: #555; white-space: pre-wrap;">${data.notes}</p>
+  <p style="color: #555; white-space: pre-wrap;">${h.notes}</p>
   ` : ''}
   
   <h3 style="color: #333; border-bottom: 2px solid #f8a84a; padding-bottom: 5px;">Key Decisions</h3>
@@ -833,7 +858,7 @@ export function generateMeetingRecapContent(data: MeetingEmailData): { html: str
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
   
   <p style="color: #888; font-size: 12px; text-align: center;">
-    ${escapeHtml(data.orgName)}
+    ${h.orgName}
   </p>
 </body>
 </html>
